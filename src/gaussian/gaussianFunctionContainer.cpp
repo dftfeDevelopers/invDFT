@@ -18,30 +18,24 @@
 //
 #include "gaussianFunctionContainer.h"
 
-namespace invDFT
-{
-  gaussianFunctionManager &
-  gaussianFunctionContainer::getGaussianFunctionManager(
-    const gaussianFunctionContainer::gaussianDensityAttribute attribute)
-  {
-    auto it = d_attributeToGaussianFunctionManager.find(attribute);
-    AssertThrow(it != d_attributeToGaussianFunctionManager.end(),
-                dealii::ExcMessage(
-                  "The gaussianFunctionManager is not built for "
-                  " the given attribute"));
-    return *(it->second);
-  }
+namespace invDFT {
+gaussianFunctionManager &gaussianFunctionContainer::getGaussianFunctionManager(
+    const gaussianFunctionContainer::gaussianDensityAttribute attribute) {
+  auto it = d_attributeToGaussianFunctionManager.find(attribute);
+  AssertThrow(it != d_attributeToGaussianFunctionManager.end(),
+              dealii::ExcMessage("The gaussianFunctionManager is not built for "
+                                 " the given attribute"));
+  return *(it->second);
+}
 
-  void
-  gaussianFunctionContainer::addGaussianFunctionManager(
+void gaussianFunctionContainer::addGaussianFunctionManager(
     const gaussianFunctionContainer::gaussianDensityAttribute attribute,
-    std::shared_ptr<gaussianFunctionManager>                  gfManager)
+    std::shared_ptr<gaussianFunctionManager> gfManager)
 
-  {
-    d_attributeToGaussianFunctionManager.insert(
+{
+  d_attributeToGaussianFunctionManager.insert(
       std::make_pair(attribute, gfManager));
-  }
+}
 
-  gaussianFunctionContainer::~gaussianFunctionContainer()
-  {}
+gaussianFunctionContainer::~gaussianFunctionContainer() {}
 } // end of namespace invDFT

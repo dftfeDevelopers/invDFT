@@ -20,68 +20,61 @@
 #ifndef DFTFE_EXE_INVERSEDFTPARAMETERS_H
 #define DFTFE_EXE_INVERSEDFTPARAMETERS_H
 
-#include <string>
-#include <mpi.h>
 #include <deal.II/base/data_out_base.h>
 #include <deal.II/base/parameter_handler.h>
 #include <fstream>
 #include <iostream>
+#include <mpi.h>
+#include <string>
 
-namespace invDFT
-{
-  class inverseDFTParameters
-  {
-  public:
+namespace invDFT {
+class inverseDFTParameters {
+public:
+  // Parameters for inverse problem
+  double inverseBFGSTol;
+  unsigned int inverseBFGSLineSearch;
+  double inverseBFGSLineSearchTol;
+  unsigned int inverseBFGSHistory;
+  unsigned int inverseMaxBFGSIter;
+  bool writeVxcData;
+  bool readVxcData;
+  std::string fileNameReadVxcPostFix;
+  std::string vxcDataFolder;
+  std::string fileNameWriteVxcPostFix;
+  unsigned int writeVxcFrequency;
 
-    // Parameters for inverse problem
-    double       inverseBFGSTol;
-    unsigned int inverseBFGSLineSearch;
-    double       inverseBFGSLineSearchTol;
-    unsigned int inverseBFGSHistory;
-    unsigned int inverseMaxBFGSIter;
-    bool         writeVxcData;
-    bool         readVxcData;
-    std::string  fileNameReadVxcPostFix;
-    std::string  vxcDataFolder;
-    std::string  fileNameWriteVxcPostFix;
-    unsigned int writeVxcFrequency;
+  double rhoTolForConstraints;
+  double VxcInnerDomain;
+  double VxcInnerMeshSize;
+  double inverseAdjointInitialTol;
+  unsigned int inverseAdjointMaxIterations;
+  double inverseAlpha1ForWeights;
+  double inverseAlpha2ForWeights;
+  double inverseTauForSmoothening;
+  double inverseTauForVxBc;
+  double inverseTauForFABC;
+  double inverseFractionOccTol;
+  double inverseDegeneracyTol;
 
-    double rhoTolForConstraints;
-    double       VxcInnerDomain;
-    double VxcInnerMeshSize;
-    double       inverseAdjointInitialTol;
-    unsigned int inverseAdjointMaxIterations;
-    double       inverseAlpha1ForWeights;
-    double       inverseAlpha2ForWeights;
-    double       inverseTauForSmoothening;
-    double       inverseTauForVxBc;
-    double       inverseTauForFABC;
-    double       inverseFractionOccTol;
-    double       inverseDegeneracyTol;
+  bool readGaussian;
+  bool fermiAmaldiBC;
+  std::string densityMatPrimaryFileNameSpinUp;
+  std::string densityMatPrimaryFileNameSpinDown;
+  std::string gaussianAtomicCoord;
+  std::string sMatrixName;
+  std::string densityMatDFTFileNameSpinUp;
+  std::string densityMatDFTFileNameSpinDown;
 
-    bool        readGaussian;
-    bool        fermiAmaldiBC;
-    std::string densityMatPrimaryFileNameSpinUp;
-    std::string densityMatPrimaryFileNameSpinDown;
-    std::string gaussianAtomicCoord;
-    std::string sMatrixName;
-    std::string densityMatDFTFileNameSpinUp;
-    std::string densityMatDFTFileNameSpinDown;
+  inverseDFTParameters();
 
+  /**
+   * Parse parameters.
+   */
+  void parse_parameters(const std::string &parameter_file,
+                        const MPI_Comm &mpi_comm_parent,
+                        const bool printParams = false);
 
-    inverseDFTParameters();
-
-    /**
-     * Parse parameters.
-     */
-    void
-    parse_parameters(const std::string &parameter_file,
-                     const MPI_Comm &   mpi_comm_parent,
-                     const bool         printParams      = false);
-
-
-  }; // class dftParameters
+}; // class dftParameters
 } // end of namespace invDFT
-
 
 #endif // DFTFE_EXE_INVERSEDFTPARAMETERS_H

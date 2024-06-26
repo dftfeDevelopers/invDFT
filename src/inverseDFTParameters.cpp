@@ -19,311 +19,276 @@
 
 #include "inverseDFTParameters.h"
 
+namespace invDFT {
 
-namespace invDFT
-{
-
-  namespace internalInvDFTParams
+namespace internalInvDFTParams {
+void declare_parameters(dealii::ParameterHandler &prm) {
+  prm.enter_subsection("Inverse DFT parameters");
   {
-    void
-    declare_parameters(dealii::ParameterHandler &prm)
-    {
-      prm.enter_subsection("Inverse DFT parameters");
-      {
-        prm.declare_entry("TOL FOR BFGS",
-                          "1e-12",
-                          dealii::Patterns::Double(0.0),
-                          "[Standard] tol for the BFGS solver convergence");
+    prm.declare_entry("TOL FOR BFGS", "1e-12", dealii::Patterns::Double(0.0),
+                      "[Standard] tol for the BFGS solver convergence");
 
-        prm.declare_entry(
-          "BFGS LINE SEARCH",
-          "1",
-          dealii::Patterns::Integer(0, 20),
-          "[Standard] Number of times line search is performed before finding the optimal lambda.");
+    prm.declare_entry("BFGS LINE SEARCH", "1", dealii::Patterns::Integer(0, 20),
+                      "[Standard] Number of times line search is performed "
+                      "before finding the optimal lambda.");
 
-        prm.declare_entry("TOL FOR BFGS LINE SEARCH",
-                          "1e-6",
-                          dealii::Patterns::Double(0.0),
-                          "[Standard] tol for the BFGS solver line search");
+    prm.declare_entry("TOL FOR BFGS LINE SEARCH", "1e-6",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] tol for the BFGS solver line search");
 
-        prm.declare_entry(
-          "BFGS HISTORY",
-          "100",
-          dealii::Patterns::Integer(1, 1000),
-          "[Standard] Number of times line search is performed before finding the optimal lambda.");
+    prm.declare_entry("BFGS HISTORY", "100", dealii::Patterns::Integer(1, 1000),
+                      "[Standard] Number of times line search is performed "
+                      "before finding the optimal lambda.");
 
-        prm.declare_entry("BFGS MAX ITERATIONS",
-                          "10000",
-                          dealii::Patterns::Integer(1, 100000),
-                          "[Standard] Max number of iterations in BFGS.");
+    prm.declare_entry("BFGS MAX ITERATIONS", "10000",
+                      dealii::Patterns::Integer(1, 100000),
+                      "[Standard] Max number of iterations in BFGS.");
 
-        prm.declare_entry(
-          "READ VXC DATA",
-          "true",
-          dealii::Patterns::Bool(),
-          "[Standard] Flag to determine if the initial Vxc is read from a file or not");
+    prm.declare_entry("READ VXC DATA", "true", dealii::Patterns::Bool(),
+                      "[Standard] Flag to determine if the initial Vxc is read "
+                      "from a file or not");
 
-        prm.declare_entry(
-          "POSTFIX TO THE FILENAME FOR READING VXC DATA",
-          ".",
-          dealii::Patterns::Anything(),
-          "[Standard] Post fix added to the filenames from which the vxc data is read");
-        prm.declare_entry(
-          "WRITE VXC DATA",
-          "true",
-          dealii::Patterns::Bool(),
-          "[Standard] Write Vxc data so that it can be read later");
+    prm.declare_entry("POSTFIX TO THE FILENAME FOR READING VXC DATA", ".",
+                      dealii::Patterns::Anything(),
+                      "[Standard] Post fix added to the filenames from which "
+                      "the vxc data is read");
+    prm.declare_entry("WRITE VXC DATA", "true", dealii::Patterns::Bool(),
+                      "[Standard] Write Vxc data so that it can be read later");
 
-        prm.declare_entry(
-          "FOLDER FOR VXC DATA",
-          ".",
-          dealii::Patterns::Anything(),
-          "[Standard] Folder into which the Vxc data is written or read");
+    prm.declare_entry(
+        "FOLDER FOR VXC DATA", ".", dealii::Patterns::Anything(),
+        "[Standard] Folder into which the Vxc data is written or read");
 
-        prm.declare_entry(
-          "POSTFIX TO THE FILENAME FOR WRITING VXC DATA",
-          ".",
-          dealii::Patterns::Anything(),
-          "[Standard] Post fix added to the filenames in which the vxc data is written");
+    prm.declare_entry("POSTFIX TO THE FILENAME FOR WRITING VXC DATA", ".",
+                      dealii::Patterns::Anything(),
+                      "[Standard] Post fix added to the filenames in which the "
+                      "vxc data is written");
 
-        prm.declare_entry(
-          "FREQUENCY FOR WRITING VXC",
-          "20",
-          dealii::Patterns::Integer(1, 2000),
-          "[Standard] Frequency with which the Vxc data is written to the disk");
+    prm.declare_entry(
+        "FREQUENCY FOR WRITING VXC", "20", dealii::Patterns::Integer(1, 2000),
+        "[Standard] Frequency with which the Vxc data is written to the disk");
 
-	prm.declare_entry(
-	"RHO TOL FOR CONSTRAINTS",
-	"1e-6",
-	dealii::Patterns::Double(0.0),
-	"[Standard] The tol for rho less than which the initial guess of Vxc is not updated");
-        prm.declare_entry(
-          "VXC MESH DOMAIN SIZE",
-          "6.0",
-          dealii::Patterns::Double(0.0),
-          "[Standard] The distance of the bounding box from the atoms in which the Vxc mesh is refined");
+    prm.declare_entry("RHO TOL FOR CONSTRAINTS", "1e-6",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] The tol for rho less than which the initial "
+                      "guess of Vxc is not updated");
+    prm.declare_entry("VXC MESH DOMAIN SIZE", "6.0",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] The distance of the bounding box from the "
+                      "atoms in which the Vxc mesh is refined");
 
-        prm.declare_entry(
-          "VXC MESH SIZE NEAR ATOM",
-          "0.3",
-          dealii::Patterns::Double(0.0),
-          "[Standard] The mesh size near atom for the Vxc mesh");
+    prm.declare_entry("VXC MESH SIZE NEAR ATOM", "0.3",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] The mesh size near atom for the Vxc mesh");
 
-        prm.declare_entry(
-          "INITIAL TOL FOR ADJOINT PROBLEM",
-          "1e-11",
-          dealii::Patterns::Double(0.0),
-          "[Standard] The initial tol to which the adjoint problem is solved. This tol is adaptively reduced as the iterations proceed based on the loss.");
+    prm.declare_entry("INITIAL TOL FOR ADJOINT PROBLEM", "1e-11",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] The initial tol to which the adjoint problem "
+                      "is solved. This tol is adaptively reduced as the "
+                      "iterations proceed based on the loss.");
 
-        prm.declare_entry(
-          "MAX ITERATIONS FOR ADJOINT PROBLEM",
-          "5000",
-          dealii::Patterns::Integer(10, 10000),
-          "[Standard] The maximum number of iterations allowed in MinRes while solving the adjoint problem.");
+    prm.declare_entry("MAX ITERATIONS FOR ADJOINT PROBLEM", "5000",
+                      dealii::Patterns::Integer(10, 10000),
+                      "[Standard] The maximum number of iterations allowed in "
+                      "MinRes while solving the adjoint problem.");
 
-        prm.declare_entry(
-          "ALPHA1 FOR WEIGHTS FOR LOSS FUNCTION",
-          "0.0",
-          dealii::Patterns::Double(0.0),
-          "[Standard] The parameter used for weight assigned to loss. The weight at a point is assigned based on  \frac{1}{\rho^{\alpha1} + \tau} + \rho^{\alpha2}");
+    prm.declare_entry("ALPHA1 FOR WEIGHTS FOR LOSS FUNCTION", "0.0",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] The parameter used for weight assigned to "
+                      "loss. The weight at a point is assigned based on  "
+                      "\frac{1}{\rho^{\alpha1} + \tau} + \rho^{\alpha2}");
 
-        prm.declare_entry(
-          "ALPHA2 FOR WEIGHTS FOR LOSS FUNCTION",
-          "0.0",
-          dealii::Patterns::Double(0.0),
-          "[Standard] The parameter used for weight assigned to loss. The weight at a point is assigned based on  \frac{1}{\rho^{\alpha} + \tau} + \rho^{\alpha2}");
+    prm.declare_entry("ALPHA2 FOR WEIGHTS FOR LOSS FUNCTION", "0.0",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] The parameter used for weight assigned to "
+                      "loss. The weight at a point is assigned based on  "
+                      "\frac{1}{\rho^{\alpha} + \tau} + \rho^{\alpha2}");
 
+    prm.declare_entry(
+        "TAU FOR WEIGHTS FOR LOSS FUNCTION", "1e-2",
+        dealii::Patterns::Double(0.0),
+        "[Standard] The parameter used for weight assigned to loss. The weight "
+        "at a point is assigned based on  \frac{1}{\rho^{\alpha} + \tau}.");
+    prm.declare_entry(
+        "TAU FOR WEIGHTS FOR SETTING VX BC", "1e-2",
+        dealii::Patterns::Double(0.0),
+        "[Standard] The parameter used for weight assigned for Vx. The weight "
+        "at a point is assigned based on  \frac{\rho}{\rho + \tau}.");
+    prm.declare_entry(
+        "TAU FOR WEIGHTS FOR SETTING FABC", "1e-2",
+        dealii::Patterns::Double(0.0),
+        "[Standard] The parameter used for weight assigned to set FA BC. The "
+        "weight at a point is assigned based on  \frac{\rho}{\rho+ \tau}. This "
+        "parameter is used to transition from Vxc to Vfa in the far field ");
 
-        prm.declare_entry(
-          "TAU FOR WEIGHTS FOR LOSS FUNCTION",
-          "1e-2",
-          dealii::Patterns::Double(0.0),
-          "[Standard] The parameter used for weight assigned to loss. The weight at a point is assigned based on  \frac{1}{\rho^{\alpha} + \tau}.");
-        prm.declare_entry(
-          "TAU FOR WEIGHTS FOR SETTING VX BC",
-          "1e-2",
-          dealii::Patterns::Double(0.0),
-          "[Standard] The parameter used for weight assigned for Vx. The weight at a point is assigned based on  \frac{\rho}{\rho + \tau}.");
-        prm.declare_entry(
-          "TAU FOR WEIGHTS FOR SETTING FABC",
-          "1e-2",
-          dealii::Patterns::Double(0.0),
-          "[Standard] The parameter used for weight assigned to set FA BC. The weight at a point is assigned based on  \frac{\rho}{\rho+ \tau}. This parameter is used to transition from Vxc to Vfa in the far field ");
+    prm.declare_entry("TOL FOR FRACTIONAL OCCUPANCY", "1e-8",
+                      dealii::Patterns::Double(0.0),
+                      "[STANDARD] tol for checking fractional occupancy");
 
-        prm.declare_entry("TOL FOR FRACTIONAL OCCUPANCY",
-                          "1e-8",
-                          dealii::Patterns::Double(0.0),
-                          "[STANDARD] tol for checking fractional occupancy");
+    prm.declare_entry("TOL FOR DEGENERACY", "0.002",
+                      dealii::Patterns::Double(0.0),
+                      "[STANDARD] tol for checking fractional occupancy");
 
-        prm.declare_entry("TOL FOR DEGENERACY",
-                          "0.002",
-                          dealii::Patterns::Double(0.0),
-                          "[STANDARD] tol for checking fractional occupancy");
+    prm.declare_entry("READ GAUSSIAN DATA AS INPUT", "true",
+                      dealii::Patterns::Bool(),
+                      "[Standard] Flag to determine if the initial Vxc is read "
+                      "from a file which is written in gaussian format");
+    prm.declare_entry("SET FERMIAMALDI IN THE FAR FIELD AS INPUT", "true",
+                      dealii::Patterns::Bool(),
+                      "[Standard] Flag to determine if the initial Vxc has "
+                      "fermi-amaldi as the far field in the input");
 
-        prm.declare_entry(
-          "READ GAUSSIAN DATA AS INPUT",
-          "true",
-          dealii::Patterns::Bool(),
-          "[Standard] Flag to determine if the initial Vxc is read from a file which is written in gaussian format");
-        prm.declare_entry(
-          "SET FERMIAMALDI IN THE FAR FIELD AS INPUT",
-          "true",
-          dealii::Patterns::Bool(),
-          "[Standard] Flag to determine if the initial Vxc has fermi-amaldi as the far field in the input");
+    prm.declare_entry(
+        "GAUSSIAN DENSITY FOR PRIMARY RHO SPIN UP", ".",
+        dealii::Patterns::Anything(),
+        "[Standard] File name containing the density matrix obtained from the "
+        "gaussian code. This is the density for which the Vxc is computed. In "
+        "case of spin un polarised, provide half the total density ");
 
-        prm.declare_entry(
-          "GAUSSIAN DENSITY FOR PRIMARY RHO SPIN UP",
-          ".",
-          dealii::Patterns::Anything(),
-          "[Standard] File name containing the density matrix obtained from the gaussian code. This is the density for which the Vxc is computed. In case of spin un polarised, provide half the total density ");
+    prm.declare_entry(
+        "GAUSSIAN DENSITY FOR PRIMARY RHO SPIN DOWN", ".",
+        dealii::Patterns::Anything(),
+        "[Standard] File name containing the density matrix obtained from the "
+        "gaussian code. This is the density for which the Vxc is computed. In "
+        "case of spin un polarised, this is not used");
 
-        prm.declare_entry(
-          "GAUSSIAN DENSITY FOR PRIMARY RHO SPIN DOWN",
-          ".",
-          dealii::Patterns::Anything(),
-          "[Standard] File name containing the density matrix obtained from the gaussian code. This is the density for which the Vxc is computed. In case of spin un polarised, this is not used");
+    prm.declare_entry("GAUSSIAN DENSITY FOR DFT RHO SPIN UP", ".",
+                      dealii::Patterns::Anything(),
+                      "[Standard] File name containing the density matrix "
+                      "obtained from the gaussian code. This density is used "
+                      "for computing the delta rho correction. In case of spin "
+                      "un polarised, provide half the total density ");
 
-        prm.declare_entry(
-          "GAUSSIAN DENSITY FOR DFT RHO SPIN UP",
-          ".",
-          dealii::Patterns::Anything(),
-          "[Standard] File name containing the density matrix obtained from the gaussian code. This density is used for computing the delta rho correction. In case of spin un polarised, provide half the total density ");
+    prm.declare_entry(
+        "GAUSSIAN DENSITY FOR DFT RHO SPIN DOWN", ".",
+        dealii::Patterns::Anything(),
+        "[Standard] File name containing the density matrix obtained from the "
+        "gaussian code. This density is used for computing the delta rho "
+        "correction. In case of spin un polarised, pthis file is not used ");
 
-        prm.declare_entry(
-          "GAUSSIAN DENSITY FOR DFT RHO SPIN DOWN",
-          ".",
-          dealii::Patterns::Anything(),
-          "[Standard] File name containing the density matrix obtained from the gaussian code. This density is used for computing the delta rho correction. In case of spin un polarised, pthis file is not used ");
+    prm.declare_entry(
+        "GAUSSIAN ATOMIC COORD FILE", ".", dealii::Patterns::Anything(),
+        "[Standard] File name containing the coordinates of the atoms. These "
+        "coordinates will be used by the Gaussian code. This has to compatible "
+        "with the input coordinates file");
 
-
-        prm.declare_entry(
-          "GAUSSIAN ATOMIC COORD FILE",
-          ".",
-          dealii::Patterns::Anything(),
-          "[Standard] File name containing the coordinates of the atoms. These coordinates will be used by the Gaussian code. This has to compatible with the input coordinates file");
-
-        prm.declare_entry("GAUSSIAN S MATRIX FILE",
-                          ".",
-                          dealii::Patterns::Anything(),
-                          "[Standard] File containing the S matrix");
-      }
-      prm.leave_subsection();
-    }
-
+    prm.declare_entry("GAUSSIAN S MATRIX FILE", ".",
+                      dealii::Patterns::Anything(),
+                      "[Standard] File containing the S matrix");
   }
+  prm.leave_subsection();
+}
 
-  inverseDFTParameters::inverseDFTParameters()
+} // namespace internalInvDFTParams
+
+inverseDFTParameters::inverseDFTParameters() {
+  // Parameters for inverse problem
+  inverseBFGSTol = 1e-12;
+  inverseBFGSLineSearch = 1;
+  inverseBFGSLineSearchTol = 1e-6;
+  inverseBFGSHistory = 100;
+  inverseMaxBFGSIter = 10000;
+  writeVxcData = true;
+  readVxcData = true;
+  fileNameReadVxcPostFix = ".";
+  vxcDataFolder = ".";
+  fileNameWriteVxcPostFix = ".";
+  writeVxcFrequency = 20;
+
+  rhoTolForConstraints = 1e-6;
+  VxcInnerDomain = 6.0;
+  VxcInnerMeshSize = 0.0;
+  inverseAdjointInitialTol = 1e-11;
+  inverseAdjointMaxIterations = 5000;
+  inverseAlpha1ForWeights = 0.0;
+  inverseAlpha2ForWeights = 0.0;
+  inverseTauForSmoothening = 1e-2;
+  inverseTauForVxBc = 1e-2;
+  inverseTauForFABC = 1e-2;
+  inverseFractionOccTol = 1e-8;
+  inverseDegeneracyTol = 0.002;
+
+  readGaussian = false;
+  fermiAmaldiBC = false;
+  densityMatPrimaryFileNameSpinUp = ".";
+  densityMatPrimaryFileNameSpinDown = ".";
+  gaussianAtomicCoord = ".";
+  sMatrixName = ".";
+  densityMatDFTFileNameSpinUp = ".";
+  densityMatDFTFileNameSpinDown = ".";
+}
+
+void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
+                                            const MPI_Comm &mpi_comm_parent,
+                                            const bool printParams) {
+  dealii::ParameterHandler prm;
+  internalInvDFTParams::declare_parameters(prm);
+  prm.parse_input(parameter_file);
+
+  prm.enter_subsection("Inverse DFT parameters");
   {
-    // Parameters for inverse problem
-    inverseBFGSTol           = 1e-12;
-    inverseBFGSLineSearch    = 1;
-    inverseBFGSLineSearchTol = 1e-6;
-    inverseBFGSHistory       = 100;
-    inverseMaxBFGSIter       = 10000;
-    writeVxcData             = true;
-    readVxcData              = true;
-    fileNameReadVxcPostFix   = ".";
-    vxcDataFolder            = ".";
-    fileNameWriteVxcPostFix  = ".";
-    writeVxcFrequency        = 20;
-
-    rhoTolForConstraints = 1e-6;
-    VxcInnerDomain              = 6.0;
-    VxcInnerMeshSize  = 0.0;
-    inverseAdjointInitialTol    = 1e-11;
-    inverseAdjointMaxIterations = 5000;
-    inverseAlpha1ForWeights     = 0.0;
-    inverseAlpha2ForWeights     = 0.0;
-    inverseTauForSmoothening    = 1e-2;
-    inverseTauForVxBc           = 1e-2;
-    inverseTauForFABC           = 1e-2;
-    inverseFractionOccTol       = 1e-8;
-    inverseDegeneracyTol        = 0.002;
-
-    readGaussian                      = false;
-    fermiAmaldiBC                     = false;
-    densityMatPrimaryFileNameSpinUp   = ".";
-    densityMatPrimaryFileNameSpinDown = ".";
-    gaussianAtomicCoord               = ".";
-    sMatrixName                       = ".";
-    densityMatDFTFileNameSpinUp       = ".";
-    densityMatDFTFileNameSpinDown     = ".";
-  }
-
-  void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
-                                         const MPI_Comm &   mpi_comm_parent,
-                                         const bool         printParams)
-  {
-    dealii::ParameterHandler prm;
-    internalInvDFTParams::declare_parameters(prm);
-    prm.parse_input(parameter_file);
-
-    prm.enter_subsection("Inverse DFT parameters");
-    {
-      inverseBFGSTol           = prm.get_double("TOL FOR BFGS");
-      inverseBFGSLineSearch    = prm.get_integer("BFGS LINE SEARCH");
-      inverseBFGSLineSearchTol = prm.get_double("TOL FOR BFGS LINE SEARCH");
-      inverseBFGSHistory       = prm.get_integer("BFGS HISTORY");
-      inverseMaxBFGSIter       = prm.get_integer("BFGS MAX ITERATIONS");
-      readVxcData              = prm.get_bool("READ VXC DATA");
-      fileNameReadVxcPostFix =
+    inverseBFGSTol = prm.get_double("TOL FOR BFGS");
+    inverseBFGSLineSearch = prm.get_integer("BFGS LINE SEARCH");
+    inverseBFGSLineSearchTol = prm.get_double("TOL FOR BFGS LINE SEARCH");
+    inverseBFGSHistory = prm.get_integer("BFGS HISTORY");
+    inverseMaxBFGSIter = prm.get_integer("BFGS MAX ITERATIONS");
+    readVxcData = prm.get_bool("READ VXC DATA");
+    fileNameReadVxcPostFix =
         prm.get("POSTFIX TO THE FILENAME FOR READING VXC DATA");
-      writeVxcData  = prm.get_bool("WRITE VXC DATA");
-      vxcDataFolder = prm.get("FOLDER FOR VXC DATA");
-      fileNameWriteVxcPostFix =
+    writeVxcData = prm.get_bool("WRITE VXC DATA");
+    vxcDataFolder = prm.get("FOLDER FOR VXC DATA");
+    fileNameWriteVxcPostFix =
         prm.get("POSTFIX TO THE FILENAME FOR WRITING VXC DATA");
-      writeVxcFrequency = prm.get_integer("FREQUENCY FOR WRITING VXC");
+    writeVxcFrequency = prm.get_integer("FREQUENCY FOR WRITING VXC");
 
-      rhoTolForConstraints = prm.get_double("RHO TOL FOR CONSTRAINTS");
-      VxcInnerDomain = prm.get_double("VXC MESH DOMAIN SIZE");
-      VxcInnerMeshSize = prm.get_double("VXC MESH SIZE NEAR ATOM");
-      inverseAdjointInitialTol =
+    rhoTolForConstraints = prm.get_double("RHO TOL FOR CONSTRAINTS");
+    VxcInnerDomain = prm.get_double("VXC MESH DOMAIN SIZE");
+    VxcInnerMeshSize = prm.get_double("VXC MESH SIZE NEAR ATOM");
+    inverseAdjointInitialTol =
         prm.get_double("INITIAL TOL FOR ADJOINT PROBLEM");
-      inverseAdjointMaxIterations =
+    inverseAdjointMaxIterations =
         prm.get_integer("MAX ITERATIONS FOR ADJOINT PROBLEM");
-      inverseAdjointInitialTol =
+    inverseAdjointInitialTol =
         prm.get_double("INITIAL TOL FOR ADJOINT PROBLEM");
-      inverseAdjointInitialTol =
+    inverseAdjointInitialTol =
         prm.get_double("INITIAL TOL FOR ADJOINT PROBLEM");
-      inverseAlpha1ForWeights =
+    inverseAlpha1ForWeights =
         prm.get_double("ALPHA1 FOR WEIGHTS FOR LOSS FUNCTION");
-      inverseAlpha2ForWeights =
+    inverseAlpha2ForWeights =
         prm.get_double("ALPHA2 FOR WEIGHTS FOR LOSS FUNCTION");
-      inverseTauForSmoothening =
+    inverseTauForSmoothening =
         prm.get_double("TAU FOR WEIGHTS FOR LOSS FUNCTION");
-      inverseTauForVxBc = prm.get_double("TAU FOR WEIGHTS FOR SETTING VX BC");
-      inverseTauForFABC = prm.get_double("TAU FOR WEIGHTS FOR SETTING FABC");
-      inverseFractionOccTol = prm.get_double("TOL FOR FRACTIONAL OCCUPANCY");
-      inverseDegeneracyTol  = prm.get_double("TOL FOR DEGENERACY");
-      readGaussian          = prm.get_bool("READ GAUSSIAN DATA AS INPUT");
-      fermiAmaldiBC = prm.get_bool("SET FERMIAMALDI IN THE FAR FIELD AS INPUT");
-      densityMatPrimaryFileNameSpinUp =
+    inverseTauForVxBc = prm.get_double("TAU FOR WEIGHTS FOR SETTING VX BC");
+    inverseTauForFABC = prm.get_double("TAU FOR WEIGHTS FOR SETTING FABC");
+    inverseFractionOccTol = prm.get_double("TOL FOR FRACTIONAL OCCUPANCY");
+    inverseDegeneracyTol = prm.get_double("TOL FOR DEGENERACY");
+    readGaussian = prm.get_bool("READ GAUSSIAN DATA AS INPUT");
+    fermiAmaldiBC = prm.get_bool("SET FERMIAMALDI IN THE FAR FIELD AS INPUT");
+    densityMatPrimaryFileNameSpinUp =
         prm.get("GAUSSIAN DENSITY FOR PRIMARY RHO SPIN UP");
-      densityMatPrimaryFileNameSpinDown =
+    densityMatPrimaryFileNameSpinDown =
         prm.get("GAUSSIAN DENSITY FOR PRIMARY RHO SPIN DOWN");
-      gaussianAtomicCoord = prm.get("GAUSSIAN ATOMIC COORD FILE");
-      sMatrixName         = prm.get("GAUSSIAN S MATRIX FILE");
-      densityMatDFTFileNameSpinUp =
+    gaussianAtomicCoord = prm.get("GAUSSIAN ATOMIC COORD FILE");
+    sMatrixName = prm.get("GAUSSIAN S MATRIX FILE");
+    densityMatDFTFileNameSpinUp =
         prm.get("GAUSSIAN DENSITY FOR DFT RHO SPIN UP");
-      densityMatDFTFileNameSpinDown =
+    densityMatDFTFileNameSpinDown =
         prm.get("GAUSSIAN DENSITY FOR DFT RHO SPIN DOWN");
-    }
-    prm.leave_subsection();
-
-
-    const bool printParametersToFile = false;
-    if (printParametersToFile &&
-        dealii::Utilities::MPI::this_mpi_process(mpi_comm_parent) == 0)
-      {
-        prm.print_parameters(std::cout, dealii::ParameterHandler::OutputStyle::LaTeX);
-        exit(0);
-      }
-
-    if (dealii::Utilities::MPI::this_mpi_process(mpi_comm_parent) == 0 && printParams)
-      {
-        prm.print_parameters(std::cout, dealii::ParameterHandler::ShortText);
-      }
-
   }
+  prm.leave_subsection();
+
+  const bool printParametersToFile = false;
+  if (printParametersToFile &&
+      dealii::Utilities::MPI::this_mpi_process(mpi_comm_parent) == 0) {
+    prm.print_parameters(std::cout,
+                         dealii::ParameterHandler::OutputStyle::LaTeX);
+    exit(0);
+  }
+
+  if (dealii::Utilities::MPI::this_mpi_process(mpi_comm_parent) == 0 &&
+      printParams) {
+    prm.print_parameters(std::cout, dealii::ParameterHandler::ShortText);
+  }
+}
 
 } // end of namespace invDFT

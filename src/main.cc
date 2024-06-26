@@ -20,14 +20,12 @@
 //
 // dft header
 //
-#include "InverseDFTEngine.h"
 #include "InverseDFTBase.h"
+#include "InverseDFTEngine.h"
 #include "inverseDFTParameters.h"
 
 #include "dftfeWrapper.h"
 #include "runParameters.h"
-
-
 
 //
 // C++ headers
@@ -38,226 +36,172 @@
 #include <sstream>
 #include <sys/stat.h>
 
-
-int
-main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   //
   MPI_Init(&argc, &argv);
 
   dftfe::dftfeWrapper::globalHandlesInitialize(MPI_COMM_WORLD);
   const double start = MPI_Wtime();
-  int          world_rank;
+  int world_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
   // deal.II tests expect parameter file as a first (!) argument
-  AssertThrow(argc > 1,
-              dealii::ExcMessage(
-                "Usage:\n"
-                "mpirun -np nProcs executable parameterfile.prm\n"
-                "\n"));
+  AssertThrow(argc > 1, dealii::ExcMessage(
+                            "Usage:\n"
+                            "mpirun -np nProcs executable parameterfile.prm\n"
+                            "\n"));
   const std::string parameter_file = argv[1];
 
- const std::string inverse_parameter_file = argv[2];
+  const std::string inverse_parameter_file = argv[2];
 
   dftfe::runParameters runParams;
   runParams.parse_parameters(parameter_file);
 
+  if (runParams.solvermode == "UNIT_TEST") {
+    dftfe::dftfeWrapper dftfeWrapped(parameter_file, MPI_COMM_WORLD, true, true,
+                                     "UNIT_TEST", runParams.restartFilesPath,
+                                     runParams.verbosity, runParams.useDevice);
+    dftfeWrapped.run();
+  } else {
+    dftfe::dftfeWrapper dftfeWrapped(parameter_file, MPI_COMM_WORLD, true, true,
+                                     "GS", runParams.restartFilesPath,
+                                     runParams.verbosity, runParams.useDevice);
 
+    auto dftBasePtr = dftfeWrapped.getDftfeBasePtr();
 
-  if (runParams.solvermode == "UNIT_TEST")
-    {
-      dftfe::dftfeWrapper dftfeWrapped(parameter_file,
-                                       MPI_COMM_WORLD,
-                                       true,
-                                       true,
-                                       "UNIT_TEST",
-                                       runParams.restartFilesPath,
-                                       runParams.verbosity,
-                                       runParams.useDevice);
-      dftfeWrapped.run();
-    }
-  else
-    {
-      dftfe::dftfeWrapper dftfeWrapped(parameter_file,
-                                       MPI_COMM_WORLD,
-                                       true,
-                                       true,
-                                       "GS",
-                                       runParams.restartFilesPath,
-                                       runParams.verbosity,
-                                       runParams.useDevice);
+    dftfe::dftParameters dftParams;
+    dftParams.parse_parameters(parameter_file, MPI_COMM_WORLD, true, "GS",
+                               runParams.restartFilesPath, 4, false);
 
-      auto dftBasePtr = dftfeWrapped.getDftfeBasePtr();
+    invDFT::inverseDFTParameters invParams;
+    invParams.parse_parameters(inverse_parameter_file, MPI_COMM_WORLD, true);
 
-      dftfe::dftParameters dftParams;
-      dftParams.parse_parameters(parameter_file,
-                                 MPI_COMM_WORLD,
-                                 true,
-                                 "GS",
-                                 runParams.restartFilesPath,
-                                 4,
-                                 false);
+    invDFT::InverseDFTBase *invBasePtr;
 
-      invDFT::inverseDFTParameters invParams;
-      invParams.parse_parameters(inverse_parameter_file,
-                                 MPI_COMM_WORLD,
-                                 true);
+    if (runParams.useDevice == false) {
+      int order = dftParams.finiteElementPolynomialOrder;
+      switch (order) {
+      case 2:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<2, 2, dftfe::utils::MemorySpace::HOST>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
 
-        invDFT::InverseDFTBase* invBasePtr;
+        break;
 
-      if ( runParams.useDevice == false)
-      {
-          int order = dftParams.finiteElementPolynomialOrder;
-          switch (order)
-          {
-              case 2:
-                  invBasePtr = new invDFT::InverseDFTEngine<2,2,dftfe::utils::MemorySpace::HOST>(*dftBasePtr,
-                                                                                     dftParams,
-                                                                                     invParams,
-                                                                                     dftBasePtr->getMPIParent(),
-                                                                                     dftBasePtr->getMPIDomain(),
-                                                                                     dftBasePtr->getMPIInterBand(),
-                                                                                     dftBasePtr->getMPIInterPool());
+      case 3:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<3, 3, dftfe::utils::MemorySpace::HOST>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
 
-                  break;
-
-              case 3:
-                  invBasePtr = new invDFT::InverseDFTEngine<3,3,dftfe::utils::MemorySpace::HOST>(*dftBasePtr,
-                                                                                     dftParams,
-                                                                                     invParams,
-                                                                                     dftBasePtr->getMPIParent(),
-                                                                                     dftBasePtr->getMPIDomain(),
-                                                                                     dftBasePtr->getMPIInterBand(),
-                                                                                     dftBasePtr->getMPIInterPool());
-
-
-                  break;
-              case 4:
-                  invBasePtr = new invDFT::InverseDFTEngine<4,4,dftfe::utils::MemorySpace::HOST>(*dftBasePtr,
-                                                                                     dftParams,
-                                                                                     invParams,
-                                                                                     dftBasePtr->getMPIParent(),
-                                                                                     dftBasePtr->getMPIDomain(),
-                                                                                     dftBasePtr->getMPIInterBand(),
-                                                                                     dftBasePtr->getMPIInterPool());
-                  break;
-              case 5:
-                  invBasePtr = new invDFT::InverseDFTEngine<5,5,dftfe::utils::MemorySpace::HOST>(*dftBasePtr,
-                                                                                     dftParams,
-                                                                                     invParams,
-                                                                                     dftBasePtr->getMPIParent(),
-                                                                                     dftBasePtr->getMPIDomain(),
-                                                                                     dftBasePtr->getMPIInterBand(),
-                                                                                     dftBasePtr->getMPIInterPool());
-                  break;
-              case 6:
-                  invBasePtr = new invDFT::InverseDFTEngine<6,6,dftfe::utils::MemorySpace::HOST>(*dftBasePtr,
-                                                                                     dftParams,
-                                                                                     invParams,
-                                                                                     dftBasePtr->getMPIParent(),
-                                                                                     dftBasePtr->getMPIDomain(),
-                                                                                     dftBasePtr->getMPIInterBand(),
-                                                                                     dftBasePtr->getMPIInterPool());
-                  break;
-              default :
-                  AssertThrow(
-                          false,
-                          dealii::ExcMessage(
-                                  "InvDFT Error: FEOrder is not an appropriate value"));
-                  break;
-          }
+        break;
+      case 4:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<4, 4, dftfe::utils::MemorySpace::HOST>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
+      case 5:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<5, 5, dftfe::utils::MemorySpace::HOST>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
+      case 6:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<6, 6, dftfe::utils::MemorySpace::HOST>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
+      default:
+        AssertThrow(false,
+                    dealii::ExcMessage(
+                        "InvDFT Error: FEOrder is not an appropriate value"));
+        break;
       }
+    }
 
 #ifdef DFTFE_WITH_DEVICE
-      if ( runParams.useDevice == true)
-      {
-           int order = dftParams.finiteElementPolynomialOrder;
-           switch (order)
-           {
-               case 2:
-                    invBasePtr = new invDFT::InverseDFTEngine<2,2,dftfe::utils::MemorySpace::DEVICE>(*dftBasePtr,
-                                  dftParams,
-                                  invParams,
-                                  dftBasePtr->getMPIParent(),
-                                  dftBasePtr->getMPIDomain(),
-                                  dftBasePtr->getMPIInterBand(),
-                                  dftBasePtr->getMPIInterPool());
-                   break;
+    if (runParams.useDevice == true) {
+      int order = dftParams.finiteElementPolynomialOrder;
+      switch (order) {
+      case 2:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<2, 2,
+                                         dftfe::utils::MemorySpace::DEVICE>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
 
-                   case 3:
-                    invBasePtr = new invDFT::InverseDFTEngine<3,3,dftfe::utils::MemorySpace::DEVICE>(*dftBasePtr,
-                                  dftParams,
-                                  invParams,
-                                  dftBasePtr->getMPIParent(),
-                                  dftBasePtr->getMPIDomain(),
-                                  dftBasePtr->getMPIInterBand(),
-                                  dftBasePtr->getMPIInterPool());
-                   break;
-                   case 4:
-                    invBasePtr = new invDFT::InverseDFTEngine<4,4,dftfe::utils::MemorySpace::DEVICE>(*dftBasePtr,
-                                  dftParams,
-                                  invParams,
-                                  dftBasePtr->getMPIParent(),
-                                  dftBasePtr->getMPIDomain(),
-                                  dftBasePtr->getMPIInterBand(),
-                                  dftBasePtr->getMPIInterPool());
-                   break;
-                   case 5:
-                    invBasePtr = new invDFT::InverseDFTEngine<5,5,dftfe::utils::MemorySpace::DEVICE>(*dftBasePtr,
-                                  dftParams,
-                                  invParams,
-                                  dftBasePtr->getMPIParent(),
-                                  dftBasePtr->getMPIDomain(),
-                                  dftBasePtr->getMPIInterBand(),
-                                  dftBasePtr->getMPIInterPool());
-                   break;
-                   case 6:
-                    invBasePtr = new invDFT::InverseDFTEngine<6,6,dftfe::utils::MemorySpace::DEVICE>(*dftBasePtr,
-                                  dftParams,
-                                  invParams,
-                                  dftBasePtr->getMPIParent(),
-                                  dftBasePtr->getMPIDomain(),
-                                  dftBasePtr->getMPIInterBand(),
-                                  dftBasePtr->getMPIInterPool());
-                   break;
-               default :
-                    AssertThrow(
-                      false,
-                      dealii::ExcMessage(
+      case 3:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<3, 3,
+                                         dftfe::utils::MemorySpace::DEVICE>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
+      case 4:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<4, 4,
+                                         dftfe::utils::MemorySpace::DEVICE>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
+      case 5:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<5, 5,
+                                         dftfe::utils::MemorySpace::DEVICE>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
+      case 6:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<6, 6,
+                                         dftfe::utils::MemorySpace::DEVICE>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
+      default:
+        AssertThrow(false,
+                    dealii::ExcMessage(
                         "InvDFT Error: FEOrder is not an appropriate value"));
-                                   break;
-           }
-
-
+        break;
       }
+    }
 #endif
 
-      dftfeWrapped.run();
-      invBasePtr->run();
+    dftfeWrapped.run();
+    invBasePtr->run();
 
-      delete invBasePtr;
-
-    }
-
+    delete invBasePtr;
+  }
 
   const double end = MPI_Wtime();
-  if (runParams.verbosity >= 1 && world_rank == 0)
-    {
-      std::cout
-        << "============================================================================================="
-        << std::endl;
-      std::cout
+  if (runParams.verbosity >= 1 && world_rank == 0) {
+    std::cout << "============================================================="
+                 "================================"
+              << std::endl;
+    std::cout
         << "invDFT Program ends. Elapsed wall time since start of the program: "
         << end - start << " seconds." << std::endl;
-      std::cout
-        << "============================================================================================="
-        << std::endl;
-    }
+    std::cout << "============================================================="
+                 "================================"
+              << std::endl;
+  }
 
   dftfe::dftfeWrapper::globalHandlesFinalize();
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();
   return 0;
 }
-

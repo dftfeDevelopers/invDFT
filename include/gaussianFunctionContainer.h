@@ -17,10 +17,8 @@
 // @author Bikash Kanungo
 //
 
-
 #ifndef DFTFE_GAUSSIANFUNCTIONCONTAINER_H
 #define DFTFE_GAUSSIANFUNCTIONCONTAINER_H
-
 
 #include "headers.h"
 #include <dftUtils.h>
@@ -32,32 +30,25 @@
 //
 //
 
-namespace invDFT
-{
-  class gaussianFunctionContainer
-  {
-  public:
-    enum class gaussianDensityAttribute
-    {
-      PRIMARY,
-      SECONDARY
-    };
+namespace invDFT {
+class gaussianFunctionContainer {
+public:
+  enum class gaussianDensityAttribute { PRIMARY, SECONDARY };
 
-    gaussianFunctionContainer();
-    ~gaussianFunctionContainer();
+  gaussianFunctionContainer();
+  ~gaussianFunctionContainer();
 
-    gaussianFunctionManager &
-    getGaussianFunctionManager(const gaussianDensityAttribute attribute);
+  gaussianFunctionManager &
+  getGaussianFunctionManager(const gaussianDensityAttribute attribute);
 
-    void
-    addGaussianFunctionManager(
-      const gaussianDensityAttribute           attribute,
+  void addGaussianFunctionManager(
+      const gaussianDensityAttribute attribute,
       std::shared_ptr<gaussianFunctionManager> gfManager);
 
-  private:
-    std::map<gaussianDensityAttribute, std::shared_ptr<gaussianFunctionManager>>
+private:
+  std::map<gaussianDensityAttribute, std::shared_ptr<gaussianFunctionManager>>
       d_attributeToGaussianFunctionManager;
 
-  }; // end of class gaussianFunctionContainer
+}; // end of class gaussianFunctionContainer
 } // end of namespace invDFT
 #endif // DFTFE_GAUSSIANFUNCTIONCONTAINER_H

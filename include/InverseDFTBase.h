@@ -20,18 +20,15 @@
 #ifndef INVDFT_INVERSEDFTBASE_H
 #define INVDFT_INVERSEDFTBASE_H
 
-namespace invDFT
-{
-    class InverseDFTBase
-    {
-    public:
-        virtual void
-        run() = 0;
+namespace invDFT {
+class InverseDFTBase {
+public:
+  virtual void run() = 0;
 
-        virtual void testAdjoint() = 0;
+  virtual void testAdjoint() = 0;
 
-    }; // end of InverseDFTBase class
+}; // end of InverseDFTBase class
 
 } // end of namespace invDFT
 
-#endif //INVDFT_INVERSEDFTBASE_H
+#endif // INVDFT_INVERSEDFTBASE_H
