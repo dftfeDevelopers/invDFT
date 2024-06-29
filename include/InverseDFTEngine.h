@@ -116,6 +116,12 @@ private:
 
   void setPotBasePoissonNuclear();
 
+  void solvePhiTotalAllElectronNonPeriodic
+          (dftfe::distributedCPUVec<double> &                          x,
+      const dftfe::utils::MemoryStorage<double,dftfe::utils::MemorySpace::HOST> &rhoValues,
+      const MPI_Comm &                                     mpiComm_parent,
+      const MPI_Comm &                                     mpiComm_domain);
+
   //
   // TODO
   // 1. Set the adjoint to be homogenous for density below a tolerance (use

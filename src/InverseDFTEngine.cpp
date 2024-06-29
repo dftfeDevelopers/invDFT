@@ -2231,7 +2231,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   pcout << " sum total in solve phi = " << sumTotalRho << "\n";
   pcout << " solving poisson in the pot nuclear \n";
 
-  d_dftBaseClass->solvePhiTotalAllElectronNonPeriodic(
+  solvePhiTotalAllElectronNonPeriodic(
       vTotalElectroNodal, totalRhoValues, d_mpiComm_parent, d_mpiComm_domain);
 
   pcout << " vTotalElectroNodal norm solvePhiTotalAllElectronNonPeriodic = "
@@ -2292,6 +2292,63 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
               d_potBaseQuadData[1].begin());
   }
 }
+
+    template <unsigned int FEOrder, unsigned int FEOrderElectro,
+            dftfe::utils::MemorySpace memorySpace>
+    void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::solvePhiTotalAllElectronNonPeriodic
+            (dftfe::distributedCPUVec<double> &                          x,
+             const dftfe::utils::MemoryStorage<double,dftfe::utils::MemorySpace::HOST> &rhoValues,
+             const MPI_Comm &                                     mpiComm_parent,
+             const MPI_Comm &                                     mpiComm_domain)
+    {
+        // create the poisson solver problem
+      dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(
+        mpiComm_domain);
+
+      // create the dealii solver
+
+      dftfe::dealiiLinearSolver CGSolver(mpiComm_parent,
+                                  mpiComm_domain,
+                                  dftfe::dealiiLinearSolver::CG);
+
+
+      dftfe::vectorTools::createDealiiVector<double>(
+              d_dftMatrixFreeDataElectro->get_vector_partitioner(
+                      d_dftElectroDoFHandlerIndex),
+        1,
+        x);
+
+      x = 0.0;
+
+      poissonSolverObj.reinit(
+              d_basisOperationsElectroHost,
+        x,
+              d_dftBaseClass->getConstraintsVectorElectro(),
+              d_dftElectroDoFHandlerIndex,
+              d_dftElectroRhsQuadIndex,
+              d_dftElectroAxQuadIndex,
+              d_dftBaseClass->getAtomNodeToChargeMap(),
+              d_dftBaseClass->getBQuadValuesAllAtoms(),
+              d_dftBaseClass->getSmearedChargeQuadratureIdElectro,
+        rhoValues, // rhoValues,
+        true,      // isComputeDiagonalA
+        false,     // isComputeMeanValueConstraints,
+              d_dftParams.smearedNuclearCharges,
+        true,  // isRhoValues
+        false, // isGradSmearedChargeRhs
+        0,
+        false, // storeSmearedChargeRhs
+        false, // reuseSmearedChargeRhs
+        true   // reinitializeFastConstraints
+      );
+
+      // use the CG solver
+      CGSolver.solve(poissonSolverObj,
+                     d_dftParamsPtr->absLinearSolverTolerance,
+                     d_dftParamsPtr->maxLinearSolverIterations,
+                     d_dftParamsPtr->verbosity);
+
+    }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
