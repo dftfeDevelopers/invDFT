@@ -60,7 +60,7 @@ SET(TARGET_SRC ./src/gaussian/gaussianFunctionContainer.cpp
 	       ./src/BFGSInverseDFTSolver.cpp
 	       ./src/InverseDFTSolverFunction.cpp
 	       ./src/InverseDFTEngine.cpp
-	       ./src/MultiVectorAdjointLinearSolverProblem.cpp
+	       #./src/MultiVectorAdjointLinearSolverProblem.cpp
 	       ./src/inverseDFTParameters.cpp
 	       ./src/TriangulationManagerVxc.cpp
 )
@@ -70,12 +70,13 @@ SET(TARGET_SRC ./src/gaussian/gaussianFunctionContainer.cpp
 IF ("${GPU_LANG}" STREQUAL "cuda")
 
     SET(DEVICE_SRC
-            ./src/TDDensityCalculatorDeviceKernels.cc)
+            ./src/MultiVectorAdjointLinearSolverProblem.cpp
+	    )
 
 ELSEIF ("${GPU_LANG}" STREQUAL "hip")
 
     SET(DEVICE_SRC
-            ./src/TDDensityCalculatorDeviceKernels.cc)
+            ./src/MultiVectorAdjointLinearSolverProblem.cpp)
 
 ENDIF()
 
@@ -140,18 +141,19 @@ IF (WITH_GPU)
         ADD_DEFINITIONS(-DDFTFE_WITH_DEVICE_AMD)
     ENDIF()
 
+
     IF ("${GPU_LANG}" STREQUAL "cuda")
         MESSAGE(STATUS "DFTFE with GPU LANG CUDA")
         ADD_DEFINITIONS(-DDFTFE_WITH_DEVICE_LANG_CUDA)
         find_package(CUDAToolkit REQUIRED)
-        target_include_directories(${TARGETLIB} PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
-        target_link_libraries(${TARGETLIB} PUBLIC CUDA::cudart)
-        target_link_libraries(${TARGETLIB} PUBLIC CUDA::cublas)
+        target_include_directories(${TARGET_LIB} PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+        target_link_libraries(${TARGET_LIB} PUBLIC CUDA::cudart)
+        target_link_libraries(${TARGET_LIB} PUBLIC CUDA::cublas)
     ELSEIF ("${GPU_LANG}" STREQUAL "hip")
         MESSAGE(STATUS "DFTFE with GPU LANG HIP")
         ADD_DEFINITIONS(-DDFTFE_WITH_DEVICE_LANG_HIP)
         find_package(hipblas)
-        target_link_libraries(${TARGETLIB} PUBLIC roc::hipblas)
+        target_link_libraries(${TARGET_LIB} PUBLIC roc::hipblas)
     ENDIF()
     IF (WITH_GPU_AWARE_MPI)
         ADD_DEFINITIONS(-DDFTFE_WITH_DEVICE_AWARE_MPI)
@@ -165,7 +167,7 @@ ENDIF()
 #Dependencies
 #
 
-FIND_PACKAGE(deal.II 9.3.3 REQUIRED
+FIND_PACKAGE(deal.II 9.5.1 REQUIRED
         HINTS ${deal.II_DIR} ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR}
 )
 IF(NOT ${deal.II_FOUND})
@@ -203,12 +205,19 @@ ENDIF()
 #DEAL_II_INITIALIZE_CACHED_VARIABLES()
 
 
-TARGET_INCLUDE_DIRECTORIES(${TARGET_LIB} PUBLIC ${DEAL_II_INCLUDE_DIRS})
+TARGET_INCLUDE_DIRECTORIES(${TARGET_LIB} PUBLIC ${DEAL_II_INCLUDE_RELDIR})
 IF("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-    TARGET_LINK_LIBRARIES (${TARGET_LIB} PUBLIC ${DEAL_II_LIBRARIES_RELEASE})
+    TARGET_LINK_LIBRARIES (${TARGET_LIB} PUBLIC dealii::dealii_release)
 ELSE()
-    TARGET_LINK_LIBRARIES (${TARGET_LIB} PUBLIC ${DEAL_II_LIBRARIES_DEBUG})
+   TARGET_LINK_LIBRARIES (${TARGET_LIB} PUBLIC dealii::dealii_debug)
 ENDIF()
+
+#TARGET_INCLUDE_DIRECTORIES(${TARGET_LIB} PUBLIC ${DEAL_II_INCLUDE_DIRS})
+#IF("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+#    TARGET_LINK_LIBRARIES (${TARGET_LIB} PUBLIC ${DEAL_II_LIBRARIES_RELEASE})
+#ELSE()
+#    TARGET_LINK_LIBRARIES (${TARGET_LIB} PUBLIC ${DEAL_II_LIBRARIES_DEBUG})
+#ENDIF()
 
 
 #TARGET_INCLUDE_DIRECTORIES(${TARGETLIB} PUBLIC ${DEAL_II_INCLUDE_DIRS})
@@ -235,7 +244,7 @@ ENDIF()
 #
 # ELPA. Pass path to -DCMAKE_PREFIX_PATH
 #
-MESSAGE(STATUS "ELPA DIr = ${CMAKE_PREFIX_PATH}")
+MESSAGE(STATUS "ELPA Dir = ${CMAKE_PREFIX_PATH}")
 find_package(ELPA 2024 REQUIRED)
 MESSAGE(STATUS "Will Link With ELPA")
 target_link_libraries(${TARGET_LIB} PUBLIC ELPA::ELPA)
@@ -295,7 +304,7 @@ IF (WITH_GPU AND "${GPU_LANG}" STREQUAL "cuda")
             MESSAGE(STATUS "Will Link With NCCL")
             ADD_DEFINITIONS(-DDFTFE_WITH_CUDA_NCCL)
             find_package(MPI REQUIRED)
-            target_link_libraries(${TARGETLIB} PUBLIC NCCL MPI::MPI_CXX)
+            target_link_libraries(${TARGET_LIB} PUBLIC NCCL MPI::MPI_CXX)
         ENDIF()
     ENDIF()
 ENDIF()
@@ -310,7 +319,7 @@ IF (WITH_GPU AND "${GPU_LANG}" STREQUAL "hip")
             MESSAGE(STATUS "Will Link With RCCL")
             ADD_DEFINITIONS(-DDFTFE_WITH_HIP_RCCL)
             find_package(MPI REQUIRED)
-            target_link_libraries(${TARGETLIB} PUBLIC RCCL MPI::MPI_CXX)
+            target_link_libraries(${TARGET_LIB} PUBLIC RCCL MPI::MPI_CXX)
         ENDIF()
     ENDIF()
 ENDIF()

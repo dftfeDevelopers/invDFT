@@ -26,6 +26,10 @@
 #include <map>
 #include <vector>
 
+#ifdef DFTFE_WITH_DEVICE
+#include <DeviceAPICalls.h>
+#endif
+
 namespace invDFT {
 namespace {
 
