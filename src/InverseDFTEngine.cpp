@@ -361,7 +361,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       dftfe::TransferDataBetweenMeshesIncompatiblePartitioning<memorySpace>>(
       *d_dftMatrixFreeData, d_dftDensityDoFHandlerIndex, d_dftQuadIndex,
       d_matrixFreeDataVxc, d_dofHandlerVxcIndex, d_quadVxcIndex,
-      d_mpiComm_domain);
+      d_dftParams.verbosity,d_mpiComm_domain);
   MPI_Barrier(d_mpiComm_domain);
   double createMapEnd = MPI_Wtime();
 
@@ -542,8 +542,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     }
   }
 
-  auto sigmaGradIt = std::max_element(d_gradRhoTarget[0].begin(),
-                                      d_gradRhoTarget[0].end());
+  auto sigmaGradIt = std::max_element(d_sigmaGradRhoTarget.begin(),
+                                      d_sigmaGradRhoTarget.end());
   double maxSigmaGradVal = *sigmaGradIt;
 
   MPI_Allreduce(MPI_IN_PLACE, &maxSigmaGradVal, 1, MPI_DOUBLE, MPI_MAX,
@@ -759,7 +759,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   const unsigned int numQuadPointsPerCellInVxc = d_gaussQuadVxc.size();
 
   double spinFactor = (d_dftParams.spinPolarized == 1) ? 1.0 : 2.0;
-
+/*
   int isSpinPolarized;
   if (d_dftParams.spinPolarized == 1) {
     isSpinPolarized = XC_POLARIZED;
@@ -791,7 +791,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
                         true,  // computeCorrelation
                         " ");
   excFunctionalPtrGGA = excManagerObjGGA.getExcDensityObj();
-
+*/
   std::vector<dftfe::distributedCPUVec<double>> vxcInitialGuess;
 
   unsigned int locallyOwnedDofs = d_dofHandlerDFTClass->n_locally_owned_dofs();
@@ -893,19 +893,19 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
 
 
 
-    funcXGGAPtr = new xc_func_type;
-    xc_func_init(funcXGGAPtr, XC_GGA_X_LB, (d_numSpins == 2 )  XC_POLARIZED ? XC_UNPOLARIZED);
-    xc_gga_vxc(funcXGGAPtr,
+    xc_func_type funcXGGA;
+    xc_func_init(&funcXGGA, XC_GGA_X_LB, (d_numSpins == 2 ) ? XC_POLARIZED : XC_UNPOLARIZED);
+    xc_gga_vxc(&funcXGGA,
                totalOwnedCellsPsi * numQuadPointsPerPsiCell,
                &rhoSpinFlattened[0],
                &d_sigmaGradRhoTarget[0],
                &exchangePotentialVal[0],
                &derExchEnergyWithSigmaValDummy[0]);
 
-    funcCLDAPtr = new xc_func_type;
+    xc_func_type funcCLDA;
 
-    xc_func_init(funcCLDAPtr, XC_LDA_C_PW, (d_numSpins == 2 )  XC_POLARIZED ? XC_UNPOLARIZED);
-    xc_lda_vxc(funcCLDAPtr,
+    xc_func_init(&funcCLDA, XC_LDA_C_PW, (d_numSpins == 2 ) ? XC_POLARIZED : XC_UNPOLARIZED);
+    xc_lda_vxc(&funcCLDA,
                totalOwnedCellsPsi * numQuadPointsPerPsiCell,
                &rhoSpinFlattened[0],
                &corrPotentialVal[0]);
