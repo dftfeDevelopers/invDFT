@@ -2290,13 +2290,13 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       poissonSolverObj.reinit(
               d_basisOperationsElectroHost,
         x,
-              d_dftBaseClass->getConstraintsVectorElectro(),
+              *(d_dftBaseClass->getConstraintsVectorElectro()),
               d_dftElectroDoFHandlerIndex,
               d_dftElectroRhsQuadIndex,
               d_dftElectroAxQuadIndex,
               d_dftBaseClass->getAtomNodeToChargeMap(),
               d_dftBaseClass->getBQuadValuesAllAtoms(),
-              d_dftBaseClass->getSmearedChargeQuadratureIdElectro,
+              d_dftBaseClass->getSmearedChargeQuadratureIdElectro(),
         rhoValues, // rhoValues,
         true,      // isComputeDiagonalA
         false,     // isComputeMeanValueConstraints,
@@ -2311,9 +2311,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
 
       // use the CG solver
       CGSolver.solve(poissonSolverObj,
-                     d_dftParamsPtr->absLinearSolverTolerance,
-                     d_dftParamsPtr->maxLinearSolverIterations,
-                     d_dftParamsPtr->verbosity);
+                     d_dftParams.absLinearSolverTolerance,
+                     d_dftParams.maxLinearSolverIterations,
+                     d_dftParams.verbosity);
 
     }
 

@@ -19,9 +19,9 @@
 
 #ifndef DFTFE_INVERSEDFT_H
 #define DFTFE_INVERSEDFT_H
+#include <InverseDFTSolverFunction.h>
 #include "InverseDFTBase.h"
 #include "headers.h"
-#include <InverseDFTSolverFunction.h>
 
 #include <TriangulationManagerVxc.h>
 #include <constraintMatrixInfo.h>
