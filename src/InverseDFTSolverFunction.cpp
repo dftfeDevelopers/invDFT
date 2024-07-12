@@ -338,9 +338,9 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     preComputeParentJxW();
   }
 
-  d_kohnShamClass->resetExtPotHamFlag();
-  d_kohnShamClass->setVEffExternalPotCorrToZero();
-  d_kohnShamClass->computeCellHamiltonianMatrixExtPotContribution();
+  //d_kohnShamClass->resetExtPotHamFlag();
+  //d_kohnShamClass->setVEffExternalPotCorrToZero();
+  //d_kohnShamClass->computeCellHamiltonianMatrixExtPotContribution();
 
   const dealii::Quadrature<3> &quadratureRuleParent =
       d_matrixFreeDataParent->get_quadrature(
@@ -1075,9 +1075,9 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
       }
     }
 
-    d_computingTimerStandard.enter_subsection("computeVeff inverse");
-    d_kohnShamClass->computeVEff(potKSQuadData, iSpin);
-    d_computingTimerStandard.leave_subsection("computeVeff inverse");
+    d_computingTimerStandard.enter_subsection("setVEff inverse");
+    d_kohnShamClass->setVEff(potKSQuadData, iSpin);
+    d_computingTimerStandard.leave_subsection("setVEff inverse");
 
     d_computingTimerStandard.enter_subsection("computeHamiltonianMatrix");
     d_kohnShamClass->computeCellHamiltonianMatrix();

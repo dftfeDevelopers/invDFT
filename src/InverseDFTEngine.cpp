@@ -22,6 +22,7 @@
 #include "InverseDFTSolverFunction.h"
 #include <densityCalculator.h>
 #include <gaussianFunctionManager.h>
+#include <xc.h>
 namespace invDFT {
 namespace {
 double realPart(const double x) { return x; }
@@ -466,9 +467,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   if (d_numSpins == 1) {
     std::vector<double> qpointCoord(3, 0.0);
     std::vector<double> gradVal(3, 0.0);
-    d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
-                                numQuadraturePointsPerCellParent);
 
+      d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
+                                  numQuadraturePointsPerCellParent);
     std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
     // TODO uncomment this after testing
     for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
@@ -541,8 +542,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     }
   }
 
-  auto sigmaGradIt = std::max_element(d_sigmaGradRhoTarget.begin(),
-                                      d_sigmaGradRhoTarget.end());
+  auto sigmaGradIt = std::max_element(d_gradRhoTarget[0].begin(),
+                                      d_gradRhoTarget[0].end());
   double maxSigmaGradVal = *sigmaGradIt;
 
   MPI_Allreduce(MPI_IN_PLACE, &maxSigmaGradVal, 1, MPI_DOUBLE, MPI_MAX,
@@ -810,8 +811,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       d_dftMatrixFreeData->get_quadrature(d_dftQuadIndex);
 
   unsigned int numQuadPointsPerPsiCell = quadratureRulePsi.size();
-  std::vector<double> rhoSpinFlattened(
-      d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell, 0.0);
+    std::vector<double> rhoSpinFlattened( d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell);
 
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
@@ -830,9 +830,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
     for (unsigned int iCell = 0; iCell < totalOwnedCellsPsi; iCell++) {
       for (unsigned int iQuad = 0; iQuad < numQuadPointsPerPsiCell; iQuad++) {
-        rhoSpinFlattened[(iCell * numQuadPointsPerPsiCell + iQuad) *
-                             d_numSpins +
-                         iSpin] =
+        rhoSpinFlattened[(iCell * numQuadPointsPerPsiCell + iQuad)*d_numSpins +  iSpin] =
             spinFactor *
             d_rhoTarget[iSpin][iCell * numQuadPointsPerPsiCell + iQuad];
       }
@@ -886,66 +884,35 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   std::vector<double> exchangePotentialVal(
       d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell, 0.0);
 
-  std::vector<double> exchangePotentialValDummy(
-      d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell, 0.0);
-
   std::vector<double> corrPotentialVal(
       d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell, 0.0);
 
-  std::vector<double> corrPotentialValDummy(
-      d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell, 0.0);
 
   std::vector<double> derExchEnergyWithSigmaValDummy(
       d_sigmaGradRhoTarget.size(), 0.0);
 
-  std::vector<double> derCorrEnergyWithSigmaValDummy(
-      d_sigmaGradRhoTarget.size(), 0.0);
 
-  std::map<dftfe::rhoDataAttributes, const std::vector<double> *> rhoData;
 
-  std::map<dftfe::VeffOutputDataAttributes, std::vector<double> *>
-      outputDerExchangeEnergy;
+    funcXGGAPtr = new xc_func_type;
+    xc_func_init(funcXGGAPtr, XC_GGA_X_LB, (d_numSpins == 2 )  XC_POLARIZED ? XC_UNPOLARIZED);
+    xc_gga_vxc(funcXGGAPtr,
+               totalOwnedCellsPsi * numQuadPointsPerPsiCell,
+               &rhoSpinFlattened[0],
+               &d_sigmaGradRhoTarget[0],
+               &exchangePotentialVal[0],
+               &derExchEnergyWithSigmaValDummy[0]);
 
-  std::map<dftfe::VeffOutputDataAttributes, std::vector<double> *>
-      outputDerExchangeEnergyDummy;
+    funcCLDAPtr = new xc_func_type;
 
-  std::map<dftfe::VeffOutputDataAttributes, std::vector<double> *>
-      outputDerCorrEnergy, outputDerCorrEnergyDummy;
+    xc_func_init(funcCLDAPtr, XC_LDA_C_PW, (d_numSpins == 2 )  XC_POLARIZED ? XC_UNPOLARIZED);
+    xc_lda_vxc(funcCLDAPtr,
+               totalOwnedCellsPsi * numQuadPointsPerPsiCell,
+               &rhoSpinFlattened[0],
+               &corrPotentialVal[0]);
 
-  rhoData[dftfe::rhoDataAttributes::values] = &rhoSpinFlattened;
-
-  rhoData[dftfe::rhoDataAttributes::sigmaGradValue] = &d_sigmaGradRhoTarget;
-
-  outputDerExchangeEnergy
-      [dftfe::VeffOutputDataAttributes::derEnergyWithDensity] =
-          &exchangePotentialVal;
-
-  outputDerExchangeEnergy
-      [dftfe::VeffOutputDataAttributes::derEnergyWithSigmaGradDensity] =
-          &derExchEnergyWithSigmaValDummy;
-
-  outputDerCorrEnergyDummy
-      [dftfe::VeffOutputDataAttributes::derEnergyWithDensity] =
-          &corrPotentialValDummy;
-
-  outputDerCorrEnergyDummy
-      [dftfe::VeffOutputDataAttributes::derEnergyWithSigmaGradDensity] =
-          &derCorrEnergyWithSigmaValDummy;
-
-  outputDerExchangeEnergyDummy
-      [dftfe::VeffOutputDataAttributes::derEnergyWithDensity] =
-          &exchangePotentialValDummy;
-
-  outputDerCorrEnergy[dftfe::VeffOutputDataAttributes::derEnergyWithDensity] =
-      &corrPotentialVal;
-
-  excFunctionalPtrGGA->computeDensityBasedVxc(
-      totalOwnedCellsPsi * numQuadPointsPerPsiCell, rhoData,
-      outputDerExchangeEnergy, outputDerCorrEnergyDummy);
-
-  excFunctionalPtrLDA->computeDensityBasedVxc(
-      totalOwnedCellsPsi * numQuadPointsPerPsiCell, rhoData,
-      outputDerExchangeEnergyDummy, outputDerCorrEnergy);
+//  excFunctionalPtrLDA->computeDensityBasedVxc(
+//      totalOwnedCellsPsi * numQuadPointsPerPsiCell, rhoData,
+//      outputDerExchangeEnergyDummy, outputDerCorrEnergy);
 
   dftfe::dftUtils::constraintMatrixInfo<memorySpace>
       constraintsMatrixDataInfoPsi;
