@@ -23,9 +23,9 @@
 #include "NodalData.h"
 #include "dftUtils.h"
 #include <densityCalculator.h>
+#include <energyCalculator.h>
 #include <map>
 #include <vector>
-
 #ifdef DFTFE_WITH_DEVICE
 #include <DeviceAPICalls.h>
 #endif
@@ -328,7 +328,6 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     preComputeParentJxW();
   }
 
-
   const dealii::Quadrature<3> &quadratureRuleParent =
       d_matrixFreeDataParent->get_quadrature(
           d_matrixFreeQuadratureComponentAdjointRhs);
@@ -491,15 +490,19 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 #endif
   MPI_Barrier(d_mpi_comm_domain);
   d_computingTimerStandard.enter_subsection("Calculating Density");
+
+  auto dftBasisOp = d_dftClassPtr->getBasisOperationsMemSpace();
   dftfe::computeRhoFromPSI<dftfe::dataTypes::number>(
       &eigenVectorsMemSpace, &eigenVectorsMemSpace, d_numEigenValues,
       d_numEigenValues, eigenValuesHost, fermiEnergy,
       fermiEnergy, // fermi energy up
       fermiEnergy, // fermi energy down
-      d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
-      d_BLASWrapperPtr,
-      d_matrixFreePsiVectorComponent,            // matrixFreeDofhandlerIndex
-      d_matrixFreeQuadratureComponentAdjointRhs, // quadratureIndex
+      dftBasisOp,
+      // d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
+      d_BLASWrapperPtr, d_dftClassPtr->getDensityDofHandlerIndex(),
+      d_dftClassPtr->getDensityQuadratureId(),
+      // d_matrixFreePsiVectorComponent,            // matrixFreeDofhandlerIndex
+      // d_matrixFreeQuadratureComponentAdjointRhs, // quadratureIndex
       d_kpointWeights, rhoValues, gradRhoValues, true, d_mpi_comm_parent,
       d_mpi_comm_interpool, d_mpi_comm_interband, *d_dftParams,
       false // spectrum splitting
@@ -963,7 +966,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   d_computingTimerStandard.enter_subsection("Post process");
   if ((d_getForceCounter % d_inverseDFTParams->writeVxcFrequency == 0) &&
       (d_inverseDFTParams->writeVxcData)) {
-      computeEnergyMetrics();
+    computeEnergyMetrics();
     writeVxcDataToFile(pot, d_getForceCounter);
   }
   MPI_Allreduce(MPI_IN_PLACE, &loss[0], d_numSpins, MPI_DOUBLE, MPI_SUM,
@@ -1381,343 +1384,372 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::dotProduct(
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
-        dftfe::utils::MemorySpace memorySpace>
-void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::computeEnergyMetrics()
-{
-    // compute KE
-    double kineticEnergy = d_dftClassPtr->computeAndPrintKE(kineticEnergyDensityValues);
+          dftfe::utils::MemorySpace memorySpace>
+void InverseDFTSolverFunction<FEOrder, FEOrderElectro,
+                              memorySpace>::computeEnergyMetrics() {
+  // compute KE
+  double kineticEnergy =
+      d_dftClassPtr->computeAndPrintKE(kineticEnergyDensityValues);
 
-    // compute electrostatic energy
+  // compute electrostatic energy
 
-    double totalElectrostaticEnergy = computeElectrostaticEnergy(rhoValues);
+  double totalElectrostaticEnergy = computeElectrostaticEnergy(rhoValues[0]);
 
-    // compute XC energy
+  // compute XC energy
 
-    {
-        xc_func_type funcXLDA, funcCLDA ;
-        int exceptParamX = xc_func_init(funcXLDA, XC_LDA_X, XC_UNPOLARIZED);
-        int exceptParamC = xc_func_init(funcCLDA, XC_LDA_C_PW, XC_UNPOLARIZED);
-        double xcLDAEnergy = computeLDAEnergy(rhoValues, "LDA-PW", funcXLDA, funcCLDA );
-    }
+  {
+    xc_func_type funcXLDA, funcCLDA;
+    int exceptParamX = xc_func_init(&funcXLDA, XC_LDA_X, XC_UNPOLARIZED);
+    int exceptParamC = xc_func_init(&funcCLDA, XC_LDA_C_PW, XC_UNPOLARIZED);
+    double xcLDAEnergy =
+        computeLDAEnergy(rhoValues[0], "LDA-PW", funcXLDA, funcCLDA);
+  }
 
-    {
-        xc_func_type funcXGGA, funcCGGA ;
-        int exceptParamX = xc_func_init(funcXGGA, XC_GGA_X_PBE, XC_UNPOLARIZED);
-        int exceptParamC = xc_func_init(funcCGGA, XC_GGA_C_PBE, XC_UNPOLARIZED);
-        double xcGGAEnergy = computeGGAEnergy(rhoValues, gradRhoValues, "GGA-PBE", funcXGGA, funcCGGA );
-    }
+  {
+    xc_func_type funcXGGA, funcCGGA;
+    int exceptParamX = xc_func_init(&funcXGGA, XC_GGA_X_PBE, XC_UNPOLARIZED);
+    int exceptParamC = xc_func_init(&funcCGGA, XC_GGA_C_PBE, XC_UNPOLARIZED);
+    double xcGGAEnergy = computeGGAEnergy(rhoValues[0], gradRhoValues[0],
+                                          "GGA-PBE", funcXGGA, funcCGGA);
+  }
 
-    {
-        xc_func_type funcXMGGA, funcCMGGA ;
-        int exceptParamX = xc_func_init(funcXMGGA, MGGA_X_R2SCAN , XC_UNPOLARIZED);
-        int exceptParamC = xc_func_init(funcCMGGA, MGGA_C_R2SCAN , XC_UNPOLARIZED);
-        double xcMGGAEnergy = computeMGGAEnergy(rhoValues, gradRhoValues, kineticEnergyDensityValues, "MGGA-R2SCAN", funcXMGGA, funcCMGGA );
-    }
+  {
+    xc_func_type funcXMGGA, funcCMGGA;
+    int exceptParamX =
+        xc_func_init(&funcXMGGA, XC_MGGA_X_R2SCAN, XC_UNPOLARIZED);
+    int exceptParamC =
+        xc_func_init(&funcCMGGA, XC_MGGA_C_R2SCAN, XC_UNPOLARIZED);
+    double xcMGGAEnergy = computeMGGAEnergy(
+        rhoValues[0], gradRhoValues[0], kineticEnergyDensityValues,
+        "MGGA-R2SCAN", funcXMGGA, funcCMGGA);
+  }
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
-        dftfe::utils::MemorySpace memorySpace>
-double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::computeElectrostaticEnergy(
-        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST> &totalRhoValues)
-{
-    dftfe::distributedCPUVec<double> vTotElectroNodal;
+          dftfe::utils::MemorySpace memorySpace>
+double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
+    computeElectrostaticEnergy(
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            &totalRhoValues) {
+  dftfe::distributedCPUVec<double> vTotElectroNodal;
 
-    auto basisOperationsElectroHost =
-            d_dftClassPtr->getBasisOperationsElectroHost();
+  auto basisOperationsElectroHost =
+      d_dftClassPtr->getBasisOperationsElectroHost();
 
-    auto matrixFreeElectro = d_dftClassPtr->getMatrixFreeDataElectro();
+  auto matrixFreeElectro = d_dftClassPtr->getMatrixFreeDataElectro();
 
-    unsigned int mfVectorComponent = d_dftClassPtr->getElectroDofHandlerIndex();
+  unsigned int mfVectorComponent = d_dftClassPtr->getElectroDofHandlerIndex();
 
-    unsigned int mfRhsId = d_dftClassPtr->getElectroQuadratureRhsId();
+  unsigned int mfRhsId = d_dftClassPtr->getElectroQuadratureRhsId();
 
-    unsigned int mfAXId = d_dftClassPtr->getElectroQuadratureAxId();
+  unsigned int mfAXId = d_dftClassPtr->getElectroQuadratureAxId();
 
-    auto constraintMatrix = d_dftClassPtr->getConstraintsVectorElectro();
+  auto constraintMatrix = d_dftClassPtr->getConstraintsVectorElectro();
 
-    auto atomNodeToChargeMap = d_dftClassPtr->getAtomNodeToChargeMap();
+  auto atomNodeToChargeMap = d_dftClassPtr->getAtomNodeToChargeMap();
 
-    auto bQuadValuesAllAtoms = d_dftClassPtr->getBQuadValuesAllAtoms();
+  auto bQuadValuesAllAtoms = d_dftClassPtr->getBQuadValuesAllAtoms();
 
-    unsigned int smearedChargeQuadId = d_dftClassPtr->getSmearedChargeQuadratureIdElectro();
+  unsigned int smearedChargeQuadId =
+      d_dftClassPtr->getSmearedChargeQuadratureIdElectro();
 
-    dftfe::vectorTools::createDealiiVector<double>(
-            matrixFreeElectro.get_vector_partitioner(mfVectorComponent), 1,
-            vTotElectroNodal);
+  dftfe::vectorTools::createDealiiVector<double>(
+      matrixFreeElectro.get_vector_partitioner(mfVectorComponent), 1,
+      vTotElectroNodal);
 
+  basisOperationsElectroHost->reinit(1, 1, mfRhsId, true);
 
-    basisOperationsElectroHost.reinit(1, 1, mfVectorComponent, true):
+  vTotElectroNodal = 0.0;
 
-    vTotElectroNodal = 0.0;
+  dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(
+      d_mpi_comm_domain);
+  poissonSolverObj.reinit(
+      basisOperationsElectroHost, vTotElectroNodal, *constraintMatrix,
+      mfVectorComponent, mfRhsId, mfAXId, atomNodeToChargeMap,
+      bQuadValuesAllAtoms, smearedChargeQuadId, totalRhoValues,
+      true, // isComputeDiagonalA
+      d_dftParams->periodicX && d_dftParams->periodicY &&
+          d_dftParams->periodicZ &&
+          !d_dftParams->pinnedNodeForPBC, // isComputeMeanValueConstraint
+      d_dftParams->smearedNuclearCharges, // smearedNuclearCharges
+      true,                               // isRhoValues
+      false,                              // isGradSmearedChargeRhs
+      0,                                  // smearedChargeGradientComponentId
+      false, false, true);
 
-    dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(d_mpi_comm_domain);
-    poissonSolverObj.reinit(
-            d_matrixFreeDataPRefined,
-            vTotElectroNodal,
-            *d_constraintsVectorElectro[mfVectorComponent],
-            mfVectorComponent,
-            mfRhsId,
-            mfAXId,
-            atomNodeToChargeMap,
-            bQuadValuesAllAtoms,
-            smearedChargeQuadId,
-            totalRhoValues,
-            true, //isComputeDiagonalA
-            d_dftParams->periodicX && d_dftParams->periodicY &&
-            d_dftParams->periodicZ &&
-            !d_dftParams->pinnedNodeForPBC, // isComputeMeanValueConstraint
-            d_dftParams->smearedNuclearCharges, // smearedNuclearCharges
-            true, // isRhoValues
-            false, // isGradSmearedChargeRhs
-            0, // smearedChargeGradientComponentId
-            false,
-            false,
-           true);
+  dftfe::dealiiLinearSolver dealiiLinearSolverObj(
+      d_mpi_comm_parent, d_mpi_comm_domain, dftfe::dealiiLinearSolver::CG);
 
-    dftfe::dealiiLinearSolver dealiiLinearSolverObj(
-            d_mpi_comm_parent, d_mpi_comm_domain, dftfe::dealiiLinearSolver::CG);
+  dealiiLinearSolverObj.solve(
+      poissonSolverObj, d_dftParams->absLinearSolverTolerance,
+      d_dftParams->maxLinearSolverIterations, d_dftParams->verbosity);
 
-    dealiiLinearSolverObj.solve(
-            poissonSolverObj, d_dftParams->absLinearSolverTolerance,
-            d_dftParams->maxLinearSolverIterations, d_dftParams->verbosity);
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST> dummy;
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      vTotElectroQuad;
+  d_dftClassPtr->interpolateElectroNodalDataToQuadratureDataGeneral(
+      basisOperationsElectroHost, mfVectorComponent, mfRhsId, vTotElectroNodal,
+      vTotElectroQuad, dummy);
 
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
-            dummy;
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
-            vTotElectroQuad;
-    dftfe::interpolateElectroNodalDataToQuadratureDataGeneral(
-            basisOperationsElectroHost,
-            mfVectorComponent,
-            mfRhsId,
-            vTotElectroNodal,
-            vTotElectroQuad,
-            dummy);
+  double electrostaticEnergyTotPot =
+      0.5 *
+      dftfe::internalEnergy::computeFieldTimesDensity(
+          basisOperationsElectroHost, mfRhsId, vTotElectroQuad, totalRhoValues);
 
-    double electrostaticEnergyTotPot =
-            0.5 * dftfe::internalEnergy::computeFieldTimesDensity(basisOperationsElectroHost,
-                                                                  mfRhsId,
-                                                                  vTotElectroQuad,
-                                                                  totalRhoValues);
+  double totalelectrostaticEnergyPot =
+      dealii::Utilities::MPI::sum(electrostaticEnergyTotPot, d_mpi_comm_domain);
 
-    double totalelectrostaticEnergyPot =
-            dealii::Utilities::MPI::sum(electrostaticEnergyTotPot, d_mpi_comm_domain);
+  const double nuclearElectrostaticEnergy =
+      dftfe::internalEnergy::nuclearElectrostaticEnergyLocal(
+          vTotElectroNodal, d_dftClassPtr->getLocalVselfs(),
+          bQuadValuesAllAtoms, d_dftClassPtr->getbCellNonTrivialAtomIds(),
+          basisOperationsElectroHost->getDofHandler(),
+          basisOperationsElectroHost->matrixFreeData().get_quadrature(mfRhsId),
+          basisOperationsElectroHost->matrixFreeData().get_quadrature(
+              d_dftClassPtr->getSmearedChargeQuadratureIdElectro()),
+          atomNodeToChargeMap, d_dftParams->smearedNuclearCharges);
 
-    const double nuclearElectrostaticEnergy =
-            dftfe::internalEnergy::nuclearElectrostaticEnergyLocal(
-                    vTotElectroNodal,
-                    d_dftClassPtr->getLocalVselfs(),
-                    bQuadValuesAllAtoms,
-                    d_dftClassPtr->getbCellNonTrivialAtomIds(),
-                    basisOperationsElectroHost.getDofHandler(),
-                    basisOperationsElectroHost.matrixFreeData().get_quadrature(
-                            mfRhsId),
-                    basisOperationsPtrElectro.matrixFreeData().get_quadrature(
-                            d_dftClassPtr->getSmearedChargeQuadratureIdElectro()),
-                    atomNodeToChargeMap,
-                    d_dftParams->smearedNuclearCharges);
+  double totalNuclearElectrostaticEnergy = dealii::Utilities::MPI::sum(
+      nuclearElectrostaticEnergy, d_mpi_comm_domain);
 
-    double totalNuclearElectrostaticEnergy =
-            dealii::Utilities::MPI::sum(nuclearElectrostaticEnergy, d_mpi_comm_domain);
+  const double allElectronElectrostaticEnergy =
+      (totalelectrostaticEnergyPot + totalNuclearElectrostaticEnergy);
 
-    const double allElectronElectrostaticEnergy =
-            (totalelectrostaticEnergyPot + totalNuclearElectrostaticEnergy);
-
-    pcout<<" Total electrostatic energy = "<<allElectronElectrostaticEnergy<<"\n";
-    return allElectronElectrostaticEnergy;
-}
-
-
-template <unsigned int FEOrder, unsigned int FEOrderElectro,
-        dftfe::utils::MemorySpace memorySpace>
-        double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::computeLDAEnergy(  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalRhoValues,
-                                 std::string functional, xc_func_type funcXLDA, xc_func_type funcCLDA)
-{
-    const dealii::Quadrature<3> &quadratureRuleParent =
-            d_matrixFreeDataParent->get_quadrature(
-                    d_matrixFreeQuadratureComponentAdjointRhs);
-    const unsigned int numQuadraturePointsPerCellParent =
-            quadratureRuleParent.size();
-
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>excEnergyDensityVal;
-    excEnergyDensityVal.resize(d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
-
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>corrEnergyDensityVal;
-    corrEnergyDensityVal.resize(d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
-
-    xc_lda_exc(&funcXLDA,
-               d_numLocallyOwnedCellsParent * numQuadPointsPerPsiCell,
-               totalRhoValues.data(),
-               excEnergyDensityVal.data());
-
-    xc_lda_exc(&funcCLDA,
-               d_numLocallyOwnedCellsParent * numQuadPointsPerPsiCell,
-               totalRhoValues.data(),
-               corrEnergyDensityVal.data());
-
-    d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->reinit(
-            d_numEigenValues, d_numCellBlockSizeParent,
-            d_matrixFreeQuadratureComponentAdjointRhs, false, false);
-
-    auto JxWData = d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->JxW();
-
-    double ExcEnergyLocal = 0.0;
-    for( unsigned int i = 0 ; i < d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent; i++)
-    {
-        ExcEnergyLocal += (totalRhoValues.data()[i])*(excEnergyDensityVal.data()[i] + corrEnergyDensityVal.data()[i])*(JxWData[i]);
-    }
-
-    double totalExcEnergy =
-            dealii::Utilities::MPI::sum(ExcEnergyLocal, d_mpi_comm_domain);
-
-
-    pcout<<" EXC energy for "<<functional<<" = "<<totalExcEnergy<<"\n";
-
-    return totalExcEnergy;
+  pcout << " Total electrostatic energy = " << allElectronElectrostaticEnergy
+        << "\n";
+  return allElectronElectrostaticEnergy;
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
-        dftfe::utils::MemorySpace memorySpace>
-double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::computeGGAEnergy(  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalRhoValues,
-                          dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalGradRhoValues,
-                          std::string functional, xc_func_type funcXGGA, xc_func_type funcCGGA)
-{
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST> totalSigmaRhoValues;
+          dftfe::utils::MemorySpace memorySpace>
+double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
+    computeLDAEnergy(
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            &totalRhoValues,
+        std::string functional, xc_func_type funcXLDA, xc_func_type funcCLDA) {
+  const dealii::Quadrature<3> &quadratureRuleParent =
+      d_matrixFreeDataParent->get_quadrature(
+          d_matrixFreeQuadratureComponentAdjointRhs);
+  const unsigned int numQuadraturePointsPerCellParent =
+      quadratureRuleParent.size();
 
-    const dealii::Quadrature<3> &quadratureRuleParent =
-            d_matrixFreeDataParent->get_quadrature(
-                    d_matrixFreeQuadratureComponentAdjointRhs);
-    const unsigned int numQuadraturePointsPerCellParent =
-            quadratureRuleParent.size();
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      excEnergyDensityVal;
+  excEnergyDensityVal.resize(d_numLocallyOwnedCellsParent *
+                             numQuadraturePointsPerCellParent);
 
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>excEnergyDensityVal;
-    excEnergyDensityVal.resize(d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      corrEnergyDensityVal;
+  corrEnergyDensityVal.resize(d_numLocallyOwnedCellsParent *
+                              numQuadraturePointsPerCellParent);
 
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>corrEnergyDensityVal;
-    corrEnergyDensityVal.resize(d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
+  xc_lda_exc(&funcXLDA,
+             d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
+             totalRhoValues.data(), excEnergyDensityVal.data());
 
-    totalSigmaRhoValues.resize(d_numLocallyOwnedCellsParent *
-                                       numQuadraturePointsPerCellParent);
-    std::fill(totalSigmaRhoValues.begin(), totalSigmaRhoValues.end(), 0.0);
+  xc_lda_exc(&funcCLDA,
+             d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
+             totalRhoValues.data(), corrEnergyDensityVal.data());
 
-    for( unsigned int i = 0 ; i < d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent; i++)
-    {
-        totalSigmaRhoValues.data()[i] = 4.0*(totalGradRhoValues.data()[i*3 + 0] * totalGradRhoValues.data()[i*3 + 0] +
-                totalGradRhoValues.data()[i*3 + 1] * totalGradRhoValues.data()[i*3 + 1] +
-                totalGradRhoValues.data()[i*3 + 2] * totalGradRhoValues.data()[i*3 + 2] );
-    }
+  d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->reinit(
+      d_numEigenValues, d_numCellBlockSizeParent,
+      d_matrixFreeQuadratureComponentAdjointRhs, false, false);
 
-    xc_gga_exc(&funcXGGA,
-               d_numLocallyOwnedCellsParent * numQuadPointsPerPsiCell,
-               totalRhoValues.data(),
-               totalSigmaRhoValues.data(),
-               excEnergyDensityVal.data());
+  auto JxWData =
+      d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->JxW();
 
-    xc_gga_exc(&funCXGGA,
-               d_numLocallyOwnedCellsParent * numQuadPointsPerPsiCell,
-               totalRhoValues.data(),
-               totalSigmaRhoValues.data(),
-               corrEnergyDensityVal.data());
+  double ExcEnergyLocal = 0.0;
+  for (unsigned int i = 0;
+       i < d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
+       i++) {
+    ExcEnergyLocal +=
+        (totalRhoValues.data()[i]) *
+        (excEnergyDensityVal.data()[i] + corrEnergyDensityVal.data()[i]) *
+        (JxWData[i]);
+  }
 
-    d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->reinit(
-            d_numEigenValues, d_numCellBlockSizeParent,
-            d_matrixFreeQuadratureComponentAdjointRhs, false, false);
+  double totalExcEnergy =
+      dealii::Utilities::MPI::sum(ExcEnergyLocal, d_mpi_comm_domain);
 
-    auto JxWData = d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->JxW();
+  pcout << " EXC energy for " << functional << " = " << totalExcEnergy << "\n";
 
-    double ExcEnergyLocal = 0.0;
-    for( unsigned int i = 0 ; i < d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent; i++)
-    {
-        ExcEnergyLocal += (totalRhoValues.data()[i])*(excEnergyDensityVal.data()[i] + corrEnergyDensityVal.data()[i])*(JxWData[i]);
-    }
-
-    double totalExcEnergy =
-            dealii::Utilities::MPI::sum(ExcEnergyLocal, d_mpi_comm_domain);
-
-
-    pcout<<" EXC energy for "<<functional<<" = "<<totalExcEnergy<<"\n";
-
-    return totalExcEnergy;
+  return totalExcEnergy;
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
-        dftfe::utils::MemorySpace memorySpace>
-double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::computeMGGAEnergy(  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalRhoValues,
-                          dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalGradRhoValues,
-                           dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& kineticEnergyDensityValues,
-                          std::string functional, xc_func_type funcXMGGA, xc_func_type funcCMGGA)
-{
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST> totalSigmaRhoValues;
+          dftfe::utils::MemorySpace memorySpace>
+double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
+    computeGGAEnergy(
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            &totalRhoValues,
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            &totalGradRhoValues,
+        std::string functional, xc_func_type funcXGGA, xc_func_type funcCGGA) {
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      totalSigmaRhoValues;
 
-    const dealii::Quadrature<3> &quadratureRuleParent =
-            d_matrixFreeDataParent->get_quadrature(
-                    d_matrixFreeQuadratureComponentAdjointRhs);
-    const unsigned int numQuadraturePointsPerCellParent =
-            quadratureRuleParent.size();
+  const dealii::Quadrature<3> &quadratureRuleParent =
+      d_matrixFreeDataParent->get_quadrature(
+          d_matrixFreeQuadratureComponentAdjointRhs);
+  const unsigned int numQuadraturePointsPerCellParent =
+      quadratureRuleParent.size();
 
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>excEnergyDensityVal;
-    excEnergyDensityVal.resize(d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      excEnergyDensityVal;
+  excEnergyDensityVal.resize(d_numLocallyOwnedCellsParent *
+                             numQuadraturePointsPerCellParent);
 
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>corrEnergyDensityVal;
-    corrEnergyDensityVal.resize(d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      corrEnergyDensityVal;
+  corrEnergyDensityVal.resize(d_numLocallyOwnedCellsParent *
+                              numQuadraturePointsPerCellParent);
 
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST> tauValue;
-    tauValue.resize(d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
-    std::fill(tauValue.begin(), tauValue.end(), 0.0);
+  totalSigmaRhoValues.resize(d_numLocallyOwnedCellsParent *
+                             numQuadraturePointsPerCellParent);
+  std::fill(totalSigmaRhoValues.begin(), totalSigmaRhoValues.end(), 0.0);
 
-    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST> rhoLaplacianQuadValues;
-    rhoLaplacianQuadValues.resize(d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
+  for (unsigned int i = 0;
+       i < d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
+       i++) {
+    totalSigmaRhoValues.data()[i] =
+        4.0 * (totalGradRhoValues.data()[i * 3 + 0] *
+                   totalGradRhoValues.data()[i * 3 + 0] +
+               totalGradRhoValues.data()[i * 3 + 1] *
+                   totalGradRhoValues.data()[i * 3 + 1] +
+               totalGradRhoValues.data()[i * 3 + 2] *
+                   totalGradRhoValues.data()[i * 3 + 2]);
+  }
 
-    // TODO setting rhoLaplacianQuadValues to zero
-    std::fill(rhoLaplacianQuadValues.begin(), rhoLaplacianQuadValues.end(), 0.0);
+  xc_gga_exc(&funcXGGA,
+             d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
+             totalRhoValues.data(), totalSigmaRhoValues.data(),
+             excEnergyDensityVal.data());
 
-    totalSigmaRhoValues.resize(d_numLocallyOwnedCellsParent *
-                               numQuadraturePointsPerCellParent);
-    std::fill(totalSigmaRhoValues.begin(), totalSigmaRhoValues.end(), 0.0);
+  xc_gga_exc(&funcCGGA,
+             d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
+             totalRhoValues.data(), totalSigmaRhoValues.data(),
+             corrEnergyDensityVal.data());
 
-    for( unsigned int i = 0 ; i < d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent; i++)
-    {
-        totalSigmaRhoValues.data()[i] = 4.0*(totalGradRhoValues.data()[i*3 + 0] * totalGradRhoValues.data()[i*3 + 0] +
-                                             totalGradRhoValues.data()[i*3 + 1] * totalGradRhoValues.data()[i*3 + 1] +
-                                             totalGradRhoValues.data()[i*3 + 2] * totalGradRhoValues.data()[i*3 + 2] );
+  d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->reinit(
+      d_numEigenValues, d_numCellBlockSizeParent,
+      d_matrixFreeQuadratureComponentAdjointRhs, false, false);
 
+  auto JxWData =
+      d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->JxW();
 
-    }
+  double ExcEnergyLocal = 0.0;
+  for (unsigned int i = 0;
+       i < d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
+       i++) {
+    ExcEnergyLocal +=
+        (totalRhoValues.data()[i]) *
+        (excEnergyDensityVal.data()[i] + corrEnergyDensityVal.data()[i]) *
+        (JxWData[i]);
+  }
 
-    xc_mgga_exc(&funcXMGGA,
-                d_numLocallyOwnedCellsParent * numQuadPointsPerPsiCell,
-                totalRhoValues.data(),
-                totalSigmaRhoValues.data(),
-                rhoLaplacianQuadValues.data(),
-                kineticEnergyDensityValues.data(),
-                excEnergyDensityVal.data());
+  double totalExcEnergy =
+      dealii::Utilities::MPI::sum(ExcEnergyLocal, d_mpi_comm_domain);
 
-    xc_mgga_exc(&funcCMGGA,
-                d_numLocallyOwnedCellsParent * numQuadPointsPerPsiCell,
-                totalRhoValues.data(),
-                totalSigmaRhoValues.data(),
-                rhoLaplacianQuadValues.data(),
-                kineticEnergyDensityValues.data(),
-                corrEnergyDensityVal.data());
+  pcout << " EXC energy for " << functional << " = " << totalExcEnergy << "\n";
 
-    d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->reinit(
-            d_numEigenValues, d_numCellBlockSizeParent,
-            d_matrixFreeQuadratureComponentAdjointRhs, false, false);
+  return totalExcEnergy;
+}
 
-    auto JxWData = d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->JxW();
+template <unsigned int FEOrder, unsigned int FEOrderElectro,
+          dftfe::utils::MemorySpace memorySpace>
+double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
+    computeMGGAEnergy(
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            &totalRhoValues,
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            &totalGradRhoValues,
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            &kineticEnergyDensityValues,
+        std::string functional, xc_func_type funcXMGGA,
+        xc_func_type funcCMGGA) {
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      totalSigmaRhoValues;
 
-    double ExcEnergyLocal = 0.0;
-    for( unsigned int i = 0 ; i < d_numLocallyOwnedCellsParent*numQuadraturePointsPerCellParent; i++)
-    {
-        ExcEnergyLocal += (totalRhoValues.data()[i])*(excEnergyDensityVal.data()[i] + corrEnergyDensityVal.data()[i])*(JxWData[i]);
-    }
+  const dealii::Quadrature<3> &quadratureRuleParent =
+      d_matrixFreeDataParent->get_quadrature(
+          d_matrixFreeQuadratureComponentAdjointRhs);
+  const unsigned int numQuadraturePointsPerCellParent =
+      quadratureRuleParent.size();
 
-    double totalExcEnergy =
-            dealii::Utilities::MPI::sum(ExcEnergyLocal, d_mpi_comm_domain);
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      excEnergyDensityVal;
+  excEnergyDensityVal.resize(d_numLocallyOwnedCellsParent *
+                             numQuadraturePointsPerCellParent);
 
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      corrEnergyDensityVal;
+  corrEnergyDensityVal.resize(d_numLocallyOwnedCellsParent *
+                              numQuadraturePointsPerCellParent);
 
-    pcout<<" EXC energy for "<<functional<<" = "<<totalExcEnergy<<"\n";
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST> tauValue;
+  tauValue.resize(d_numLocallyOwnedCellsParent *
+                  numQuadraturePointsPerCellParent);
+  std::fill(tauValue.begin(), tauValue.end(), 0.0);
 
-    return totalExcEnergy;
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      rhoLaplacianQuadValues;
+  rhoLaplacianQuadValues.resize(d_numLocallyOwnedCellsParent *
+                                numQuadraturePointsPerCellParent);
+
+  // TODO setting rhoLaplacianQuadValues to zero
+  std::fill(rhoLaplacianQuadValues.begin(), rhoLaplacianQuadValues.end(), 0.0);
+
+  totalSigmaRhoValues.resize(d_numLocallyOwnedCellsParent *
+                             numQuadraturePointsPerCellParent);
+  std::fill(totalSigmaRhoValues.begin(), totalSigmaRhoValues.end(), 0.0);
+
+  for (unsigned int i = 0;
+       i < d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
+       i++) {
+    totalSigmaRhoValues.data()[i] =
+        4.0 * (totalGradRhoValues.data()[i * 3 + 0] *
+                   totalGradRhoValues.data()[i * 3 + 0] +
+               totalGradRhoValues.data()[i * 3 + 1] *
+                   totalGradRhoValues.data()[i * 3 + 1] +
+               totalGradRhoValues.data()[i * 3 + 2] *
+                   totalGradRhoValues.data()[i * 3 + 2]);
+  }
+
+  xc_mgga_exc(&funcXMGGA,
+              d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
+              totalRhoValues.data(), totalSigmaRhoValues.data(),
+              rhoLaplacianQuadValues.data(), kineticEnergyDensityValues.data(),
+              excEnergyDensityVal.data());
+
+  xc_mgga_exc(&funcCMGGA,
+              d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
+              totalRhoValues.data(), totalSigmaRhoValues.data(),
+              rhoLaplacianQuadValues.data(), kineticEnergyDensityValues.data(),
+              corrEnergyDensityVal.data());
+
+  d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->reinit(
+      d_numEigenValues, d_numCellBlockSizeParent,
+      d_matrixFreeQuadratureComponentAdjointRhs, false, false);
+
+  auto JxWData =
+      d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->JxW();
+
+  double ExcEnergyLocal = 0.0;
+  for (unsigned int i = 0;
+       i < d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
+       i++) {
+    ExcEnergyLocal +=
+        (totalRhoValues.data()[i]) *
+        (excEnergyDensityVal.data()[i] + corrEnergyDensityVal.data()[i]) *
+        (JxWData[i]);
+  }
+
+  double totalExcEnergy =
+      dealii::Utilities::MPI::sum(ExcEnergyLocal, d_mpi_comm_domain);
+
+  pcout << " EXC energy for " << functional << " = " << totalExcEnergy << "\n";
+
+  return totalExcEnergy;
 }
 
 template class InverseDFTSolverFunction<2, 2, dftfe::utils::MemorySpace::HOST>;

@@ -236,7 +236,7 @@ is
   //
   //	  /**
   //	   * @brief get the double derivatives of the density at a list of
-  //points
+  // points
   //	   *
   //	   * @param points Pointer to the points at which the density is to be
   //	   * computed. It is assumed to be of size 3*(number of points).
@@ -253,7 +253,8 @@ is
   //	   */
   //	  void
   //		getRhoDoubleDerivative(const double * points, const unsigned int
-  //N, 			const unsigned int spinIndex, double * rhoDD) const;
+  // N, 			const unsigned int spinIndex, double * rhoDD)
+  // const;
   //
   //	  /**
   //	   * @brief Get the double derivative of the density using a quadIndex.

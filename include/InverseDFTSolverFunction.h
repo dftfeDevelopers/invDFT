@@ -21,10 +21,10 @@
 #ifndef DFTFE_INVERSEDFTSOLVERFUNCTION_H
 #define DFTFE_INVERSEDFTSOLVERFUNCTION_H
 
-#include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include "inverseDFTParameters.h"
 #include <MultiVectorAdjointLinearSolverProblem.h>
 #include <MultiVectorMinResSolver.h>
+#include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include <constraintMatrixInfo.h>
 #include <dft.h>
 #include <headers.h>
@@ -127,20 +127,30 @@ public:
 
   void computeEnergyMetrics();
 
-  double computeElectrostaticEnergy(std::vector<
-                                    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> & totalRhoValues);
+  double computeElectrostaticEnergy(
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+          &totalRhoValues);
 
-    double computeLDAEnergy(  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalRhoValues,
-                              std::string functional, xc_func_type funcXLDA, xc_func_type funcCLDA);
+  double computeLDAEnergy(
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+          &totalRhoValues,
+      std::string functional, xc_func_type funcXLDA, xc_func_type funcCLDA);
 
-    double computeGGAEnergy(  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalRhoValues,
-                              dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalGradRhoValues,
-                              std::string functional, xc_func_type funcXGGA, xc_func_type funcCGGA);
+  double computeGGAEnergy(
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+          &totalRhoValues,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+          &totalGradRhoValues,
+      std::string functional, xc_func_type funcXGGA, xc_func_type funcCGGA);
 
-    double computeMGGAEnergy(  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalRhoValues,
-                               dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& totalGradRhoValues,
-                               dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>& kineticEnergyDensityValues,
-                               std::string functional, xc_func_type funcXMGGA, xc_func_type funcCMGGA);
+  double computeMGGAEnergy(
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+          &totalRhoValues,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+          &totalGradRhoValues,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+          &kineticEnergyDensityValues,
+      std::string functional, xc_func_type funcXMGGA, xc_func_type funcCMGGA);
 
 private:
   void preComputeChildShapeFunction();
@@ -304,7 +314,9 @@ private:
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
       rhoValues, gradRhoValues, rhoValuesSpinPolarized,
-      gradRhoValuesSpinPolarized , kineticEnergyDensityValues;
+      gradRhoValuesSpinPolarized;
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      kineticEnergyDensityValues;
   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
       sumPsiAdjointChildQuadData;
   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>

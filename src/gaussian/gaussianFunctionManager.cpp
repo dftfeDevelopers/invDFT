@@ -1584,12 +1584,12 @@ void gaussianFunctionManager::getRhoGradient(const double *x,
 //		const std::vector<double> basisFunctionGradientJ =
 //		  basisFunctionGradients[j];
 //		const double basisFunctionLaplacianJ =
-//basisFunctionLaplacians[j];
+// basisFunctionLaplacians[j];
 //
 //		const double term1 =
-//basisFunctionValueI*basisFunctionLaplacianJ; 		const double term2 =
-//basisFunctionValueJ*basisFunctionLaplacianI; 		const double term3
-//= 2.0*dotProduct(basisFunctionGradientI,
+// basisFunctionValueI*basisFunctionLaplacianJ; 		const double term2
+// = basisFunctionValueJ*basisFunctionLaplacianI; 		const double
+// term3 = 2.0*dotProduct(basisFunctionGradientI,
 // basisFunctionGradientJ); 		returnValue +=
 // d_densityMats[spinIndex][i][j]*(term1 + term2 + term3);
 //

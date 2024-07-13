@@ -5,8 +5,8 @@ fn compile_invDFT{
   mkdir build 
   cd build
 
-  dealiiDir=$INST
-  dftfeRealDir=/global/u1/v/vishalsu/softwares/dftfe_invDFT_cleanups/dftfe/
+  dealiiDir=$INST/dealii_real
+  dftfeRealDir=/global/u1/v/vishalsu/softwares/dftfe_computeKE/dftfe/
   alglibDir=$INST/lib/alglib
   libxcDir=$INST
   spglibDir=$INST
@@ -19,8 +19,8 @@ fn compile_invDFT{
 
   #Compiler options and flags
   cxx_compiler = CC
-  cxx_flags = '-march=znver3 -fPIC -Wdeprecated-declarations'
-  cxx_flagsRelease = '-fPIC -target-accel=nvidia80 -I'$MPICH_DIR'/include'
+  cxx_flags = '-march=znver3 -fPIC -Wdeprecated-declarations -Wmissing-template-keyword'
+  cxx_flagsRelease = '-Wno-deprecated-declarations -Wmissing-template-keyword  -fPIC -target-accel=nvidia80 -I'$MPICH_DIR'/include'
   device_flags ='-I'$MPICH_DIR'/include -arch=sm_80'
   device_architectures =80
 

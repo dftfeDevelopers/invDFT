@@ -19,34 +19,33 @@
 #ifndef DFTFE_EXE_TESTMULTIVECTORADJOINTPROBLEM_H
 #define DFTFE_EXE_TESTMULTIVECTORADJOINTPROBLEM_H
 
-
-namespace dftfe
-{
-  template <unsigned int FeOrder, unsigned int FeOrderElectro, dftfe::utils::MemorySpace memorySpace>
-  void
-  testMultiVectorAdjointProblem(const std::shared_ptr<
-                                  dftfe::basis::
-                                    FEBasisOperations<double, double, dftfe::utils::MemorySpace::HOST>> &basisOperationsPtr,
-                                dealii::MatrixFree<3, double> &matrixFreeData,
-                                std::shared_ptr<dftfe::linearAlgebra::BLASWrapper<dftfe::utils::MemorySpace::HOST>>
-                                                                                                                   BLASWrapperPtr,
-                                KohnShamHamiltonianOperator<memorySpace> &kohmShamObj,
-                                const dealii::AffineConstraints<double> &constraintMatrixPsi,
-                                std::vector<const dealii::AffineConstraints<double> *> &      constraintMatrixVec,
-                                const dealii::AffineConstraints<double> &constraintMatrixAdjoint,
-                                std::vector<dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> &densityFromSCF,
-                                const dftfe::utils::MemoryStorage<double,memorySpace> &                 psiStdVecInput,
-                                const std::vector<std::vector<double>> &                 eigenValuesInput,
-                                const std::vector<std::vector<double>> &             partialOccupancies,
-                                unsigned int       noOfSpin,
-                                unsigned int       noKPoints,
-                                unsigned int       numberOfWaveFunctions,
-                                const unsigned int matrixFreePsiVectorComponent,
-                                const unsigned int matrixFreeAdjointVectorComponent,
-                                const unsigned int matrixFreeQuadratureComponentRhs,
-                                const MPI_Comm &   mpi_comm_parent,
-                                const MPI_Comm &   mpi_comm_domain,
-                                const MPI_Comm &   interpoolcomm);
+namespace dftfe {
+template <unsigned int FeOrder, unsigned int FeOrderElectro,
+          dftfe::utils::MemorySpace memorySpace>
+void testMultiVectorAdjointProblem(
+    const std::shared_ptr<dftfe::basis::FEBasisOperations<
+        double, double, dftfe::utils::MemorySpace::HOST>> &basisOperationsPtr,
+    dealii::MatrixFree<3, double> &matrixFreeData,
+    std::shared_ptr<
+        dftfe::linearAlgebra::BLASWrapper<dftfe::utils::MemorySpace::HOST>>
+        BLASWrapperPtr,
+    KohnShamHamiltonianOperator<memorySpace> &kohmShamObj,
+    const dealii::AffineConstraints<double> &constraintMatrixPsi,
+    std::vector<const dealii::AffineConstraints<double> *> &constraintMatrixVec,
+    const dealii::AffineConstraints<double> &constraintMatrixAdjoint,
+    std::vector<
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+        &densityFromSCF,
+    const dftfe::utils::MemoryStorage<double, memorySpace> &psiStdVecInput,
+    const std::vector<std::vector<double>> &eigenValuesInput,
+    const std::vector<std::vector<double>> &partialOccupancies,
+    unsigned int noOfSpin, unsigned int noKPoints,
+    unsigned int numberOfWaveFunctions,
+    const unsigned int matrixFreePsiVectorComponent,
+    const unsigned int matrixFreeAdjointVectorComponent,
+    const unsigned int matrixFreeQuadratureComponentRhs,
+    const MPI_Comm &mpi_comm_parent, const MPI_Comm &mpi_comm_domain,
+    const MPI_Comm &interpoolcomm);
 }
 
 #endif // DFTFE_EXE_TESTMULTIVECTORADJOINTPROBLEM_H

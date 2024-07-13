@@ -19,9 +19,10 @@
 
 #ifndef DFTFE_INVERSEDFT_H
 #define DFTFE_INVERSEDFT_H
-#include <InverseDFTSolverFunction.h>
 #include "InverseDFTBase.h"
 #include "headers.h"
+#include <InverseDFTSolverFunction.h>
+#include <energyCalculator.h>
 
 #include <TriangulationManagerVxc.h>
 #include <constraintMatrixInfo.h>
@@ -116,11 +117,11 @@ private:
 
   void setPotBasePoissonNuclear();
 
-  void solvePhiTotalAllElectronNonPeriodic
-          (dftfe::distributedCPUVec<double> &                          x,
-      const dftfe::utils::MemoryStorage<double,dftfe::utils::MemorySpace::HOST> &rhoValues,
-      const MPI_Comm &                                     mpiComm_parent,
-      const MPI_Comm &                                     mpiComm_domain);
+  void solvePhiTotalAllElectronNonPeriodic(
+      dftfe::distributedCPUVec<double> &x,
+      const dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+          &rhoValues,
+      const MPI_Comm &mpiComm_parent, const MPI_Comm &mpiComm_domain);
 
   //
   // TODO

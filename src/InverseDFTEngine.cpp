@@ -361,7 +361,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       dftfe::TransferDataBetweenMeshesIncompatiblePartitioning<memorySpace>>(
       *d_dftMatrixFreeData, d_dftDensityDoFHandlerIndex, d_dftQuadIndex,
       d_matrixFreeDataVxc, d_dofHandlerVxcIndex, d_quadVxcIndex,
-      d_dftParams.verbosity,d_mpiComm_domain);
+      d_dftParams.verbosity, d_mpiComm_domain);
   MPI_Barrier(d_mpiComm_domain);
   double createMapEnd = MPI_Wtime();
 
@@ -468,8 +468,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     std::vector<double> qpointCoord(3, 0.0);
     std::vector<double> gradVal(3, 0.0);
 
-      d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
-                                  numQuadraturePointsPerCellParent);
+    d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
+                                numQuadraturePointsPerCellParent);
     std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
     // TODO uncomment this after testing
     for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
@@ -628,7 +628,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         if ((d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] <
              0.0) &&
             (d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] >
-             -1e-10)) {
+             -1e-9)) {
           d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] =
               1e-15;
         }
@@ -636,6 +636,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             0.0) {
           unsigned int qPointCoordIndex =
               ((iElem * numQuadraturePointsPerCellParent) + iQuad) * 3;
+          /*
           std::cout << " qPoint = (" << quadCoordinates[qPointCoordIndex + 0]
                     << "," << quadCoordinates[qPointCoordIndex + 1] << ","
                     << quadCoordinates[qPointCoordIndex + 2]
@@ -643,6 +644,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
           std::cout << "primary = " << rhoGaussianPrimary[0][index]
                     << " secondary = " << rhoGaussianDFT[0][index]
                     << " Fe = " << rhoValuesFeSpin[0][index] << "\n";
+        */
         }
         rhoSumGaussian +=
             d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] *
@@ -759,39 +761,39 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   const unsigned int numQuadPointsPerCellInVxc = d_gaussQuadVxc.size();
 
   double spinFactor = (d_dftParams.spinPolarized == 1) ? 1.0 : 2.0;
-/*
-  int isSpinPolarized;
-  if (d_dftParams.spinPolarized == 1) {
-    isSpinPolarized = XC_POLARIZED;
-  } else {
-    isSpinPolarized = XC_UNPOLARIZED;
-  }
+  /*
+    int isSpinPolarized;
+    if (d_dftParams.spinPolarized == 1) {
+      isSpinPolarized = XC_POLARIZED;
+    } else {
+      isSpinPolarized = XC_UNPOLARIZED;
+    }
 
-  dftfe::excDensityBaseClass *excFunctionalPtrLDA, *excFunctionalPtrGGA;
+    dftfe::excDensityBaseClass *excFunctionalPtrLDA, *excFunctionalPtrGGA;
 
-  dftfe::excManager excManagerObjLDA;
-  excManagerObjLDA.init(d_dftParams.xc_id,
-                        // isSpinPolarized,
-                        (d_dftParams.spinPolarized == 1) ? true : false,
-                        0.0,   // exx factor
-                        false, // scale exchange
-                        1.0,   // scale exchange factor
-                        true,  // computeCorrelation
-                        "");
+    dftfe::excManager excManagerObjLDA;
+    excManagerObjLDA.init(d_dftParams.xc_id,
+                          // isSpinPolarized,
+                          (d_dftParams.spinPolarized == 1) ? true : false,
+                          0.0,   // exx factor
+                          false, // scale exchange
+                          1.0,   // scale exchange factor
+                          true,  // computeCorrelation
+                          "");
 
-  excFunctionalPtrLDA = excManagerObjLDA.getExcDensityObj();
+    excFunctionalPtrLDA = excManagerObjLDA.getExcDensityObj();
 
-  dftfe::excManager excManagerObjGGA;
-  excManagerObjGGA.init(8, // TODO this is experimental // X - LB , C = PBE
-                           // isSpinPolarized,
-                        (d_dftParams.spinPolarized == 1) ? true : false,
-                        0.0,   // exx factor
-                        false, // scale exchange
-                        1.0,   // scale exchange factor
-                        true,  // computeCorrelation
-                        " ");
-  excFunctionalPtrGGA = excManagerObjGGA.getExcDensityObj();
-*/
+    dftfe::excManager excManagerObjGGA;
+    excManagerObjGGA.init(8, // TODO this is experimental // X - LB , C = PBE
+                             // isSpinPolarized,
+                          (d_dftParams.spinPolarized == 1) ? true : false,
+                          0.0,   // exx factor
+                          false, // scale exchange
+                          1.0,   // scale exchange factor
+                          true,  // computeCorrelation
+                          " ");
+    excFunctionalPtrGGA = excManagerObjGGA.getExcDensityObj();
+  */
   std::vector<dftfe::distributedCPUVec<double>> vxcInitialGuess;
 
   unsigned int locallyOwnedDofs = d_dofHandlerDFTClass->n_locally_owned_dofs();
@@ -811,7 +813,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       d_dftMatrixFreeData->get_quadrature(d_dftQuadIndex);
 
   unsigned int numQuadPointsPerPsiCell = quadratureRulePsi.size();
-    std::vector<double> rhoSpinFlattened( d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell);
+  std::vector<double> rhoSpinFlattened(d_numSpins * totalOwnedCellsPsi *
+                                       numQuadPointsPerPsiCell);
 
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
@@ -830,7 +833,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
     for (unsigned int iCell = 0; iCell < totalOwnedCellsPsi; iCell++) {
       for (unsigned int iQuad = 0; iQuad < numQuadPointsPerPsiCell; iQuad++) {
-        rhoSpinFlattened[(iCell * numQuadPointsPerPsiCell + iQuad)*d_numSpins +  iSpin] =
+        rhoSpinFlattened[(iCell * numQuadPointsPerPsiCell + iQuad) *
+                             d_numSpins +
+                         iSpin] =
             spinFactor *
             d_rhoTarget[iSpin][iCell * numQuadPointsPerPsiCell + iQuad];
       }
@@ -887,32 +892,26 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   std::vector<double> corrPotentialVal(
       d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell, 0.0);
 
-
   std::vector<double> derExchEnergyWithSigmaValDummy(
       d_sigmaGradRhoTarget.size(), 0.0);
 
+  xc_func_type funcXGGA;
+  xc_func_init(&funcXGGA, XC_GGA_X_LB,
+               (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
+  xc_gga_vxc(&funcXGGA, totalOwnedCellsPsi * numQuadPointsPerPsiCell,
+             &rhoSpinFlattened[0], &d_sigmaGradRhoTarget[0],
+             &exchangePotentialVal[0], &derExchEnergyWithSigmaValDummy[0]);
 
+  xc_func_type funcCLDA;
 
-    xc_func_type funcXGGA;
-    xc_func_init(&funcXGGA, XC_GGA_X_LB, (d_numSpins == 2 ) ? XC_POLARIZED : XC_UNPOLARIZED);
-    xc_gga_vxc(&funcXGGA,
-               totalOwnedCellsPsi * numQuadPointsPerPsiCell,
-               &rhoSpinFlattened[0],
-               &d_sigmaGradRhoTarget[0],
-               &exchangePotentialVal[0],
-               &derExchEnergyWithSigmaValDummy[0]);
+  xc_func_init(&funcCLDA, XC_LDA_C_PW,
+               (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
+  xc_lda_vxc(&funcCLDA, totalOwnedCellsPsi * numQuadPointsPerPsiCell,
+             &rhoSpinFlattened[0], &corrPotentialVal[0]);
 
-    xc_func_type funcCLDA;
-
-    xc_func_init(&funcCLDA, XC_LDA_C_PW, (d_numSpins == 2 ) ? XC_POLARIZED : XC_UNPOLARIZED);
-    xc_lda_vxc(&funcCLDA,
-               totalOwnedCellsPsi * numQuadPointsPerPsiCell,
-               &rhoSpinFlattened[0],
-               &corrPotentialVal[0]);
-
-//  excFunctionalPtrLDA->computeDensityBasedVxc(
-//      totalOwnedCellsPsi * numQuadPointsPerPsiCell, rhoData,
-//      outputDerExchangeEnergyDummy, outputDerCorrEnergy);
+  //  excFunctionalPtrLDA->computeDensityBasedVxc(
+  //      totalOwnedCellsPsi * numQuadPointsPerPsiCell, rhoData,
+  //      outputDerExchangeEnergyDummy, outputDerCorrEnergy);
 
   dftfe::dftUtils::constraintMatrixInfo<memorySpace>
       constraintsMatrixDataInfoPsi;
@@ -1319,8 +1318,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   pcout << " no of constrained adjoint from manual addition  = "
         << adjointConstraiedNodes << "\n";
 
-  std::cout << " num adjoint constraints iProc = " << this_mpi_process
-            << "size = " << d_constraintMatrixAdjoint.n_constraints() << "\n";
+  // std::cout << " num adjoint constraints iProc = " << this_mpi_process
+  //          << "size = " << d_constraintMatrixAdjoint.n_constraints() << "\n";
 
   IndexSet locally_active_dofs;
 
@@ -2198,8 +2197,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   pcout << " sum total in solve phi = " << sumTotalRho << "\n";
   pcout << " solving poisson in the pot nuclear \n";
 
-  solvePhiTotalAllElectronNonPeriodic(
-      vTotalElectroNodal, totalRhoValues, d_mpiComm_parent, d_mpiComm_domain);
+  solvePhiTotalAllElectronNonPeriodic(vTotalElectroNodal, totalRhoValues,
+                                      d_mpiComm_parent, d_mpiComm_domain);
 
   pcout << " vTotalElectroNodal norm solvePhiTotalAllElectronNonPeriodic = "
         << vTotalElectroNodal.l2_norm() << "\n";
@@ -2260,62 +2259,53 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   }
 }
 
-    template <unsigned int FEOrder, unsigned int FEOrderElectro,
-            dftfe::utils::MemorySpace memorySpace>
-    void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::solvePhiTotalAllElectronNonPeriodic
-            (dftfe::distributedCPUVec<double> &                          x,
-             const dftfe::utils::MemoryStorage<double,dftfe::utils::MemorySpace::HOST> &rhoValues,
-             const MPI_Comm &                                     mpiComm_parent,
-             const MPI_Comm &                                     mpiComm_domain)
-    {
-        // create the poisson solver problem
-      dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(
-        mpiComm_domain);
+template <unsigned int FEOrder, unsigned int FEOrderElectro,
+          dftfe::utils::MemorySpace memorySpace>
+void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
+    solvePhiTotalAllElectronNonPeriodic(
+        dftfe::distributedCPUVec<double> &x,
+        const dftfe::utils::MemoryStorage<
+            double, dftfe::utils::MemorySpace::HOST> &rhoValues,
+        const MPI_Comm &mpiComm_parent, const MPI_Comm &mpiComm_domain) {
+  // create the poisson solver problem
+  dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(
+      mpiComm_domain);
 
-      // create the dealii solver
+  // create the dealii solver
 
-      dftfe::dealiiLinearSolver CGSolver(mpiComm_parent,
-                                  mpiComm_domain,
-                                  dftfe::dealiiLinearSolver::CG);
+  dftfe::dealiiLinearSolver CGSolver(mpiComm_parent, mpiComm_domain,
+                                     dftfe::dealiiLinearSolver::CG);
 
+  dftfe::vectorTools::createDealiiVector<double>(
+      d_dftMatrixFreeDataElectro->get_vector_partitioner(
+          d_dftElectroDoFHandlerIndex),
+      1, x);
 
-      dftfe::vectorTools::createDealiiVector<double>(
-              d_dftMatrixFreeDataElectro->get_vector_partitioner(
-                      d_dftElectroDoFHandlerIndex),
-        1,
-        x);
+  x = 0.0;
 
-      x = 0.0;
+  poissonSolverObj.reinit(d_basisOperationsElectroHost, x,
+                          *(d_dftBaseClass->getConstraintsVectorElectro()),
+                          d_dftElectroDoFHandlerIndex, d_dftElectroRhsQuadIndex,
+                          d_dftElectroAxQuadIndex,
+                          d_dftBaseClass->getAtomNodeToChargeMap(),
+                          d_dftBaseClass->getBQuadValuesAllAtoms(),
+                          d_dftBaseClass->getSmearedChargeQuadratureIdElectro(),
+                          rhoValues, // rhoValues,
+                          true,      // isComputeDiagonalA
+                          false,     // isComputeMeanValueConstraints,
+                          d_dftParams.smearedNuclearCharges,
+                          true,  // isRhoValues
+                          false, // isGradSmearedChargeRhs
+                          0,
+                          false, // storeSmearedChargeRhs
+                          false, // reuseSmearedChargeRhs
+                          true   // reinitializeFastConstraints
+  );
 
-      poissonSolverObj.reinit(
-              d_basisOperationsElectroHost,
-        x,
-              *(d_dftBaseClass->getConstraintsVectorElectro()),
-              d_dftElectroDoFHandlerIndex,
-              d_dftElectroRhsQuadIndex,
-              d_dftElectroAxQuadIndex,
-              d_dftBaseClass->getAtomNodeToChargeMap(),
-              d_dftBaseClass->getBQuadValuesAllAtoms(),
-              d_dftBaseClass->getSmearedChargeQuadratureIdElectro(),
-        rhoValues, // rhoValues,
-        true,      // isComputeDiagonalA
-        false,     // isComputeMeanValueConstraints,
-              d_dftParams.smearedNuclearCharges,
-        true,  // isRhoValues
-        false, // isGradSmearedChargeRhs
-        0,
-        false, // storeSmearedChargeRhs
-        false, // reuseSmearedChargeRhs
-        true   // reinitializeFastConstraints
-      );
-
-      // use the CG solver
-      CGSolver.solve(poissonSolverObj,
-                     d_dftParams.absLinearSolverTolerance,
-                     d_dftParams.maxLinearSolverIterations,
-                     d_dftParams.verbosity);
-
-    }
+  // use the CG solver
+  CGSolver.solve(poissonSolverObj, d_dftParams.absLinearSolverTolerance,
+                 d_dftParams.maxLinearSolverIterations, d_dftParams.verbosity);
+}
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -2612,39 +2602,63 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   dftfe::dftUtils::printCurrentMemoryUsage(d_mpiComm_domain,
                                            "after solver func reinit");
 
+  // computing energies
+  {
+    // compute KE
+    pcout << " Kinetic energy at start\n";
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+        kineticEnergyDensityValues;
+    double kineticEnergy =
+        d_dftBaseClass->computeAndPrintKE(kineticEnergyDensityValues);
 
-  //computing energies
+    // compute electrostatic energy
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+        totalDensityValue;
+    totalDensityValue.resize(d_rhoTarget[0].size());
+
+    unsigned int spinIndex1 = 0;
+    unsigned int spinIndex2 = 1;
+    if (d_numSpins == 1)
+      spinIndex2 = 0;
+    for (unsigned int i = 0; i < d_rhoTarget[0].size(); i++) {
+      totalDensityValue[i] =
+          d_rhoTarget[spinIndex1][i] + d_rhoTarget[spinIndex2][i];
+    }
+    pcout << " Electro static energy for rho target\n";
+    double totalElectrostaticEnergy =
+        inverseDFTSolverFunctionObj.computeElectrostaticEnergy(
+            totalDensityValue);
+
     {
-        // compute KE
-        double kineticEnergy = d_dftClassPtr->computeAndPrintKE(kineticEnergyDensityValues);
-
-        // compute electrostatic energy
-
-        double totalElectrostaticEnergy =inverseDFTSolverFunctionObj.computeElectrostaticEnergy( d_dftBaseClass->getDensityOutValues()[0]);
-
-        {
-            xc_func_type funcXLDA, funcCLDA ;
-            int exceptParamX = xc_func_init(funcXLDA, XC_LDA_X, XC_UNPOLARIZED);
-            int exceptParamC = xc_func_init(funcCLDA, XC_LDA_C_PW, XC_UNPOLARIZED);
-            double xcLDAEnergy = inverseDFTSolverFunctionObj.computeLDAEnergy(d_dftBaseClass->getDensityOutValues()[0], "LDA-PW", funcXLDA, funcCLDA );
-        }
-
-//        {
-//            xc_func_type funcXGGA, funcCGGA ;
-//            int exceptParamX = xc_func_init(funcXGGA, XC_GGA_X_PBE, XC_UNPOLARIZED);
-//            int exceptParamC = xc_func_init(funcCGGA, XC_GGA_C_PBE, XC_UNPOLARIZED);
-//            double xcGGAEnergy = inverseDFTSolverFunctionObj.computeGGAEnergy(rhoValues, gradRhoValues, "GGA-PBE", funcXGGA, funcCGGA );
-//        }
-//
-//        {
-//            xc_func_type funcXMGGA, funcCMGGA ;
-//            int exceptParamX = xc_func_init(funcXMGGA, MGGA_X_R2SCAN , XC_UNPOLARIZED);
-//            int exceptParamC = xc_func_init(funcCMGGA, MGGA_C_R2SCAN , XC_UNPOLARIZED);
-//            double xcMGGAEnergy = computeMGGAEnergy(rhoValues, gradRhoValues, kineticEnergyDensityValues, "MGGA-R2SCAN", funcXMGGA, funcCMGGA );
-//        }
-
+      pcout << " LDA-PW energy at rho target\n";
+      xc_func_type funcXLDA, funcCLDA;
+      int exceptParamX = xc_func_init(&funcXLDA, XC_LDA_X, XC_UNPOLARIZED);
+      int exceptParamC = xc_func_init(&funcCLDA, XC_LDA_C_PW, XC_UNPOLARIZED);
+      double xcLDAEnergy = inverseDFTSolverFunctionObj.computeLDAEnergy(
+          totalDensityValue, "LDA-PW", funcXLDA, funcCLDA);
     }
 
+    //        {
+    //            xc_func_type funcXGGA, funcCGGA ;
+    //            int exceptParamX = xc_func_init(funcXGGA, XC_GGA_X_PBE,
+    //            XC_UNPOLARIZED); int exceptParamC = xc_func_init(funcCGGA,
+    //            XC_GGA_C_PBE, XC_UNPOLARIZED); double xcGGAEnergy =
+    //            inverseDFTSolverFunctionObj.computeGGAEnergy(rhoValues,
+    //            gradRhoValues, "GGA-PBE", funcXGGA, funcCGGA );
+    //        }
+    //
+    //        {
+    //            xc_func_type funcXMGGA, funcCMGGA ;
+    //            int exceptParamX = xc_func_init(funcXMGGA, MGGA_X_R2SCAN ,
+    //            XC_UNPOLARIZED); int exceptParamC = xc_func_init(funcCMGGA,
+    //            MGGA_C_R2SCAN , XC_UNPOLARIZED); double xcMGGAEnergy =
+    //            computeMGGAEnergy(rhoValues, gradRhoValues,
+    //            kineticEnergyDensityValues, "MGGA-R2SCAN", funcXMGGA,
+    //            funcCMGGA );
+    //        }
+  }
+
+  //    exit(0);
 
   inverseDFTSolverFunctionObj.setInitialGuess(d_vxcInitialChildNodes,
                                               d_targetPotValuesParentQuadData);
