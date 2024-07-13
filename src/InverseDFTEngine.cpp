@@ -2612,6 +2612,40 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   dftfe::dftUtils::printCurrentMemoryUsage(d_mpiComm_domain,
                                            "after solver func reinit");
 
+
+  //computing energies
+    {
+        // compute KE
+        double kineticEnergy = d_dftClassPtr->computeAndPrintKE(kineticEnergyDensityValues);
+
+        // compute electrostatic energy
+
+        double totalElectrostaticEnergy =inverseDFTSolverFunctionObj.computeElectrostaticEnergy( d_dftBaseClass->getDensityOutValues()[0]);
+
+        {
+            xc_func_type funcXLDA, funcCLDA ;
+            int exceptParamX = xc_func_init(funcXLDA, XC_LDA_X, XC_UNPOLARIZED);
+            int exceptParamC = xc_func_init(funcCLDA, XC_LDA_C_PW, XC_UNPOLARIZED);
+            double xcLDAEnergy = inverseDFTSolverFunctionObj.computeLDAEnergy(d_dftBaseClass->getDensityOutValues()[0], "LDA-PW", funcXLDA, funcCLDA );
+        }
+
+//        {
+//            xc_func_type funcXGGA, funcCGGA ;
+//            int exceptParamX = xc_func_init(funcXGGA, XC_GGA_X_PBE, XC_UNPOLARIZED);
+//            int exceptParamC = xc_func_init(funcCGGA, XC_GGA_C_PBE, XC_UNPOLARIZED);
+//            double xcGGAEnergy = inverseDFTSolverFunctionObj.computeGGAEnergy(rhoValues, gradRhoValues, "GGA-PBE", funcXGGA, funcCGGA );
+//        }
+//
+//        {
+//            xc_func_type funcXMGGA, funcCMGGA ;
+//            int exceptParamX = xc_func_init(funcXMGGA, MGGA_X_R2SCAN , XC_UNPOLARIZED);
+//            int exceptParamC = xc_func_init(funcCMGGA, MGGA_C_R2SCAN , XC_UNPOLARIZED);
+//            double xcMGGAEnergy = computeMGGAEnergy(rhoValues, gradRhoValues, kineticEnergyDensityValues, "MGGA-R2SCAN", funcXMGGA, funcCMGGA );
+//        }
+
+    }
+
+
   inverseDFTSolverFunctionObj.setInitialGuess(d_vxcInitialChildNodes,
                                               d_targetPotValuesParentQuadData);
 
