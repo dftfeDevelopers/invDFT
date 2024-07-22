@@ -487,7 +487,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0, gradVal);
 
         d_sigmaGradRhoTarget[qPointId] =
-            4.0 * (gradVal[0] * gradVal[0] + gradVal[1] * gradVal[1] +
+             4.0 * (gradVal[0] * gradVal[0] + gradVal[1] * gradVal[1] +
                    gradVal[2] * gradVal[2]);
         //                if ( d_sigmaGradRhoTarget[qPointId] > 1e8)
         //                  {
@@ -628,15 +628,15 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         if ((d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] <
              0.0) &&
             (d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] >
-             -1e-9)) {
+             -1e-7)) {
           d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] =
-              1e-15;
+              rhoGaussianPrimary[0][index];
         }
         if (d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] <
             0.0) {
           unsigned int qPointCoordIndex =
               ((iElem * numQuadraturePointsPerCellParent) + iQuad) * 3;
-          /*
+          
           std::cout << " qPoint = (" << quadCoordinates[qPointCoordIndex + 0]
                     << "," << quadCoordinates[qPointCoordIndex + 1] << ","
                     << quadCoordinates[qPointCoordIndex + 2]
@@ -644,7 +644,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
           std::cout << "primary = " << rhoGaussianPrimary[0][index]
                     << " secondary = " << rhoGaussianDFT[0][index]
                     << " Fe = " << rhoValuesFeSpin[0][index] << "\n";
-        */
+        
         }
         rhoSumGaussian +=
             d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] *
@@ -2568,11 +2568,11 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
     unsigned int sizeOfQuadTotal = d_rhoTarget[iSpin].size();
     for (unsigned int iQuad = 0; iQuad < sizeOfQuadTotal; iQuad++) {
       weightQuadData[iSpin][iQuad] = 1.0;
-      // weightQuadData[iSpin][iCell][iQuad] = 1.0/(std::pow(
-      //              spinFactor*d_rhoTarget[iSpin][iCell][iQuad],d_inverseDFTParams.inverseAlpha1ForWeights)
-      //              + tauWeight);
-      // weightQuadData[iSpin][iCell][iQuad] +=
-      // std::pow(spinFactor*d_rhoTarget[iSpin][iCell][iQuad],d_inverseDFTParams.inverseAlpha2ForWeights);
+       //weightQuadData[iSpin][iQuad] = 1.0/(std::pow(
+       //             spinFactor*d_rhoTarget[iSpin][iQuad],d_inverseDFTParams.inverseAlpha1ForWeights)
+       //             + tauWeight);
+       //weightQuadData[iSpin][iQuad] +=
+       //std::pow(spinFactor*d_rhoTarget[iSpin][iQuad],d_inverseDFTParams.inverseAlpha2ForWeights);
     }
   }
 

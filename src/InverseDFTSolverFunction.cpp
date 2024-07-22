@@ -101,6 +101,7 @@ InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   d_previousBlockSize = 0;
   d_numCellBlockSizeParent = 100;
   d_numCellBlockSizeChild = 100;
+  d_tolForChebFiltering = 1e-8; //starting cheb tolerance
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -1423,6 +1424,17 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro,
         rhoValues[0], gradRhoValues[0], kineticEnergyDensityValues,
         "MGGA-R2SCAN", funcXMGGA, funcCMGGA);
   }
+
+  {
+    xc_func_type funcXMGGA, funcCMGGA;
+    int exceptParamX =
+        xc_func_init(&funcXMGGA, XC_MGGA_X_SCAN, XC_UNPOLARIZED);
+    int exceptParamC =
+        xc_func_init(&funcCMGGA, XC_MGGA_C_SCAN, XC_UNPOLARIZED);
+    double xcMGGAEnergy = computeMGGAEnergy(
+        rhoValues[0], gradRhoValues[0], kineticEnergyDensityValues,
+        "MGGA-SCAN", funcXMGGA, funcCMGGA);
+  }
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -1612,7 +1624,7 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
        i < d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
        i++) {
     totalSigmaRhoValues.data()[i] =
-        4.0 * (totalGradRhoValues.data()[i * 3 + 0] *
+         (totalGradRhoValues.data()[i * 3 + 0] *
                    totalGradRhoValues.data()[i * 3 + 0] +
                totalGradRhoValues.data()[i * 3 + 1] *
                    totalGradRhoValues.data()[i * 3 + 1] +
@@ -1707,7 +1719,7 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
        i < d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
        i++) {
     totalSigmaRhoValues.data()[i] =
-        4.0 * (totalGradRhoValues.data()[i * 3 + 0] *
+         (totalGradRhoValues.data()[i * 3 + 0] *
                    totalGradRhoValues.data()[i * 3 + 0] +
                totalGradRhoValues.data()[i * 3 + 1] *
                    totalGradRhoValues.data()[i * 3 + 1] +
