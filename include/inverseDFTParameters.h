@@ -30,6 +30,15 @@
 namespace invDFT {
 class inverseDFTParameters {
 public:
+    std::string solvermode;
+
+    // post process
+    bool readPointsFromFile;
+    std::string fileNameReadPoints;
+    std::string fileNameWriteVxcPostProcess;
+    double starX, startY, startZ;
+    double endX, endY, endZ;
+    unsigned int numPointsX, numPointsY, numPointsZ;
   // Parameters for inverse problem
   double inverseBFGSTol;
   unsigned int inverseBFGSLineSearch;

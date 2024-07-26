@@ -57,12 +57,16 @@ int main(int argc, char *argv[]) {
   dftfe::runParameters runParams;
   runParams.parse_parameters(parameter_file);
 
-  if (runParams.solvermode == "UNIT_TEST") {
+    invDFT::inverseDFTParameters invParams;
+    invParams.parse_parameters(inverse_parameter_file, MPI_COMM_WORLD, true);
+
+  if (invParams.solvermode == "UNIT_TEST") {
     dftfe::dftfeWrapper dftfeWrapped(parameter_file, MPI_COMM_WORLD, true, true,
                                      "UNIT_TEST", runParams.restartFilesPath,
                                      runParams.verbosity, runParams.useDevice);
     dftfeWrapped.run();
-  } else {
+  }
+  else if (invParams.solvermode == "INVERSE"){
     dftfe::dftfeWrapper dftfeWrapped(parameter_file, MPI_COMM_WORLD, true, true,
                                      "GS", runParams.restartFilesPath,
                                      runParams.verbosity, runParams.useDevice);
@@ -72,9 +76,6 @@ int main(int argc, char *argv[]) {
     dftfe::dftParameters dftParams;
     dftParams.parse_parameters(parameter_file, MPI_COMM_WORLD, true, "GS",
                                runParams.restartFilesPath, 4, false);
-
-    invDFT::inverseDFTParameters invParams;
-    invParams.parse_parameters(inverse_parameter_file, MPI_COMM_WORLD, true);
 
     invDFT::InverseDFTBase *invBasePtr;
 
@@ -182,7 +183,7 @@ int main(int argc, char *argv[]) {
 #endif
 
     dftfeWrapped.run();
-    invBasePtr->run();
+    invBasePtr->interpolateVxc();
 
     delete invBasePtr;
   }

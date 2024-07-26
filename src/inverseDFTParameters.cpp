@@ -23,7 +23,65 @@ namespace invDFT {
 
 namespace internalInvDFTParams {
 void declare_parameters(dealii::ParameterHandler &prm) {
-  prm.enter_subsection("Inverse DFT parameters");
+    prm.declare_entry(
+            "SOLVER MODE",
+            "INVERSE",
+            dealii::Patterns::Selection(
+                    "INVERSE|POST_PROCESS|FUNCTIONAL_TEST"),
+            "[Standard] invDFT SOLVER MODE: If GS: performs inverse DFT calculation. If POST_PROCESS: interpolates the Vxc from an input file to a set of points. If FUNCTIONAL_TEST: run a functional test on the adjoint solve");
+
+    prm.enter_subsection("POST PROCESS");
+    {
+        prm.declare_entry("READS POINTS FROM FILE", "false", dealii::Patterns::Bool(),
+                          "[Standard] if the the points to which the Vxc has to be interpolated should be read from file");
+
+        prm.declare_entry("FILENAME FOR POINTS", ".",
+                          dealii::Patterns::Anything(),
+        `                  "[Standard] Name of the file from which the points are to be read");
+
+        prm.declare_entry("FILENAME FOR OUTPUT", ".",
+                          dealii::Patterns::Anything(),
+                          "[Standard] Name of the file to which the interpolated values are written");
+
+        prm.declare_entry("STARTING X", "-2.0",
+                          dealii::Patterns::Double(0.0),
+                          "[Standard] Starting point for X axis");
+
+        prm.declare_entry("STARTING Y", "-2.0",
+                          dealii::Patterns::Double(0.0),
+                          "[Standard] Starting point for Y axis");
+
+        prm.declare_entry("STARTING Z", "-2.0",
+                          dealii::Patterns::Double(0.0),
+                          "[Standard] Starting point for Z axis");
+
+        prm.declare_entry("ENDING X", "2.0",
+                          dealii::Patterns::Double(0.0),
+                          "[Standard] Ending point for X axis");
+
+        prm.declare_entry("ENDING Y", "2.0",
+                          dealii::Patterns::Double(0.0),
+                          "[Standard] Ending point for Y axis");
+
+        prm.declare_entry("ENDING Z", "2.0",
+                          dealii::Patterns::Double(0.0),
+                          "[Standard] Ending point for Z axis");
+
+        prm.declare_entry("NUMBER OF POINTS ALONG X DIRECTION", "1000",
+                          dealii::Patterns::Integer(1, 100000),
+                          "[Standard] Number of points along x direction.");
+
+        prm.declare_entry("NUMBER OF POINTS ALONG Y DIRECTION", "1000",
+                          dealii::Patterns::Integer(1, 100000),
+                          "[Standard] Number of points along y direction.");
+
+        prm.declare_entry("NUMBER OF POINTS ALONG Z DIRECTION", "1000",
+                          dealii::Patterns::Integer(1, 100000),
+                          "[Standard] Number of points along z direction.");
+
+    }
+    prm.leave_subsection();
+    prm.enter_subsection("Inverse DFT parameters");
   {
     prm.declare_entry("TOL FOR BFGS", "1e-12", dealii::Patterns::Double(0.0),
                       "[Standard] tol for the BFGS solver convergence");
@@ -182,6 +240,20 @@ void declare_parameters(dealii::ParameterHandler &prm) {
 } // namespace internalInvDFTParams
 
 inverseDFTParameters::inverseDFTParameters() {
+
+    // parameters for post process
+    readPointsFromFile = false;
+     fileNameReadPoints = "";
+    fileNameWriteVxcPostProcess = "output_file";
+    starX = -2.0;
+    startY = -2.0;
+    startZ = -2.0;
+    endX = 2.0;
+    endY = 2.0;
+    endZ = 2.0;
+    numPointsX = 100;
+    numPointsY = 100;
+    numPointsZ = 100;
   // Parameters for inverse problem
   inverseBFGSTol = 1e-12;
   inverseBFGSLineSearch = 1;
@@ -225,6 +297,23 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
   internalInvDFTParams::declare_parameters(prm);
   prm.parse_input(parameter_file);
 
+    solvermode       = prm.get("SOLVER MODE");
+    prm.enter_subsection("POST PROCESS");
+    {
+        readPointsFromFile = prm.get_bool("READS POINTS FROM FILE");
+        fileNameReadPoints = prm.get("FILENAME FOR POINTS");
+        fileNameWriteVxcPostProcess = prm.get("FILENAME FOR OUTPUT");
+        starX = prm.get_double("STARTING X");
+        startY = prm.get_double("STARTING Y");
+        startZ = prm.get_double("STARTING Z");
+        endX = prm.get_double("ENDING X");
+        endY = prm.get_double("ENDING Y");
+        endZ = prm.get_double("ENDING Z");
+        numPointsX = prm.get_integer("NUMBER OF POINTS ALONG X DIRECTION");
+        numPointsY = prm.get_integer("NUMBER OF POINTS ALONG Y DIRECTION");
+        numPointsZ = prm.get_integer("NUMBER OF POINTS ALONG Z DIRECTION");
+    }
+    prm.leave_subsection();
   prm.enter_subsection("Inverse DFT parameters");
   {
     inverseBFGSTol = prm.get_double("TOL FOR BFGS");
