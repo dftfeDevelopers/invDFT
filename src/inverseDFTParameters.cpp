@@ -37,34 +37,34 @@ void declare_parameters(dealii::ParameterHandler &prm) {
 
         prm.declare_entry("FILENAME FOR POINTS", ".",
                           dealii::Patterns::Anything(),
-        `                  "[Standard] Name of the file from which the points are to be read");
+                          "[Standard] Name of the file from which the points are to be read");
 
         prm.declare_entry("FILENAME FOR OUTPUT", ".",
                           dealii::Patterns::Anything(),
                           "[Standard] Name of the file to which the interpolated values are written");
 
         prm.declare_entry("STARTING X", "-2.0",
-                          dealii::Patterns::Double(0.0),
+                          dealii::Patterns::Double(),
                           "[Standard] Starting point for X axis");
 
         prm.declare_entry("STARTING Y", "-2.0",
-                          dealii::Patterns::Double(0.0),
+                          dealii::Patterns::Double(),
                           "[Standard] Starting point for Y axis");
 
         prm.declare_entry("STARTING Z", "-2.0",
-                          dealii::Patterns::Double(0.0),
+                          dealii::Patterns::Double(),
                           "[Standard] Starting point for Z axis");
 
         prm.declare_entry("ENDING X", "2.0",
-                          dealii::Patterns::Double(0.0),
+                          dealii::Patterns::Double(),
                           "[Standard] Ending point for X axis");
 
         prm.declare_entry("ENDING Y", "2.0",
-                          dealii::Patterns::Double(0.0),
+                          dealii::Patterns::Double(),
                           "[Standard] Ending point for Y axis");
 
         prm.declare_entry("ENDING Z", "2.0",
-                          dealii::Patterns::Double(0.0),
+                          dealii::Patterns::Double(),
                           "[Standard] Ending point for Z axis");
 
         prm.declare_entry("NUMBER OF POINTS ALONG X DIRECTION", "1000",
@@ -245,7 +245,7 @@ inverseDFTParameters::inverseDFTParameters() {
     readPointsFromFile = false;
      fileNameReadPoints = "";
     fileNameWriteVxcPostProcess = "output_file";
-    starX = -2.0;
+    startX = -2.0;
     startY = -2.0;
     startZ = -2.0;
     endX = 2.0;
@@ -303,7 +303,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
         readPointsFromFile = prm.get_bool("READS POINTS FROM FILE");
         fileNameReadPoints = prm.get("FILENAME FOR POINTS");
         fileNameWriteVxcPostProcess = prm.get("FILENAME FOR OUTPUT");
-        starX = prm.get_double("STARTING X");
+        startX = prm.get_double("STARTING X");
         startY = prm.get_double("STARTING Y");
         startZ = prm.get_double("STARTING Z");
         endX = prm.get_double("ENDING X");

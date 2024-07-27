@@ -2475,12 +2475,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
     {
 
         std::vector<std::vector<double>> targetPts;
-    if (d_inverseDFTParams.readPointsFromFile)
-    {
-
-    }
-    else
-    {
+    //if (d_inverseDFTParams.readPointsFromFile)
+    //{
+//
+    //}
+    //else
+    //{
         unsigned int numPointsX = d_inverseDFTParams.numPointsX;
         unsigned int numPointsY = d_inverseDFTParams.numPointsY;
         unsigned int numPointsZ = d_inverseDFTParams.numPointsZ;
@@ -2499,7 +2499,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
         }
         double dx =  (endingX - startingX)/(numPointsX - 1);
 
-        AssertThrow( dx > 0.0, ExcMessage(
+        AssertThrow( (dx > 0.0) || (numPointsX  == 1), ExcMessage(
                 " dx is negative"));
         for( unsigned int iCoord = 1; iCoord < numPointsX - 1; iCoord++)
         {
@@ -2520,7 +2520,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
         }
         double dy =  (endingY - startingY)/(numPointsY - 1);
 
-        AssertThrow( dy > 0.0, ExcMessage(
+        AssertThrow( (dy > 0.0) || (numPointsY==1), ExcMessage(
                 " dy is negative"));
         for( unsigned int iCoord = 1; iCoord < numPointsY - 1; iCoord++)
         {
@@ -2530,9 +2530,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
         double startingZ = d_inverseDFTParams.startZ;
         double endingZ = d_inverseDFTParams.endZ;
 
-        std::vector<double> z_coord(numPointsY,0.0);
+        std::vector<double> z_coord(numPointsZ,0.0);
         z_coord[0] = startingZ;
-        z_coord[numPointsY - 1] = endingZ;
+        z_coord[numPointsZ - 1] = endingZ;
         if( ( std::abs( startingZ - endingZ ) < 1e-6) && (numPointsZ != 1))
         {
             AssertThrow( false, ExcMessage(
@@ -2541,7 +2541,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
         }
         double dz =  (endingZ - startingZ)/(numPointsZ - 1);
 
-        AssertThrow( dz > 0.0, ExcMessage(
+        AssertThrow( (dz > 0.0) || (numPointsZ==1), ExcMessage(
                 " dz is negative"));
         for( unsigned int iCoord = 1; iCoord < numPointsZ - 1; iCoord++)
         {
@@ -2559,14 +2559,14 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
         MPI_Comm_size(d_mpiComm_domain, &numRank);
 
         unsigned int numPointsInProc = totalNumPoints/numRank;
-        if( thisRank == numRank -1)
+        if( thisRank == numRank - 1)
         {
             numPointsInProc = numPointsInProc + totalNumPoints%numRank;
         }
 
         unsigned int startingIndex = (totalNumPoints/numRank)*thisRank;
 
-        targetPts.resie(numPointsInProc, std::vector<double>(3,0.0));
+        targetPts.resize(numPointsInProc, std::vector<double>(3,0.0));
 
         for(unsigned int index = startingIndex ; index < startingIndex + numPointsInProc; index++)
         {
@@ -2578,23 +2578,23 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
             targetPts[index - startingIndex][1] = y_coord[yIndex];
             targetPts[index - startingIndex][2] = z_coord[zIndex];
         }
-    }
+    //}
 
-        size_type totallyOwnedCellsMeshVxc = d_matrixFreeDataVxc.n_physical_cells();
+    dftfe::size_type totallyOwnedCellsMeshVxc = d_matrixFreeDataVxc.n_physical_cells();
         typename dealii::DoFHandler<3>::active_cell_iterator
                 cellMeshVxc = d_dofHandlerTriaVxc.begin_active(),
                 endcMeshVxc = d_dofHandlerTriaVxc.end();
 
-        const dealii::FiniteElement<3> &feMesh1 = d_dofHandlerTriaVxc.get_fe();
+        const dealii::FiniteElement<3> &feMeshVxc = d_dofHandlerTriaVxc.get_fe();
         std::vector<unsigned int>       numberDofsPerCellVxc;
         numberDofsPerCellVxc.resize(totallyOwnedCellsMeshVxc);
 
         std::vector<std::shared_ptr<const dftfe::utils::Cell<3>>> srcCellsMeshVxc(0);
 
-        std::vector<std::shared_ptr<InterpolateFromCellToLocalPoints<memorySpace>>>
+        std::vector<std::shared_ptr<dftfe::InterpolateFromCellToLocalPoints<memorySpace>>>
         interpolateLocalMeshVxc(0);
         // iterate through child cells
-        size_type iElemIndex = 0;
+	dftfe::size_type iElemIndex = 0;
         for (; cellMeshVxc != endcMeshVxc; cellMeshVxc++)
         {
             if (cellMeshVxc->is_locally_owned())
@@ -2606,13 +2606,13 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
                 srcCellsMeshVxc.push_back(srcCellPtr);
 
                 interpolateLocalMeshVxc.push_back(
-                        std::make_shared<InterpolateFromCellToLocalPoints<memorySpace>>(
+                        std::make_shared<dftfe::InterpolateFromCellToLocalPoints<memorySpace>>(
                                 srcCellPtr, numberDofsPerCellVxc[iElemIndex]));
                 iElemIndex++;
             }
         }
 
-        InterpolateCellWiseDataToPoints<dftfe::dataTypes::number, memorySpace> d_meshVxctoPoints(srcCellsMeshVxc,
+	dftfe::InterpolateCellWiseDataToPoints<dftfe::dataTypes::number, memorySpace> d_meshVxctoPoints(srcCellsMeshVxc,
                                                                                                  interpolateLocalMeshVxc,
                                                                                                  targetPts,
                                                                                                  numberDofsPerCellVxc,
@@ -2638,11 +2638,16 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
         fullFlattenedMapVxc.resize(fullFlattenedMapChild.size());
         fullFlattenedMapVxc.copyFrom(fullFlattenedMapChild);
 
+
+	d_vxcInitialChildNodes[0].update_ghost_values();
+    	d_constraintMatrixVxc.distribute(d_vxcInitialChildNodes[0]);
+    	d_vxcInitialChildNodes[0].update_ghost_values();
+
         dftfe::utils::MemoryStorage<dftfe::dataTypes::number,
         dftfe::utils::MemorySpace::HOST> outputQuadData;
         d_meshVxctoPoints.interpolateSrcDataToTargetPoints(
                 d_blasWrapperHost,
-                d_vxcInitialChildNodes,
+                d_vxcInitialChildNodes[0],
                 1,
                 fullFlattenedMapVxc,
                 outputQuadData,
@@ -2650,31 +2655,28 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
 
         const std::string filename = d_inverseDFTParams.fileNameWriteVxcPostProcess;
         std::vector<std::shared_ptr<dftfe::dftUtils::CompositeData>> data(0);
+
+
+	MPI_Barrier(d_mpiComm_domain);
         for(unsigned int index = startingIndex ; index < startingIndex + numPointsInProc; index++)
         {
-            unsigned int xIndex = index/(numPointsZ*numPointsY);
-            unsigned int yIndex = (index - xIndex*numPointsZ*numPointsY)/(numPointsZ);
-            unsigned int zIndex = (index - xIndex*numPointsZ*numPointsY)%(numPointsZ);
-
-            targetPts[index - startingIndex][0] = x_coord[xIndex];
-            targetPts[index - startingIndex][1] = y_coord[yIndex];
-            targetPts[index - startingIndex][2] = z_coord[zIndex];
-
             std::vector<double> nodeVals(0);
             nodeVals.push_back(index);
             nodeVals.push_back(targetPts[index - startingIndex][0]);
             nodeVals.push_back(targetPts[index - startingIndex][1]);
             nodeVals.push_back(targetPts[index - startingIndex][2]);
 
-            nodeVals.push_back(outputQuadData.data() + index);
+            nodeVals.push_back(outputQuadData.data()[index - startingIndex]);
             data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(nodeVals));
-        }
+
+	}
 
         std::vector<dftfe::dftUtils::CompositeData *> dataRawPtrs(data.size());
         for (unsigned int i = 0; i < data.size(); ++i)
             dataRawPtrs[i] = data[i].get();
         dftfe::dftUtils::MPIWriteOnFile().writeData(dataRawPtrs, filename,
-                                                    d_mpi_comm_domain);
+                                                    d_mpiComm_domain);
+        MPI_Barrier(d_mpiComm_domain);
     }
 
 

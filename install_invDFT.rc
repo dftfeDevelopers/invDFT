@@ -1,12 +1,12 @@
-fn compile_invDFT{
-  cd /global/u1/v/vishalsu/softwares/invDFT_1_0_pre/
+fn compile_invDFT_lda{
+  cd /global/u1/v/vishalsu/softwares/invDFT_lda/
   cd invdft
   SRC = `{pwd}
   mkdir build 
   cd build
 
   dealiiDir=$INST/dealii_real
-  dftfeRealDir=/global/u1/v/vishalsu/softwares/dftfe_computeKE/dftfe/
+  dftfeRealDir=/global/homes/v/vishalsu/softwares/dftfe_softwares_dealii_9_5_2/install_DFTFE/src/dftfe/
   alglibDir=$INST/lib/alglib
   libxcDir=$INST
   spglibDir=$INST
@@ -76,5 +76,5 @@ fn compile_invDFT{
   cmake_real $SRC
 
   echo 'Build complete.'
-  cd /global/u1/v/vishalsu/softwares/invDFT_1_0_pre/invdft
+  cd /global/u1/v/vishalsu/softwares/invDFT_lda/invdft
 }

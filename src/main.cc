@@ -60,13 +60,6 @@ int main(int argc, char *argv[]) {
     invDFT::inverseDFTParameters invParams;
     invParams.parse_parameters(inverse_parameter_file, MPI_COMM_WORLD, true);
 
-  if (invParams.solvermode == "UNIT_TEST") {
-    dftfe::dftfeWrapper dftfeWrapped(parameter_file, MPI_COMM_WORLD, true, true,
-                                     "UNIT_TEST", runParams.restartFilesPath,
-                                     runParams.verbosity, runParams.useDevice);
-    dftfeWrapped.run();
-  }
-  else if (invParams.solvermode == "INVERSE"){
     dftfe::dftfeWrapper dftfeWrapped(parameter_file, MPI_COMM_WORLD, true, true,
                                      "GS", runParams.restartFilesPath,
                                      runParams.verbosity, runParams.useDevice);
@@ -183,10 +176,9 @@ int main(int argc, char *argv[]) {
 #endif
 
     dftfeWrapped.run();
-    invBasePtr->interpolateVxc();
+    invBasePtr->run();
 
     delete invBasePtr;
-  }
 
   const double end = MPI_Wtime();
   if (runParams.verbosity >= 1 && world_rank == 0) {
