@@ -1563,12 +1563,12 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
              d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
              totalRhoValues.data(), corrEnergyDensityVal.data());
 
-  d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->reinit(
+  d_basisOperationsParentHostPtr[d_matrixFreePsiVectorComponent]->reinit(
       d_numEigenValues, d_numCellBlockSizeParent,
       d_matrixFreeQuadratureComponentAdjointRhs, false, false);
 
   auto JxWData =
-      d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->JxW();
+      d_basisOperationsParentHostPtr[d_matrixFreePsiVectorComponent]->JxW();
 
   double ExcEnergyLocal = 0.0;
   for (unsigned int i = 0;
@@ -1642,12 +1642,12 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
              totalRhoValues.data(), totalSigmaRhoValues.data(),
              corrEnergyDensityVal.data());
 
-  d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->reinit(
+  d_basisOperationsParentHostPtr[d_matrixFreePsiVectorComponent]->reinit(
       d_numEigenValues, d_numCellBlockSizeParent,
       d_matrixFreeQuadratureComponentAdjointRhs, false, false);
 
   auto JxWData =
-      d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->JxW();
+      d_basisOperationsParentHostPtr[d_matrixFreePsiVectorComponent]->JxW();
 
   double ExcEnergyLocal = 0.0;
   for (unsigned int i = 0;
@@ -1739,12 +1739,12 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
               rhoLaplacianQuadValues.data(), kineticEnergyDensityValues.data(),
               corrEnergyDensityVal.data());
 
-  d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->reinit(
+  d_basisOperationsParentHostPtr[d_matrixFreePsiVectorComponent]->reinit(
       d_numEigenValues, d_numCellBlockSizeParent,
       d_matrixFreeQuadratureComponentAdjointRhs, false, false);
 
   auto JxWData =
-      d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->JxW();
+      d_basisOperationsParentHostPtr[d_matrixFreePsiVectorComponent]->JxW();
 
   double ExcEnergyLocal = 0.0;
   for (unsigned int i = 0;
