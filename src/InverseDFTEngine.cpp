@@ -1507,6 +1507,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   // set up the constraints and the matrixFreeObj
   pcout << " numElectrons = " << numElectrons << "\n";
 
+    double netChargeOnAtom = 0.0;
+    if (d_dftParams.multipoleBoundaryConditions)
+    {
+        netChargeOnAtom = d_dftParams.netCharge/atomLocations.size();
+    }
+
   // TODO does not assume periodic BCs.
   std::vector<std::vector<double>> atomLocations =
       d_dftBaseClass->getAtomLocationsCart();
@@ -1591,9 +1597,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                     (atomLocations[iAtom][4] - dof_coords_electro[nodeId][2]);
                 rad = std::sqrt(rad);
                 if (d_dftParams.isPseudopotential)
-                  nodalConstraintVal += atomLocations[iAtom][1] / rad;
+                  nodalConstraintVal += (atomLocations[iAtom][1] - netChargeOnAtom) / rad;
                 else
-                  nodalConstraintVal += atomLocations[iAtom][0] / rad;
+                  nodalConstraintVal += (atomLocations[iAtom][0] - netChargeOnAtom) / rad;
               }
               d_constraintMatrixElectroHartree.add_line(nodeId);
               d_constraintMatrixElectroHartree.set_inhomogeneity(
@@ -2287,7 +2293,16 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
   x = 0.0;
 
-  poissonSolverObj.reinit(d_basisOperationsElectroHost, x,
+    if (d_dftParams.multipoleBoundaryConditions)
+    {
+        d_dftBaseClass->computeMultipoleMoments(d_basisOperationsElectroHost,
+                                                d_dftElectroRhsQuadIndex,
+                                                rhoValues,
+                                                d_dftBaseClass->getBQuadValuesAllAtoms());
+        d_dftBaseClass->updatePRefinedConstraints();
+    }
+
+    poissonSolverObj.reinit(d_basisOperationsElectroHost, x,
                           *(d_dftBaseClass->getConstraintsVectorElectro()),
                           d_dftElectroDoFHandlerIndex, d_dftElectroRhsQuadIndex,
                           d_dftElectroAxQuadIndex,
