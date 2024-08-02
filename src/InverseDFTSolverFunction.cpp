@@ -1049,7 +1049,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
     d_tolForChebFiltering = std::min(chebyTol, d_lossPreviousIteration / 10.0);
     d_tolForChebFiltering = std::min(d_tolForChebFiltering, tolPreviousIter);
   } else {
-    d_tolForChebFiltering = std::min(d_dftParams->chebyshevTolerance, initialTolForChebFiltering);
+    d_tolForChebFiltering = std::min(d_dftParams->chebyshevTolerance, d_inverseDFTParams->initialTolForChebFiltering);
   }
 
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {

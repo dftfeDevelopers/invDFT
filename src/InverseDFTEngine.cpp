@@ -1507,15 +1507,15 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   // set up the constraints and the matrixFreeObj
   pcout << " numElectrons = " << numElectrons << "\n";
 
+  // TODO does not assume periodic BCs.
+  std::vector<std::vector<double>> atomLocations =
+      d_dftBaseClass->getAtomLocationsCart();
+
     double netChargeOnAtom = 0.0;
     if (d_dftParams.multipoleBoundaryConditions)
     {
         netChargeOnAtom = d_dftParams.netCharge/atomLocations.size();
     }
-
-  // TODO does not assume periodic BCs.
-  std::vector<std::vector<double>> atomLocations =
-      d_dftBaseClass->getAtomLocationsCart();
 
   dealii::IndexSet locallyRelevantDofsElectro;
 
@@ -2298,7 +2298,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         d_dftBaseClass->computeMultipoleMoments(d_basisOperationsElectroHost,
                                                 d_dftElectroRhsQuadIndex,
                                                 rhoValues,
-                                                d_dftBaseClass->getBQuadValuesAllAtoms());
+                                                &(d_dftBaseClass->getBQuadValuesAllAtoms()));
         d_dftBaseClass->updatePRefinedConstraints();
     }
 
