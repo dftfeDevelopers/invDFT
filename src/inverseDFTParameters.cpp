@@ -126,6 +126,9 @@ void declare_parameters(dealii::ParameterHandler &prm) {
         "FREQUENCY FOR WRITING VXC", "20", dealii::Patterns::Integer(1, 2000),
         "[Standard] Frequency with which the Vxc data is written to the disk");
 
+    prm.declare_entry("INITIAL TOL FOR CHEBYSHEV FILTERING", "1e-6",
+		    dealii::Patterns::Double(0.0),
+                    "[Standard] The tolerance to which the chebyshev filtering is solved to initially. The tolerance is progressively made tighteer as the loss decreases.");
     prm.declare_entry("RHO TOL FOR CONSTRAINTS", "1e-6",
                       dealii::Patterns::Double(0.0),
                       "[Standard] The tol for rho less than which the initial "
@@ -267,6 +270,7 @@ inverseDFTParameters::inverseDFTParameters() {
   fileNameWriteVxcPostFix = ".";
   writeVxcFrequency = 20;
 
+  initialTolForChebFiltering = 1e-6;
   rhoTolForConstraints = 1e-6;
   VxcInnerDomain = 6.0;
   VxcInnerMeshSize = 0.0;
@@ -333,6 +337,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     rhoTolForConstraints = prm.get_double("RHO TOL FOR CONSTRAINTS");
     VxcInnerDomain = prm.get_double("VXC MESH DOMAIN SIZE");
     VxcInnerMeshSize = prm.get_double("VXC MESH SIZE NEAR ATOM");
+    initialTolForChebFiltering = prm.get_double("INITIAL TOL FOR CHEBYSHEV FILTERING");
     inverseAdjointInitialTol =
         prm.get_double("INITIAL TOL FOR ADJOINT PROBLEM");
     inverseAdjointMaxIterations =

@@ -370,10 +370,12 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
-    writeVxcDataToFile(std::vector<dftfe::distributedCPUVec<double>> &pot,
-                       unsigned int counter) {
-  const unsigned int poolId =
-      dealii::Utilities::MPI::this_mpi_process(d_mpi_comm_interpool);
+writeChildMeshDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &pot,
+                          const std::string fileName)
+{
+
+	 const unsigned int poolId =
+  dealii::Utilities::MPI::this_mpi_process(d_mpi_comm_interpool);
   const unsigned int bandGroupId =
       dealii::Utilities::MPI::this_mpi_process(d_mpi_comm_interband);
   const unsigned int minPoolId =
@@ -392,9 +394,6 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 
     std::vector<std::shared_ptr<dftfe::dftUtils::CompositeData>> data(0);
 
-    const std::string filename = d_inverseDFTParams->vxcDataFolder + "/" +
-                                 d_inverseDFTParams->fileNameWriteVxcPostFix +
-                                 "_" + std::to_string(counter);
     for (dealii::types::global_dof_index iNode = 0; iNode < numberDofsChild;
          iNode++) {
       if (local_range.is_element(iNode)) {
@@ -405,7 +404,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
         nodeVals.push_back(dof_coord_child[iNode][2]);
 
         nodeVals.push_back(pot[0][iNode]);
-        if (d_numSpins == 2) {
+	if (d_numSpins == 2) {
           nodeVals.push_back(pot[1][iNode]);
         }
         data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(nodeVals));
@@ -414,10 +413,25 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
     std::vector<dftfe::dftUtils::CompositeData *> dataRawPtrs(data.size());
     for (unsigned int i = 0; i < data.size(); ++i)
       dataRawPtrs[i] = data[i].get();
-    dftfe::dftUtils::MPIWriteOnFile().writeData(dataRawPtrs, filename,
+    dftfe::dftUtils::MPIWriteOnFile().writeData(dataRawPtrs, fileName,
                                                 d_mpi_comm_domain);
   }
 }
+
+
+template <unsigned int FEOrder, unsigned int FEOrderElectro,
+          dftfe::utils::MemorySpace memorySpace>
+void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
+    writeVxcDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &pot,
+                       const unsigned int counter) {
+
+    const std::string filename = d_inverseDFTParams->vxcDataFolder + "/" +
+                                 d_inverseDFTParams->fileNameWriteVxcPostFix +
+                                 "_" + std::to_string(counter);
+
+
+    writeChildMeshDataToFile(pot,filename);
+    }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -1035,7 +1049,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
     d_tolForChebFiltering = std::min(chebyTol, d_lossPreviousIteration / 10.0);
     d_tolForChebFiltering = std::min(d_tolForChebFiltering, tolPreviousIter);
   } else {
-    d_tolForChebFiltering = 1e-6;
+    d_tolForChebFiltering = std::min(d_dftParams->chebyshevTolerance, initialTolForChebFiltering);
   }
 
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {

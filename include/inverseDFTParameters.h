@@ -52,6 +52,7 @@ public:
   std::string fileNameWriteVxcPostFix;
   unsigned int writeVxcFrequency;
 
+  double initialTolForChebFiltering;
   double rhoTolForConstraints;
   double VxcInnerDomain;
   double VxcInnerMeshSize;

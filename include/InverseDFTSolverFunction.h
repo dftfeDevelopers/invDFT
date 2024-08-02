@@ -99,8 +99,11 @@ public:
       const dftfe::dftParameters &dftParams,
       const inverseDFTParameters &inverseDFTParams);
 
-  void writeVxcDataToFile(std::vector<dftfe::distributedCPUVec<double>> &pot,
-                          unsigned int counter);
+  void writeVxcDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &data,
+                          const unsigned int counter);
+
+  void writeChildMeshDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &pot,
+                          const std::string fileName);
 
   void solveEigen(const std::vector<dftfe::distributedCPUVec<double>> &pot);
 

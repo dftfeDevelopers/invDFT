@@ -2372,7 +2372,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       distBetweenNodes += (zcoordValue - dof_coord_child[iNode][2]) *
                           (zcoordValue - dof_coord_child[iNode][2]);
       distBetweenNodes = std::sqrt(distBetweenNodes);
-      if (distBetweenNodes > 1e-6) {
+      if (distBetweenNodes > 1e-3) {
         std::cout << " Errorr while reading data global nodes do not match \n";
       }
 
@@ -2783,12 +2783,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
     unsigned int sizeOfQuadTotal = d_rhoTarget[iSpin].size();
     for (unsigned int iQuad = 0; iQuad < sizeOfQuadTotal; iQuad++) {
-      weightQuadData[iSpin][iQuad] = 1.0;
-       //weightQuadData[iSpin][iQuad] = 1.0/(std::pow(
-       //             spinFactor*d_rhoTarget[iSpin][iQuad],d_inverseDFTParams.inverseAlpha1ForWeights)
-       //             + tauWeight);
-       //weightQuadData[iSpin][iQuad] +=
-       //std::pow(spinFactor*d_rhoTarget[iSpin][iQuad],d_inverseDFTParams.inverseAlpha2ForWeights);
+       //weightQuadData[iSpin][iQuad] = 1.0;
+       weightQuadData[iSpin][iQuad] = 1.0/(std::pow(
+                    spinFactor*d_rhoTarget[iSpin][iQuad],d_inverseDFTParams.inverseAlpha1ForWeights)
+                    + tauWeight);
+       weightQuadData[iSpin][iQuad] +=
+       std::pow(spinFactor*d_rhoTarget[iSpin][iQuad],d_inverseDFTParams.inverseAlpha2ForWeights);
     }
   }
 
@@ -2798,12 +2798,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   if(d_inverseDFTParams.solvermode == "FUNCTIONAL_TEST")
   {
       testAdjoint();
-      exit(0);
+      return; 
   }
   else if(d_inverseDFTParams.solvermode == "POST_PROCESS")
   {
       interpolateVxc();
-      exit(0);
+      return;
   }
 
 
