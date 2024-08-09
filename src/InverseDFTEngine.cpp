@@ -1597,9 +1597,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                     (atomLocations[iAtom][4] - dof_coords_electro[nodeId][2]);
                 rad = std::sqrt(rad);
                 if (d_dftParams.isPseudopotential)
-                  nodalConstraintVal += (atomLocations[iAtom][1] - netChargeOnAtom) / rad;
+                  nodalConstraintVal += (atomLocations[iAtom][1] + netChargeOnAtom) / rad;
                 else
-                  nodalConstraintVal += (atomLocations[iAtom][0] - netChargeOnAtom) / rad;
+                  nodalConstraintVal += (atomLocations[iAtom][0] + netChargeOnAtom) / rad;
               }
               d_constraintMatrixElectroHartree.add_line(nodeId);
               d_constraintMatrixElectroHartree.set_inhomogeneity(

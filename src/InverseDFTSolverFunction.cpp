@@ -834,8 +834,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
         d_multiVectorAdjointProblem.updateInputPsi(
             psiBlockVecMemSpace, effectiveOrbitalOccupancy, d_uValsMemSpace,
             degeneracyMap, shiftValues, currentBlockSize);
-
-        double adjoinTolForThisIteration = 5.0 * d_tolForChebFiltering;
+        double adjoinTolForThisIteration = d_tolForChebFiltering/ d_inverseDFTParams->adaptiveFactorForAdjoint;
         d_adjointTol = std::min(d_adjointTol, adjoinTolForThisIteration);
 
 #if defined(DFTFE_WITH_DEVICE)
@@ -1046,7 +1045,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
   const double chebyTol = d_dftParams->chebyshevTolerance;
   if (d_getForceCounter > 3) {
     double tolPreviousIter = d_tolForChebFiltering;
-    d_tolForChebFiltering = std::min(chebyTol, d_lossPreviousIteration / 10.0);
+    d_tolForChebFiltering = std::min(chebyTol, d_lossPreviousIteration / d_inverseDFTParams->adaptiveFactorForChebFiltering);
     d_tolForChebFiltering = std::min(d_tolForChebFiltering, tolPreviousIter);
   } else {
     d_tolForChebFiltering = std::min(d_dftParams->chebyshevTolerance, d_inverseDFTParams->initialTolForChebFiltering);
@@ -1489,6 +1488,17 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 
   dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(
       d_mpi_comm_domain);
+  
+  if (d_dftParams->multipoleBoundaryConditions)
+    {
+        d_dftClassPtr->computeMultipoleMoments(basisOperationsElectroHost,
+                                                mfRhsId,
+                                                totalRhoValues,
+                                                &(bQuadValuesAllAtoms));
+        d_dftClassPtr->updatePRefinedConstraints();
+    }
+
+  
   poissonSolverObj.reinit(
       basisOperationsElectroHost, vTotElectroNodal, *constraintMatrix,
       mfVectorComponent, mfRhsId, mfAXId, atomNodeToChargeMap,

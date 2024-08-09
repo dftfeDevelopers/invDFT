@@ -129,6 +129,17 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("INITIAL TOL FOR CHEBYSHEV FILTERING", "1e-6",
 		    dealii::Patterns::Double(0.0),
                     "[Standard] The tolerance to which the chebyshev filtering is solved to initially. The tolerance is progressively made tighteer as the loss decreases.");
+
+    prm.declare_entry("ADAPTIVE FACTOR FOR ADJOINT", "1000.0",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] The tol to which the adjoint problem is solved is chosen as the minimum of the tol used"
+                      "for the previous iteration and the tol used for Cheb filtering by adaptive factor");
+
+    prm.declare_entry("ADAPTIVE FACTOR FOR CHEBYSHEV FILTERING", "100.0",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] Chebyshev filterting tol is chosen as the minimum of the tol for the preivous iteration"
+		      "and the loss unweighted divided by the adptive factor ");
+
     prm.declare_entry("RHO TOL FOR CONSTRAINTS", "1e-6",
                       dealii::Patterns::Double(0.0),
                       "[Standard] The tol for rho less than which the initial "
@@ -270,6 +281,8 @@ inverseDFTParameters::inverseDFTParameters() {
   fileNameWriteVxcPostFix = ".";
   writeVxcFrequency = 20;
 
+  adaptiveFactorForAdjoint = 1000.0;
+  adaptiveFactorForChebFiltering = 100.0;
   initialTolForChebFiltering = 1e-6;
   rhoTolForConstraints = 1e-6;
   VxcInnerDomain = 6.0;
@@ -340,6 +353,10 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     initialTolForChebFiltering = prm.get_double("INITIAL TOL FOR CHEBYSHEV FILTERING");
     inverseAdjointInitialTol =
         prm.get_double("INITIAL TOL FOR ADJOINT PROBLEM");
+    adaptiveFactorForAdjoint = 
+	    prm.get_double("ADAPTIVE FACTOR FOR ADJOINT");
+    adaptiveFactorForChebFiltering =
+	    prm.get_double("ADAPTIVE FACTOR FOR CHEBYSHEV FILTERING");
     inverseAdjointMaxIterations =
         prm.get_integer("MAX ITERATIONS FOR ADJOINT PROBLEM");
     inverseAdjointInitialTol =
