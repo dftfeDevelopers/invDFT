@@ -101,6 +101,10 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("BFGS MAX ITERATIONS", "10000",
                       dealii::Patterns::Integer(1, 100000),
                       "[Standard] Max number of iterations in BFGS.");
+	
+    prm.declare_entry("USE DELTA RHO CORRECTION", "true", dealii::Patterns::Bool(),
+                      "[Standard] Flag to determine if the delta rho correction is to be applied"
+                      "from a file or not");
 
     prm.declare_entry("READ VXC DATA", "true", dealii::Patterns::Bool(),
                       "[Standard] Flag to determine if the initial Vxc is read "
@@ -281,6 +285,7 @@ inverseDFTParameters::inverseDFTParameters() {
   fileNameWriteVxcPostFix = ".";
   writeVxcFrequency = 20;
 
+  useDeltaRhoCorrection = true;
   adaptiveFactorForAdjoint = 1000.0;
   adaptiveFactorForChebFiltering = 100.0;
   initialTolForChebFiltering = 1e-6;
@@ -347,6 +352,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
         prm.get("POSTFIX TO THE FILENAME FOR WRITING VXC DATA");
     writeVxcFrequency = prm.get_integer("FREQUENCY FOR WRITING VXC");
 
+    useDeltaRhoCorrection = prm.get_bool("USE DELTA RHO CORRECTION");
     rhoTolForConstraints = prm.get_double("RHO TOL FOR CONSTRAINTS");
     VxcInnerDomain = prm.get_double("VXC MESH DOMAIN SIZE");
     VxcInnerMeshSize = prm.get_double("VXC MESH SIZE NEAR ATOM");

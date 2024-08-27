@@ -604,6 +604,34 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
     cell = dofHandlerParent->begin_active();
     iElem = 0;
+
+    if ( d_inverseDFTParams.useDeltaRhoCorrection)
+    {
+      for (; cell != endc; ++cell)
+      if (cell->is_locally_owned()) {
+        for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
+             iQuad++) {
+          unsigned int index = iElem * numQuadraturePointsPerCellParent + iQuad;
+          d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index] -
+                                      rhoGaussianDFT[iSpin][index] +
+                                      rhoValuesFeSpin[iSpin][index];
+        }
+        iElem++;
+      }
+    }
+    else
+    {
+     for (; cell != endc; ++cell)
+      if (cell->is_locally_owned()) {
+        for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
+             iQuad++) {
+          unsigned int index = iElem * numQuadraturePointsPerCellParent + iQuad;
+          d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index];
+        }
+        iElem++;
+      }
+    }
+
     for (; cell != endc; ++cell)
       if (cell->is_locally_owned()) {
         for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
@@ -2938,11 +2966,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::testAdjoint() {
   dftfe::KohnShamHamiltonianOperator<memorySpace> *kohnShamClassPtr =
       d_dftBaseClass->getOperatorClass();
 
+  double TVal = d_dftParams.TVal;
   pcout << " Entering reinit\n";
   multiVectorAdjointProblem.reinit(
       d_blasWrapperMemSpace,
       d_basisOperationsAdjointMemSpacePtr[d_adjointMFPsiConstraints],
-      *kohnShamClassPtr, *d_constraintDFTClass, d_adjointMFPsiConstraints,
+      *kohnShamClassPtr, *d_constraintDFTClass, TVal, d_adjointMFPsiConstraints,
       d_quadAdjointIndex, true);
 
   dftfe::dftUtils::constraintMatrixInfo<memorySpace>
@@ -3038,9 +3067,10 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::testAdjoint() {
     degeneracy[iWave].push_back(iWave);
   }
 
+  const double fermiEnergy = d_dftBaseClass->getFermiEnergy(); 
   multiVectorAdjointProblem.updateInputPsi(
       psiBlockVecMemSpace, effectiveOrbitalOccupancy, differenceInDensities,
-      degeneracy, shiftValues, currentBlockSize);
+      degeneracy, fermiEnergy, shiftValues, currentBlockSize);
 
   multiVectorLinearMINRESSolver.solve(
       multiVectorAdjointProblem, d_blasWrapperMemSpace, multiVectorOutput,

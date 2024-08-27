@@ -268,14 +268,24 @@ inline double Dm(const int m) {
     return 1.0 / sqrt(M_PI);
 }
 
+double Blm(const int l, const int m)
+    {
+      if (m==0)
+        return sqrt((2.0*l+1)/2.0);
+      else
+        return Blm(l, m-1)/sqrt((l-m+1.0)*(l+m));
+    }
+
 inline double Clm(const int l, const int m) {
   Assert(m >= 0 && m <= l,
          dealii::ExcMessage(
              "m value in Clm() function inside "
              "gaussianFunctionManager.cc must be a positive integer"));
-  return sqrt(((2.0 * l + 1) * boost::math::factorial<double>(l - m)) /
+  /*return sqrt(((2.0 * l + 1) * boost::math::factorial<double>(l - m)) /
               (2.0 * boost::math::factorial<double>(l + m)));
-}
+*/
+  return Blm(l, abs(m));
+	      }
 
 double Qm(const int m, const double phi) {
   double returnValue = 0.0;

@@ -253,7 +253,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
   d_multiVectorAdjointProblem.reinit(
       d_BLASWrapperPtr,
       d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
-      *d_kohnShamClass, *d_constraintMatrixHomogeneousPsi,
+      *d_kohnShamClass, *d_constraintMatrixHomogeneousPsi, d_dftParams->TVal,
       d_matrixFreePsiVectorComponent, d_matrixFreeQuadratureComponentAdjointRhs,
       isComputeDiagonalA);
 
@@ -460,6 +460,22 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   MPI_Barrier(d_mpi_comm_domain);
   d_computingTimerStandard.enter_subsection("SolveEigen in inverse call");
   this->solveEigen(pot);
+
+
+  const std::vector<std::vector<double>> &eigenValuesHost =
+      d_dftClassPtr->getEigenValues();
+  const double fermiEnergy = d_dftClassPtr->getFermiEnergy();
+
+for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) 
+	  for (unsigned int iKPoint = 0; iKPoint < d_numKPoints; ++iKPoint) 
+  {
+	  for (unsigned int iWave = 0 ; iWave < d_numEigenValues; iWave++)
+	  {
+		  double deriFermi =  dftfe::dftUtils::getPartialOccupancyDer(eigenValuesHost[iKPoint][d_numEigenValues*iSpin + iWave],
+                           fermiEnergy,  dftfe::C_kb, d_dftParams->TVal);
+	          pcout<<" derivative of iSpin = "<<iSpin<<" kPoint = "<<iKPoint<<" iWave = "<<iWave<<" : "<<deriFermi<<"\n";
+	  } 
+  }
 #if defined(DFTFE_WITH_DEVICE)
   if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
     dftfe::utils::deviceSynchronize();
@@ -469,9 +485,6 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   const dftfe::utils::MemoryStorage<dftfe::dataTypes::number, memorySpace>
       &eigenVectorsMemSpace = d_dftClassPtr->getEigenVectors();
 
-  const std::vector<std::vector<double>> &eigenValuesHost =
-      d_dftClassPtr->getEigenValues();
-  const double fermiEnergy = d_dftClassPtr->getFermiEnergy();
   unsigned int numLocallyOwnedDofs = d_dofHandlerParent->n_locally_owned_dofs();
   unsigned int numDofsPerCell = d_dofHandlerParent->get_fe().dofs_per_cell;
 
@@ -833,7 +846,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 
         d_multiVectorAdjointProblem.updateInputPsi(
             psiBlockVecMemSpace, effectiveOrbitalOccupancy, d_uValsMemSpace,
-            degeneracyMap, shiftValues, currentBlockSize);
+            degeneracyMap, fermiEnergy, shiftValues, currentBlockSize);
         double adjoinTolForThisIteration = d_tolForChebFiltering/ d_inverseDFTParams->adaptiveFactorForAdjoint;
         d_adjointTol = std::min(d_adjointTol, adjoinTolForThisIteration);
 
@@ -848,6 +861,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
         if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
           dftfe::utils::deviceSynchronize();
 #endif
+
+	pcout<<" Minres solved to "<<d_adjointTol<<" tolerance \n";
         MPI_Barrier(d_mpi_comm_domain);
         d_computingTimerStandard.enter_subsection("MINRES Solve");
         d_multiVectorLinearMINRESSolver.solve(
@@ -1050,6 +1065,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
   } else {
     d_tolForChebFiltering = std::min(d_dftParams->chebyshevTolerance, d_inverseDFTParams->initialTolForChebFiltering);
   }
+
+  pcout<<" Chebyshev filtering is solved to "<<d_tolForChebFiltering<<" tolerance \n";
 
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
     d_computingTimerStandard.enter_subsection(

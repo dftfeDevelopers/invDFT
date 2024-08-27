@@ -94,6 +94,7 @@ public:
                   basisOperationsPtr,
               dftfe::KohnShamHamiltonianOperator<memorySpace> &ksHamiltonianObj,
               const dealii::AffineConstraints<double> &constraintMatrix,
+	      const double TVal,
               const unsigned int matrixFreeVectorComponent,
               const unsigned int matrixFreeQuadratureComponentRhs,
               const bool isComputeDiagonalA);
@@ -115,11 +116,12 @@ public:
           &effectiveOrbitalOccupancy, // incorporates spin information
       dftfe::utils::MemoryStorage<double, memorySpace> &differenceInDensity,
       std::vector<std::vector<unsigned int>> &degeneracy,
-      std::vector<double> &eigenValues, unsigned int blockSize);
+      double fermiEnergy, std::vector<double> &eigenValues, unsigned int blockSize);
 
 private:
   void computeMuMatrix(
       dftfe::utils::MemoryStorage<double, memorySpace> &inputJxwMemSpace,
+      dftfe::utils::MemoryStorage<double, memorySpace> &effectiveOrbitalOcc,
       dftfe::linearAlgebra::MultiVector<dftfe::dataTypes::number, memorySpace>
           &psiVecMemSpace);
 
@@ -209,6 +211,7 @@ private:
   dftfe::utils::MemoryStorage<double, memorySpace>
       d_cellRMatrixTimesWaveMatrixMemSpace;
 
+  double d_fermiEnergy, d_TVal;
   unsigned int d_cellBlockSize;
 };
 } // end of namespace invDFT
