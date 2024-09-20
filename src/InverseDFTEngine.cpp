@@ -2181,6 +2181,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       iElemElectro++;
     }
 
+    if (d_dftParams.confiningPotential)
+    {
+        auto confiningPot = d_dftBaseClass->getConfiningPotential();
+        confiningPot.addConfiningPotential(d_potBaseQuadData[0]);
+    }
+    
   if (d_numSpins == 2) {
     std::copy(d_potBaseQuadData[0].begin(), d_potBaseQuadData[0].end(),
               d_potBaseQuadData[1].begin());
@@ -2290,6 +2296,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
 
   std::copy(quadratureValueData.begin(), quadratureValueData.end(),
             d_potBaseQuadData[0].begin());
+
+  if (d_dftParams.confiningPotential)
+  {
+      auto confiningPot = d_dftBaseClass->getConfiningPotential();
+      confiningPot.addConfiningPotential(d_potBaseQuadData[0]);
+  }
 
   if (d_numSpins == 2) {
     std::copy(d_potBaseQuadData[0].begin(), d_potBaseQuadData[0].end(),
