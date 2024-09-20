@@ -1025,7 +1025,7 @@ void getBasisCutoff(
     double rcut = 0.0;
     for (unsigned int j = 0; j < L; ++j) {
       const double alpha = b->alpha[j];
-      const double c = b->c[j];
+      const double c = std::fabs(b->c[j]);
       const double norm = b->normConsts[j];
       double r = -(std::log(tol / (c * norm))) / alpha;
       r = std::sqrt(std::abs(r));
@@ -1147,7 +1147,14 @@ gaussianFunctionManager::gaussianFunctionManager(
 
   d_basisCutoff.resize(numBasis, 0.0);
   getBasisCutoff(d_basisFunctions, d_basisCutoff, DFTFE_GAUSSIAN_ZERO_TOL);
-}
+
+
+  for(unsigned int iBasis = 0 ; iBasis < numBasis; iBasis++)
+  {
+	  pcout<<" i = "<<iBasis<<" cutoff = "<<d_basisCutoff[iBasis]<<"\n";
+  }
+
+      }
 
 //
 // Destructor
@@ -1190,7 +1197,7 @@ void gaussianFunctionManager::evaluateForQuad(
   for (unsigned i = 0; i < numBasis; ++i) {
     const double r =
         getClosestDistanceToBasis(points, nPoints, d_basisFunctions[i]);
-    if (r < d_basisCutoff[i])
+    if (r < d_basisCutoff[i])  
       basisIdsWithCompactSupportInProc.push_back(i);
   }
 
@@ -1287,6 +1294,23 @@ void gaussianFunctionManager::evaluateForQuad(
       const double factor = 1.0 / sqrt(d_SMat[quadIndex][i * numBasis + i]);
       d_basisFunctions[i]->basisNormConst = factor;
     }
+
+    // ******
+    
+
+    int rank;
+    MPI_Comm_rank(d_mpiComm_domain, &rank);
+    if ( rank == 0 )
+    {
+	    for (unsigned int i = 0; i < numBasis; ++i)
+    {
+            std::cout<<" i = "<<i <<" norm const = "<<d_basisFunctions[i]->basisNormConst<<"\n";
+
+    }
+    }
+
+
+    ////////
 
     // scale the S matrix
     for (unsigned int i = 0; i < numBasis; ++i) {

@@ -90,6 +90,10 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       "[Standard] Number of times line search is performed "
                       "before finding the optimal lambda.");
 
+
+    prm.declare_entry("NET CHARGE", "0", dealii::Patterns::Integer(-20, 20),
+                      "[Standard] NET CHARGE ON THE SYSTEM");
+    
     prm.declare_entry("TOL FOR BFGS LINE SEARCH", "1e-6",
                       dealii::Patterns::Double(0.0),
                       "[Standard] tol for the BFGS solver line search");
@@ -302,6 +306,7 @@ inverseDFTParameters::inverseDFTParameters() {
   inverseFractionOccTol = 1e-8;
   inverseDegeneracyTol = 0.002;
 
+  netCharge = 0;
   readGaussian = false;
   fermiAmaldiBC = false;
   densityMatPrimaryFileNameSpinUp = ".";
@@ -352,6 +357,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
         prm.get("POSTFIX TO THE FILENAME FOR WRITING VXC DATA");
     writeVxcFrequency = prm.get_integer("FREQUENCY FOR WRITING VXC");
 
+    netCharge = prm.get_integer("NET CHARGE");
     useDeltaRhoCorrection = prm.get_bool("USE DELTA RHO CORRECTION");
     rhoTolForConstraints = prm.get_double("RHO TOL FOR CONSTRAINTS");
     VxcInnerDomain = prm.get_double("VXC MESH DOMAIN SIZE");

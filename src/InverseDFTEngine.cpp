@@ -1542,7 +1542,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     double netChargeOnAtom = 0.0;
     if (d_dftParams.multipoleBoundaryConditions)
     {
-        netChargeOnAtom = d_dftParams.netCharge/atomLocations.size();
+        netChargeOnAtom = d_inverseDFTParams.netCharge/atomLocations.size();
     }
 
   dealii::IndexSet locallyRelevantDofsElectro;
@@ -2728,6 +2728,13 @@ template <unsigned int FEOrder, unsigned int FEOrderElectro,
 void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   dftfe::dftUtils::printCurrentMemoryUsage(d_mpiComm_domain,
                                            "Before parent cell manager");
+
+  if( d_inverseDFTParams.netCharge != 0)
+  {
+	  AssertThrow(d_dftParams.multipoleBoundaryConditions == true, 
+			  ExcMessage ("DFT-FE error: set MULTIPOLE BOUNDARY CONDITIONS in DFT-FE to true "));
+  }
+
   createParentChildDofManager();
 
   dftfe::dftUtils::printCurrentMemoryUsage(d_mpiComm_domain,
@@ -2802,6 +2809,10 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
     setInitialPotL2Proj();
   }
 
+ 
+  unsigned int numElectronsWithCharge = d_dftBaseClass->getNumElectrons() + d_inverseDFTParams.netCharge;
+  d_dftBaseClass->setNumElectrons(numElectronsWithCharge); 
+  
   setPotBase();
 
   InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>

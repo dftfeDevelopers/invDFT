@@ -52,6 +52,7 @@ public:
   std::string fileNameWriteVxcPostFix;
   unsigned int writeVxcFrequency;
 
+  unsigned int netCharge;
   bool useDeltaRhoCorrection;
   double adaptiveFactorForAdjoint;
   double adaptiveFactorForChebFiltering;
