@@ -269,44 +269,49 @@ void muMatrixMemSpaceKernel(
 }
 
 template <typename ValueType>
-__global__ void performHadamardProductKernel(const dftfe::size_type contiguousBlockSize,
-                                    const dftfe::size_type nonConiguousBlockSize,
-                                    const dftfe::size_type numDegenerateVec,
-                                    const unsigned int *vectorList,
-                                    const ValueType *vec1QuadValues,
-                                    const ValueType *vec2QuadValues,
-                                    ValueType *vecOutputQuadValues) {
+__global__ void performHadamardProductKernel(
+    const dftfe::size_type contiguousBlockSize,
+    const dftfe::size_type nonConiguousBlockSize,
+    const dftfe::size_type numDegenerateVec, const unsigned int *vectorList,
+    const ValueType *vec1QuadValues, const ValueType *vec2QuadValues,
+    ValueType *vecOutputQuadValues) {
   const dftfe::size_type globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::size_type numberEntries = numDegenerateVec*nonConiguousBlockSize;
+  const dftfe::size_type numberEntries =
+      numDegenerateVec * nonConiguousBlockSize;
 
   for (dftfe::size_type index = globalThreadId; index < numberEntries;
        index += blockDim.x * gridDim.x) {
-	  dftfe::size_type iNode = index/numDegenerateVec;
-	  dftfe::size_type vecIndex = index - iNode*numDegenerateVec;
-	  dftfe::size_type vec1Id = vectorList[2*vecIndex];
-	  dftfe::size_type vec2Id = vectorList[2*vecIndex+1];
+    dftfe::size_type iNode = index / numDegenerateVec;
+    dftfe::size_type vecIndex = index - iNode * numDegenerateVec;
+    dftfe::size_type vec1Id = vectorList[2 * vecIndex];
+    dftfe::size_type vec2Id = vectorList[2 * vecIndex + 1];
 
-	  dftfe::utils::copyValue(vecOutputQuadValues + numDegenerateVec*iNode + vecIndex,
-			  dftfe::utils::mult(vec1QuadValues[iNode*contiguousBlockSize + vec1Id],
-				  vec2QuadValues[iNode*contiguousBlockSize + vec2Id]));
-    }
+    dftfe::utils::copyValue(
+        vecOutputQuadValues + numDegenerateVec * iNode + vecIndex,
+        dftfe::utils::mult(
+            vec1QuadValues[iNode * contiguousBlockSize + vec1Id],
+            vec2QuadValues[iNode * contiguousBlockSize + vec2Id]));
   }
-
+}
 
 template <typename ValueType>
-void performHadamardProduct(const unsigned int contiguousBlockSize,
-                            const unsigned int nonConiguousBlockSize,
-                            const unsigned int numDegenerateVec,
-                            const dftfe::utils::MemoryStorage<unsigned int,dftfe::utils::MemorySpace::DEVICE> & vectorList,
-                       const dftfe::utils::MemoryStorage<ValueType,dftfe::utils::MemorySpace::DEVICE>& vec1QuadValues,
-                       const dftfe::utils::MemoryStorage<ValueType,dftfe::utils::MemorySpace::DEVICE>& vec2QuadValues,
-                       dftfe::utils::MemoryStorage<ValueType,dftfe::utils::MemorySpace::DEVICE>& vecOutputQuadValues)
-         {
+void performHadamardProduct(
+    const unsigned int contiguousBlockSize,
+    const unsigned int nonConiguousBlockSize,
+    const unsigned int numDegenerateVec,
+    const dftfe::utils::MemoryStorage<
+        unsigned int, dftfe::utils::MemorySpace::DEVICE> &vectorList,
+    const dftfe::utils::MemoryStorage<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &vec1QuadValues,
+    const dftfe::utils::MemoryStorage<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &vec2QuadValues,
+    dftfe::utils::MemoryStorage<ValueType, dftfe::utils::MemorySpace::DEVICE>
+        &vecOutputQuadValues) {
 #ifdef DFTFE_WITH_DEVICE_LANG_CUDA
   performHadamardProductKernel<<<(numDegenerateVec * nonConiguousBlockSize) /
-                                dftfe::utils::DEVICE_BLOCK_SIZE +
-                            1,
-                        dftfe::utils::DEVICE_BLOCK_SIZE>>>(
+                                         dftfe::utils::DEVICE_BLOCK_SIZE +
+                                     1,
+                                 dftfe::utils::DEVICE_BLOCK_SIZE>>>(
       contiguousBlockSize, nonConiguousBlockSize, numDegenerateVec,
       dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
       dftfe::utils::makeDataTypeDeviceCompatible(vec1QuadValues.begin()),
@@ -318,8 +323,8 @@ void performHadamardProduct(const unsigned int contiguousBlockSize,
       (numDegenerateVec * nonConiguousBlockSize) /
               dftfe::utils::DEVICE_BLOCK_SIZE +
           1,
-      dftfe::utils::DEVICE_BLOCK_SIZE, 0, 0, contiguousBlockSize, nonConiguousBlockSize,
-      numDegenerateVec,
+      dftfe::utils::DEVICE_BLOCK_SIZE, 0, 0, contiguousBlockSize,
+      nonConiguousBlockSize, numDegenerateVec,
       dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
       dftfe::utils::makeDataTypeDeviceCompatible(vec1QuadValues.begin()),
       dftfe::utils::makeDataTypeDeviceCompatible(vec2QuadValues.begin()),
@@ -328,64 +333,73 @@ void performHadamardProduct(const unsigned int contiguousBlockSize,
 }
 
 template <typename ValueType>
-void performHadamardProduct(const unsigned int contiguousBlockSize,
-		            const unsigned int nonConiguousBlockSize,
-			    const unsigned int numDegenerateVec,
-			    const dftfe::utils::MemoryStorage<unsigned int,dftfe::utils::MemorySpace::HOST> & vectorList,
-                       const dftfe::utils::MemoryStorage<ValueType,dftfe::utils::MemorySpace::HOST>& vec1QuadValues,
-                       const dftfe::utils::MemoryStorage<ValueType,dftfe::utils::MemorySpace::HOST>& vec2QuadValues,
-                       dftfe::utils::MemoryStorage<ValueType,dftfe::utils::MemorySpace::HOST>& vecOutputQuadValues)
-{
+void performHadamardProduct(
+    const unsigned int contiguousBlockSize,
+    const unsigned int nonConiguousBlockSize,
+    const unsigned int numDegenerateVec,
+    const dftfe::utils::MemoryStorage<
+        unsigned int, dftfe::utils::MemorySpace::HOST> &vectorList,
+    const dftfe::utils::MemoryStorage<
+        ValueType, dftfe::utils::MemorySpace::HOST> &vec1QuadValues,
+    const dftfe::utils::MemoryStorage<
+        ValueType, dftfe::utils::MemorySpace::HOST> &vec2QuadValues,
+    dftfe::utils::MemoryStorage<ValueType, dftfe::utils::MemorySpace::HOST>
+        &vecOutputQuadValues) {
 
-	for( unsigned int iNode = 0; iNode < nonConiguousBlockSize ; iNode++)
-	{
-		for (unsigned int iVec = 0 ; iVec < numDegenerateVec; iVec++)
-		{
-			unsigned int vec1Id = vectorList.data()[2*iVec];
-			unsigned int vec2Id = vectorList.data()[2*iVec + 1];
-			vecOutputQuadValues.data()[iNode*numDegenerateVec + iVec] = vec1QuadValues.data()[iNode*contiguousBlockSize + vec1Id]*vec2QuadValues.data()[iNode*contiguousBlockSize + vec2Id];
-		}
-	}
-
+  for (unsigned int iNode = 0; iNode < nonConiguousBlockSize; iNode++) {
+    for (unsigned int iVec = 0; iVec < numDegenerateVec; iVec++) {
+      unsigned int vec1Id = vectorList.data()[2 * iVec];
+      unsigned int vec2Id = vectorList.data()[2 * iVec + 1];
+      vecOutputQuadValues.data()[iNode * numDegenerateVec + iVec] =
+          vec1QuadValues.data()[iNode * contiguousBlockSize + vec1Id] *
+          vec2QuadValues.data()[iNode * contiguousBlockSize + vec2Id];
+    }
+  }
 }
 
 template <typename ValueType>
-__global__ void removeNullSpaceAtomicAddKernel(const dftfe::size_type contiguousBlockSize,
-                                    const dftfe::size_type nonConiguousBlockSize,
-                                    const dftfe::size_type numDegenerateVec,
-                                    const unsigned int *vectorList,
-                                    const ValueType *nullVectors,
-                                    const ValueType *dotProduct,
-                                    ValueType *outputVec) {
+__global__ void removeNullSpaceAtomicAddKernel(
+    const dftfe::size_type contiguousBlockSize,
+    const dftfe::size_type nonConiguousBlockSize,
+    const dftfe::size_type numDegenerateVec, const unsigned int *vectorList,
+    const ValueType *nullVectors, const ValueType *dotProduct,
+    ValueType *outputVec) {
   const dftfe::size_type globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::size_type numberEntries = numDegenerateVec*nonConiguousBlockSize;
+  const dftfe::size_type numberEntries =
+      numDegenerateVec * nonConiguousBlockSize;
 
   for (dftfe::size_type index = globalThreadId; index < numberEntries;
        index += blockDim.x * gridDim.x) {
-          dftfe::size_type iNode = index/numDegenerateVec;
-          dftfe::size_type vecIndex = index - iNode*numDegenerateVec;
-          dftfe::size_type vec1Id = vectorList[2*vecIndex];
-          dftfe::size_type vec2Id = vectorList[2*vecIndex+1];
+    dftfe::size_type iNode = index / numDegenerateVec;
+    dftfe::size_type vecIndex = index - iNode * numDegenerateVec;
+    dftfe::size_type vec1Id = vectorList[2 * vecIndex];
+    dftfe::size_type vec2Id = vectorList[2 * vecIndex + 1];
 
-	  atomicAdd(outputVec + vec1Id + iNode*contiguousBlockSize,
-		dftfe::utils::mult(nullVectors[iNode*contiguousBlockSize + vec2Id], dotProduct[vecIndex]));
-    }
+    atomicAdd(
+        outputVec + vec1Id + iNode * contiguousBlockSize,
+        dftfe::utils::mult(nullVectors[iNode * contiguousBlockSize + vec2Id],
+                           dotProduct[vecIndex]));
   }
+}
 
 template <typename ValueType>
-  void removeNullSpace(const unsigned int contiguousBlockSize,
-                  const unsigned int nonConiguousBlockSize,
-                            const unsigned int numDegenerateVec,
-                            const dftfe::utils::MemoryStorage<unsigned int,dftfe::utils::MemorySpace::DEVICE>& vectorList,
-                            const dftfe::linearAlgebra::MultiVector<ValueType,dftfe::utils::MemorySpace::DEVICE>& nullVectors,
-                           const dftfe::utils::MemoryStorage<ValueType,dftfe::utils::MemorySpace::DEVICE>& dotProduct,
-                          dftfe::linearAlgebra::MultiVector<ValueType,dftfe::utils::MemorySpace::DEVICE>&  outputVec)
-{
-	#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
+void removeNullSpace(
+    const unsigned int contiguousBlockSize,
+    const unsigned int nonConiguousBlockSize,
+    const unsigned int numDegenerateVec,
+    const dftfe::utils::MemoryStorage<
+        unsigned int, dftfe::utils::MemorySpace::DEVICE> &vectorList,
+    const dftfe::linearAlgebra::MultiVector<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &nullVectors,
+    const dftfe::utils::MemoryStorage<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &dotProduct,
+    dftfe::linearAlgebra::MultiVector<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &outputVec) {
+#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
   removeNullSpaceAtomicAddKernel<<<(numDegenerateVec * nonConiguousBlockSize) /
-                                dftfe::utils::DEVICE_BLOCK_SIZE +
-                            1,
-                        dftfe::utils::DEVICE_BLOCK_SIZE>>>(
+                                           dftfe::utils::DEVICE_BLOCK_SIZE +
+                                       1,
+                                   dftfe::utils::DEVICE_BLOCK_SIZE>>>(
       contiguousBlockSize, nonConiguousBlockSize, numDegenerateVec,
       dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
       dftfe::utils::makeDataTypeDeviceCompatible(nullVectors.begin()),
@@ -397,40 +411,38 @@ template <typename ValueType>
       (numDegenerateVec * nonConiguousBlockSize) /
               dftfe::utils::DEVICE_BLOCK_SIZE +
           1,
-      dftfe::utils::DEVICE_BLOCK_SIZE, 0, 0, contiguousBlockSize, nonConiguousBlockSize,
-      numDegenerateVec,
+      dftfe::utils::DEVICE_BLOCK_SIZE, 0, 0, contiguousBlockSize,
+      nonConiguousBlockSize, numDegenerateVec,
       dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
       dftfe::utils::makeDataTypeDeviceCompatible(nullVectors.begin()),
       dftfe::utils::makeDataTypeDeviceCompatible(dotProduct.begin()),
       dftfe::utils::makeDataTypeDeviceCompatible(outputVec.begin()));
 #endif
-
 }
-
-
 
 template <typename ValueType>
-  void removeNullSpace(const unsigned int contiguousBlockSize,
-		  const unsigned int nonConiguousBlockSize,
-                            const unsigned int numDegenerateVec,
-			    const dftfe::utils::MemoryStorage<unsigned int,dftfe::utils::MemorySpace::HOST> & vectorList,
-			    const dftfe::linearAlgebra::MultiVector<ValueType,dftfe::utils::MemorySpace::HOST>& nullVectors,
-			   const dftfe::utils::MemoryStorage<ValueType,dftfe::utils::MemorySpace::HOST>& dotProduct,
-			  dftfe::linearAlgebra::MultiVector<ValueType,dftfe::utils::MemorySpace::HOST>&  outputVec)
-{
-	for( unsigned int iNode = 0; iNode < nonConiguousBlockSize ; iNode++)
-        {
-                for (unsigned int iVec = 0 ; iVec < numDegenerateVec; iVec++)
-                {
-                        unsigned int vec1Id = vectorList.data()[2*iVec];
-                        unsigned int vec2Id = vectorList.data()[2*iVec + 1];
-                        outputVec.data()[iNode*contiguousBlockSize+ vec1Id] +=  dotProduct.data()[iVec]*nullVectors.data()[iNode*contiguousBlockSize + vec2Id];
-                }
-        }
-
-
+void removeNullSpace(
+    const unsigned int contiguousBlockSize,
+    const unsigned int nonConiguousBlockSize,
+    const unsigned int numDegenerateVec,
+    const dftfe::utils::MemoryStorage<
+        unsigned int, dftfe::utils::MemorySpace::HOST> &vectorList,
+    const dftfe::linearAlgebra::MultiVector<
+        ValueType, dftfe::utils::MemorySpace::HOST> &nullVectors,
+    const dftfe::utils::MemoryStorage<
+        ValueType, dftfe::utils::MemorySpace::HOST> &dotProduct,
+    dftfe::linearAlgebra::MultiVector<
+        ValueType, dftfe::utils::MemorySpace::HOST> &outputVec) {
+  for (unsigned int iNode = 0; iNode < nonConiguousBlockSize; iNode++) {
+    for (unsigned int iVec = 0; iVec < numDegenerateVec; iVec++) {
+      unsigned int vec1Id = vectorList.data()[2 * iVec];
+      unsigned int vec2Id = vectorList.data()[2 * iVec + 1];
+      outputVec.data()[iNode * contiguousBlockSize + vec1Id] +=
+          dotProduct.data()[iVec] *
+          nullVectors.data()[iNode * contiguousBlockSize + vec2Id];
+    }
+  }
 }
-
 
 } // namespace
 
@@ -463,8 +475,7 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::reinit(
         basisOperationsPtr,
     dftfe::KohnShamHamiltonianOperator<memorySpace> &ksHamiltonianObj,
     const dealii::AffineConstraints<double> &constraintMatrix,
-    const double TVal,
-    const unsigned int matrixFreeVectorComponent,
+    const double TVal, const unsigned int matrixFreeVectorComponent,
     const unsigned int matrixFreeQuadratureComponentRhs,
     const bool isComputeDiagonalA) {
   int this_process;
@@ -639,17 +650,16 @@ MultiVectorAdjointLinearSolverProblem<memorySpace>::computeRhs(
     oneBlockSizeMemSpace.resize(d_blockSize);
     oneBlockSizeMemSpace.setValue(1.0);
 
-          vec1QuadValues.resize(d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
-          vec2QuadValues.resize(d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
+    vec1QuadValues.resize(d_cellBlockSize * d_blockSize * d_numQuadsPerCell);
+    vec2QuadValues.resize(d_cellBlockSize * d_blockSize * d_numQuadsPerCell);
 
-	  unsigned int numDegenerateVec = d_vectorListMemSpace.size()/2;
-          vecOutputQuadValues.resize(numDegenerateVec * d_cellBlockSize *d_numQuadsPerCell);
-  
+    unsigned int numDegenerateVec = d_vectorListMemSpace.size() / 2;
+    vecOutputQuadValues.resize(numDegenerateVec * d_cellBlockSize *
+                               d_numQuadsPerCell);
 
-    //vec1QuadValues.resize(d_blockSize * d_numCells * d_numQuadsPerCell);
-    //vec2QuadValues.resize(d_blockSize * d_numCells * d_numQuadsPerCell);
-    //vecOutputQuadValues.resize(d_blockSize * d_numCells * d_numQuadsPerCell);
-  
+    // vec1QuadValues.resize(d_blockSize * d_numCells * d_numQuadsPerCell);
+    // vec2QuadValues.resize(d_blockSize * d_numCells * d_numQuadsPerCell);
+    // vecOutputQuadValues.resize(d_blockSize * d_numCells * d_numQuadsPerCell);
   }
   d_blockedXPtr = &outputVec;
 
@@ -687,7 +697,8 @@ MultiVectorAdjointLinearSolverProblem<memorySpace>::computeRhs(
   computeRMatrix(d_inputJxWMemSpace);
   //    computing_timer.leave_subsection("computeR MemSpace MPI");
   //    computing_timer.enter_subsection("computeMu MemSpace MPI");
-  computeMuMatrix(d_inputJxWMemSpace, d_effectiveOrbitalOccupancyMemSpace, *d_psiMemSpace);
+  computeMuMatrix(d_inputJxWMemSpace, d_effectiveOrbitalOccupancyMemSpace,
+                  *d_psiMemSpace);
 
   //    computing_timer.leave_subsection("computeMu MemSpace MPI");
 
@@ -808,8 +819,8 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::updateInputPsi(
     std::vector<double>
         &effectiveOrbitalOccupancy, // incorporates spin information
     dftfe::utils::MemoryStorage<double, memorySpace> &differenceInDensity,
-    std::vector<std::vector<unsigned int>> &degeneracy,
-    double fermiEnergy, std::vector<double> &eigenValues, unsigned int blockSize) {
+    std::vector<std::vector<unsigned int>> &degeneracy, double fermiEnergy,
+    std::vector<double> &eigenValues, unsigned int blockSize) {
   pcout << " updating psi inside adjoint\n";
 
   d_fermiEnergy = fermiEnergy;
@@ -835,9 +846,9 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::updateInputPsi(
 
   for (unsigned int i = 0; i < blockSize; i++) {
     effectiveOrbitalOccupancyHost_4x[i] = 4.0 * effectiveOrbitalOccupancy[i];
-  
-    pcout<<" orb occ ["<<i<<"] = "<<effectiveOrbitalOccupancy[i]<<"\n";
 
+    pcout << " orb occ [" << i << "] = " << effectiveOrbitalOccupancy[i]
+          << "\n";
   }
 
   d_4xeffectiveOrbitalOccupancyMemSpace.resize(blockSize);
@@ -960,13 +971,12 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::computeMuMatrix(
   MPI_Allreduce(MPI_IN_PLACE, &d_MuMatrixHost[0], d_blockSize * d_blockSize,
                 MPI_DOUBLE, MPI_SUM, mpi_communicator);
 
-
   for (unsigned int iVecList = 0; iVecList < numVec; iVecList++) {
     unsigned int iVec = d_vectorList[2 * iVecList];
     unsigned int degenerateVecId = d_vectorList[2 * iVecList + 1];
-    pcout<<" Mu["<<iVec<<"]["<<degenerateVecId<<"]"<<d_MuMatrixHost[iVec * d_blockSize + degenerateVecId]<<"\n"; 
+    pcout << " Mu[" << iVec << "][" << degenerateVecId << "]"
+          << d_MuMatrixHost[iVec * d_blockSize + degenerateVecId] << "\n";
   }
-
 
   d_MuMatrixMemSpace.copyFrom(d_MuMatrixHost);
 }
@@ -988,8 +998,8 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::computeRMatrix(
 template <dftfe::utils::MemorySpace memorySpace>
 void MultiVectorAdjointLinearSolverProblem<memorySpace>::distributeX() {
 
-	unsigned int numDegenerateVec = d_vectorListMemSpace.size()/2;
-	  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+  unsigned int numDegenerateVec = d_vectorListMemSpace.size() / 2;
+  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
       dotProductHost(numDegenerateVec, 0.0);
 
   auto invSqrtMassMat = d_basisOperationsPtr->inverseSqrtMassVectorBasisData();
@@ -1010,61 +1020,62 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::distributeX() {
       dotProductMemSpace(numDegenerateVec, 0.0);
 
   // Compute eta
-  
-  double sum_dFi_dmu = 0.0;
-  double dFi_dmu =0.0;
-  computeMuMatrix(d_inputJxWMemSpace, oneBlockSizeMemSpace, *d_psiMemSpace);
-  
-  double etaRightSide = 0.0;
-  for (unsigned int iBlock = 0 ; iBlock <d_blockSize ; iBlock++)
-  {
-	  dFi_dmu  = (-dftfe::dftUtils::getPartialOccupancyDer(d_eigenValues[iBlock], d_fermiEnergy,  dftfe::C_kb, d_TVal));
-  sum_dFi_dmu += dFi_dmu;
-  etaRightSide += dFi_dmu*d_MuMatrixHost[iBlock*d_blockSize + iBlock];
 
+  double sum_dFi_dmu = 0.0;
+  double dFi_dmu = 0.0;
+  computeMuMatrix(d_inputJxWMemSpace, oneBlockSizeMemSpace, *d_psiMemSpace);
+
+  double etaRightSide = 0.0;
+  for (unsigned int iBlock = 0; iBlock < d_blockSize; iBlock++) {
+    dFi_dmu = (-dftfe::dftUtils::getPartialOccupancyDer(
+        d_eigenValues[iBlock], d_fermiEnergy, dftfe::C_kb, d_TVal));
+    sum_dFi_dmu += dFi_dmu;
+    etaRightSide += dFi_dmu * d_MuMatrixHost[iBlock * d_blockSize + iBlock];
   }
 
   double etaVal = 0.0;
-if(std::abs(etaRightSide) < 1e-16)
-{
-	etaVal = 0.0; // keeping it to zero if the numerator is comparable to machine precision
-}
-else
-{
-	etaVal = etaRightSide/sum_dFi_dmu;
-}
+  if (std::abs(etaRightSide) < 1e-16) {
+    etaVal = 0.0; // keeping it to zero if the numerator is comparable to
+                  // machine precision
+  } else {
+    etaVal = etaRightSide / sum_dFi_dmu;
+  }
 
-  pcout<<" etaVal = "<<etaVal<< " etaRightSide = "<<etaRightSide<<" sum_dFi_dmu = "<<sum_dFi_dmu<<"\n";
-
+  pcout << " etaVal = " << etaVal << " etaRightSide = " << etaRightSide
+        << " sum_dFi_dmu = " << sum_dFi_dmu << "\n";
 
   for (unsigned int i = 0; i < numDegenerateVec; i++) {
-	  unsigned int vec1 = d_vectorList[2*i];
-	  unsigned int vec2 = d_vectorList[2*i + 1];
-	  double DFi_epsi = dftfe::dftUtils::getPartialOccupancyDer(d_eigenValues[vec1], d_fermiEnergy,  dftfe::C_kb, d_TVal);
-	  double correction = -DFi_epsi*d_MuMatrixHost[vec1*d_blockSize + vec2];
-	  if(vec1 == vec2)
-	  {
-		  correction += DFi_epsi*etaVal;
-	  }
+    unsigned int vec1 = d_vectorList[2 * i];
+    unsigned int vec2 = d_vectorList[2 * i + 1];
+    double DFi_epsi = dftfe::dftUtils::getPartialOccupancyDer(
+        d_eigenValues[vec1], d_fermiEnergy, dftfe::C_kb, d_TVal);
+    double correction = -DFi_epsi * d_MuMatrixHost[vec1 * d_blockSize + vec2];
+    if (vec1 == vec2) {
+      correction += DFi_epsi * etaVal;
+    }
 
-	  pcout<<" iVec = "<<vec1<<" jVec = "<<vec2<<" dotProd = "<<dotProductHost[i]<<" corr = "<<correction<<"\n";
+    pcout << " iVec = " << vec1 << " jVec = " << vec2
+          << " dotProd = " << dotProductHost[i] << " corr = " << correction
+          << "\n";
     dotProductHost[i] = -1.0 * dotProductHost[i] + correction;
-    //dotProductHost[i] = -1.0 * dotProductHost[i];
-   }
+    // dotProductHost[i] = -1.0 * dotProductHost[i];
+  }
 
-/*
-      for (unsigned int i = 0; i < numDegenerateVec; i++) {
-        dotProductHost[i] = -1.0 * dotProductHost[i]; 	      
-      }
-*/
+  /*
+        for (unsigned int i = 0; i < numDegenerateVec; i++) {
+          dotProductHost[i] = -1.0 * dotProductHost[i];
+        }
+  */
 
   dotProductMemSpace.copyFrom(dotProductHost);
 
-//  d_BLASWrapperPtr->stridedBlockScaleAndAddColumnWise(
-//      d_blockSize, d_locallyOwnedSize, d_psiMemSpace->data(),
-//      dotProductMemSpace.data(), d_blockedXPtr->data());
+  //  d_BLASWrapperPtr->stridedBlockScaleAndAddColumnWise(
+  //      d_blockSize, d_locallyOwnedSize, d_psiMemSpace->data(),
+  //      dotProductMemSpace.data(), d_blockedXPtr->data());
 
-  removeNullSpace(d_blockSize, d_locallyOwnedSize, numDegenerateVec, d_vectorListMemSpace, *d_psiMemSpace, dotProductMemSpace, *d_blockedXPtr);
+  removeNullSpace(d_blockSize, d_locallyOwnedSize, numDegenerateVec,
+                  d_vectorListMemSpace, *d_psiMemSpace, dotProductMemSpace,
+                  *d_blockedXPtr);
 
   d_blockedXPtr->updateGhostValues();
 
@@ -1074,49 +1085,51 @@ else
 
   multiVectorDotProdQuadWise(*d_blockedXPtr, *d_psiMemSpace, dotProductHost);
 
-   for (unsigned int i = 0; i < numDegenerateVec; i++) {
-          unsigned int vec1 = d_vectorList[2*i];
-          unsigned int vec2 = d_vectorList[2*i + 1];
-          pcout<<" iVec = "<<vec1<<" jVec = "<<vec2<<" dotProd = "<<dotProductHost[i]<<"\n";
-   }
-   /*
+  for (unsigned int i = 0; i < numDegenerateVec; i++) {
+    unsigned int vec1 = d_vectorList[2 * i];
+    unsigned int vec2 = d_vectorList[2 * i + 1];
+    pcout << " iVec = " << vec1 << " jVec = " << vec2
+          << " dotProd = " << dotProductHost[i] << "\n";
+  }
+  /*
    *  End testing purpose
    */
- 
 
   MPI_Barrier(mpi_communicator);
-/*	
-	unsigned int numDegenerateVec = d_vectorListMemSpace.size()/2;
-  dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
-      dotProductHost(numDegenerateVec, 0.0);
+  /*
+          unsigned int numDegenerateVec = d_vectorListMemSpace.size()/2;
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+        dotProductHost(numDegenerateVec, 0.0);
 
-  auto invSqrtMassMat = d_basisOperationsPtr->inverseSqrtMassVectorBasisData();
+    auto invSqrtMassMat =
+    d_basisOperationsPtr->inverseSqrtMassVectorBasisData();
 
 
-  d_BLASWrapperPtr->stridedBlockScaleCopy(
-      d_blockSize, d_locallyOwnedSize, 1.0, invSqrtMassMat.data(),
-      d_blockedXPtr->data(), d_blockedXPtr->data(), d_mapNodeIdToProcId.data());
+    d_BLASWrapperPtr->stridedBlockScaleCopy(
+        d_blockSize, d_locallyOwnedSize, 1.0, invSqrtMassMat.data(),
+        d_blockedXPtr->data(), d_blockedXPtr->data(),
+    d_mapNodeIdToProcId.data());
 
-  d_blockedXPtr->updateGhostValues();
+    d_blockedXPtr->updateGhostValues();
 
-  d_constraintsInfo.distribute(*d_blockedXPtr);
+    d_constraintsInfo.distribute(*d_blockedXPtr);
 
-  multiVectorDotProdQuadWise(*d_blockedXPtr, *d_psiMemSpace, dotProductHost);
+    multiVectorDotProdQuadWise(*d_blockedXPtr, *d_psiMemSpace, dotProductHost);
 
-  dftfe::utils::MemoryStorage<dftfe::dataTypes::number, memorySpace>
-      dotProductMemSpace(numDegenerateVec, 0.0);
+    dftfe::utils::MemoryStorage<dftfe::dataTypes::number, memorySpace>
+        dotProductMemSpace(numDegenerateVec, 0.0);
 
-  for (unsigned int i = 0; i < numDegenerateVec; i++) {
-    dotProductHost[i] = -1.0 * dotProductHost[i];
-  }
+    for (unsigned int i = 0; i < numDegenerateVec; i++) {
+      dotProductHost[i] = -1.0 * dotProductHost[i];
+    }
 
-  dotProductMemSpace.copyFrom(dotProductHost);
+    dotProductMemSpace.copyFrom(dotProductHost);
 
-  removeNullSpace(d_blockSize, d_locallyOwnedSize, numDegenerateVec, d_vectorListMemSpace, *d_psiMemSpace, dotProductMemSpace, *d_blockedXPtr);
+    removeNullSpace(d_blockSize, d_locallyOwnedSize, numDegenerateVec,
+    d_vectorListMemSpace, *d_psiMemSpace, dotProductMemSpace, *d_blockedXPtr);
 
-  d_blockedXPtr->updateGhostValues();
-*/
- 
+    d_blockedXPtr->updateGhostValues();
+  */
 }
 
 template <dftfe::utils::MemorySpace memorySpace>
@@ -1130,69 +1143,67 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::
                                     dftfe::utils::MemorySpace::HOST>
             &dotProductOutputHost) {
 
-	    unsigned int numDegenerateVec = d_vectorListMemSpace.size()/2; 
+  unsigned int numDegenerateVec = d_vectorListMemSpace.size() / 2;
 
-	    //for(unsigned int iVec = 0; iVec < numDegenerateVec; iVec++)
-		    //std::cout<<" iVec = "<<iVec<<" i = "<<d_vectorListMemSpace.data()[2*iVec]<<" j = "<<d_vectorListMemSpace.data()[2*iVec+1]<<"\n";
-	    //std::cout<<" numDegenerateVec = "<<numDegenerateVec<<"\n";
+  // for(unsigned int iVec = 0; iVec < numDegenerateVec; iVec++)
+  // std::cout<<" iVec = "<<iVec<<" i =
+  // "<<d_vectorListMemSpace.data()[2*iVec]<<" j =
+  // "<<d_vectorListMemSpace.data()[2*iVec+1]<<"\n";
+  // std::cout<<" numDegenerateVec = "<<numDegenerateVec<<"\n";
 
-
-	    std::cout<<std::flush;
-	    MPI_Barrier(mpi_communicator);
- d_basisOperationsPtr->reinit(d_blockSize,
-                               d_cellBlockSize,
+  std::cout << std::flush;
+  MPI_Barrier(mpi_communicator);
+  d_basisOperationsPtr->reinit(d_blockSize, d_cellBlockSize,
                                d_matrixFreeQuadratureComponentRhs,
                                true,   // TODO should this be set to true
                                false); // TODO should this be set to true
                                        //
 
- tempOutputDotProdMemSpace.resize(numDegenerateVec);
- if ( vecOutputQuadValues.size() < numDegenerateVec * d_cellBlockSize *d_numQuadsPerCell)
- {
-	 vecOutputQuadValues.resize(numDegenerateVec * d_cellBlockSize *d_numQuadsPerCell);
- }
-  
- auto jxwVec = d_basisOperationsPtr->JxW();
+  tempOutputDotProdMemSpace.resize(numDegenerateVec);
+  if (vecOutputQuadValues.size() <
+      numDegenerateVec * d_cellBlockSize * d_numQuadsPerCell) {
+    vecOutputQuadValues.resize(numDegenerateVec * d_cellBlockSize *
+                               d_numQuadsPerCell);
+  }
 
- tempOutputDotProdMemSpace.resize(numDegenerateVec);
+  auto jxwVec = d_basisOperationsPtr->JxW();
+
+  tempOutputDotProdMemSpace.resize(numDegenerateVec);
   tempOutputDotProdMemSpace.setValue(0.0);
 
   unsigned int one = 1;
   double oneDouble = 1.0;
   double zeroDouble = 0.0;
 
+  for (unsigned int iCell = 0; iCell < d_numCells; iCell += d_cellBlockSize) {
+    unsigned int cellEnd = iCell + d_cellBlockSize;
+    cellEnd = std::min(cellEnd, d_numCells);
+    unsigned int numCellTemp = cellEnd - iCell;
 
-  for(unsigned int iCell = 0 ; iCell < d_numCells; iCell += d_cellBlockSize)
-  {
-          unsigned int cellEnd = iCell + d_cellBlockSize;
-          cellEnd = std::min(cellEnd, d_numCells);
-          unsigned int numCellTemp = cellEnd - iCell;
-          
-          d_basisOperationsPtr->interpolateKernel(vec1, vec1QuadValues.data(), nullptr , std::pair<unsigned int, unsigned int>(iCell, cellEnd));
-          d_basisOperationsPtr->interpolateKernel(vec2, vec2QuadValues.data(), nullptr , std::pair<unsigned int, unsigned int>(iCell, cellEnd));
-  
-	  performHadamardProduct(d_blockSize,
-                       numCellTemp * d_numQuadsPerCell,
-                       numDegenerateVec,
-                       d_vectorListMemSpace,
-                       vec1QuadValues,
-                       vec2QuadValues,
-                       vecOutputQuadValues);
+    d_basisOperationsPtr->interpolateKernel(
+        vec1, vec1QuadValues.data(), nullptr,
+        std::pair<unsigned int, unsigned int>(iCell, cellEnd));
+    d_basisOperationsPtr->interpolateKernel(
+        vec2, vec2QuadValues.data(), nullptr,
+        std::pair<unsigned int, unsigned int>(iCell, cellEnd));
 
+    performHadamardProduct(d_blockSize, numCellTemp * d_numQuadsPerCell,
+                           numDegenerateVec, d_vectorListMemSpace,
+                           vec1QuadValues, vec2QuadValues, vecOutputQuadValues);
 
-	  d_BLASWrapperPtr->xgemm(
-      'N', 'T', one, numDegenerateVec, numCellTemp * d_numQuadsPerCell, &oneDouble,
-      jxwVec.data() + iCell*d_numQuadsPerCell, one, vecOutputQuadValues.data(), numDegenerateVec,
-      &oneDouble, tempOutputDotProdMemSpace.data(), one);
-  
+    d_BLASWrapperPtr->xgemm('N', 'T', one, numDegenerateVec,
+                            numCellTemp * d_numQuadsPerCell, &oneDouble,
+                            jxwVec.data() + iCell * d_numQuadsPerCell, one,
+                            vecOutputQuadValues.data(), numDegenerateVec,
+                            &oneDouble, tempOutputDotProdMemSpace.data(), one);
   }
- 
-  //d_BLASWrapperPtr->stridedBlockScaleCopy(
-  //    d_blockSize, d_numCells * d_numQuadsPerCell, 1.0, jxwVec.data(),
-  //    vec1QuadValues.data(), vec1QuadValues.data(), d_mapQuadIdToProcId.data());
 
-  
-  //performHadamardProduct(d_blockSize,
+  // d_BLASWrapperPtr->stridedBlockScaleCopy(
+  //    d_blockSize, d_numCells * d_numQuadsPerCell, 1.0, jxwVec.data(),
+  //    vec1QuadValues.data(), vec1QuadValues.data(),
+  //    d_mapQuadIdToProcId.data());
+
+  // performHadamardProduct(d_blockSize,
   //                     d_numCells * d_numQuadsPerCell,
   //                     numDegenerateVec,
   //                     d_vectorListMemSpace,
@@ -1200,115 +1211,126 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::
   //                     vec2QuadValues,
   //                     vecOutputQuadValues);
 
-  //d_BLASWrapperPtr->hadamardProduct(
+  // d_BLASWrapperPtr->hadamardProduct(
   //    d_blockSize * d_numCells * d_numQuadsPerCell, vec1QuadValues.data(),
   //    vec2QuadValues.data(), vecOutputQuadValues.data());
 
-  //unsigned int one = 1;
-  //double oneDouble = 1.0;
-  //double zeroDouble = 0.0;
-  //d_BLASWrapperPtr->xgemm(
-  //    'N', 'T', one, numDegenerateVec, d_numCells * d_numQuadsPerCell, &oneDouble,
-  //    d_onesQuadMemSpace.data(), one, vecOutputQuadValues.data(), numDegenerateVec,
-  //    &zeroDouble, tempOutputDotProdMemSpace.data(), one);
+  // unsigned int one = 1;
+  // double oneDouble = 1.0;
+  // double zeroDouble = 0.0;
+  // d_BLASWrapperPtr->xgemm(
+  //    'N', 'T', one, numDegenerateVec, d_numCells * d_numQuadsPerCell,
+  //    &oneDouble, d_onesQuadMemSpace.data(), one, vecOutputQuadValues.data(),
+  //    numDegenerateVec, &zeroDouble, tempOutputDotProdMemSpace.data(), one);
 
-
- // d_BLASWrapperPtr->xgemm(
- //     'N', 'T', one, numDegenerateVec, d_numCells * d_numQuadsPerCell, &oneDouble,
- //     jxwVec.data(), one, vecOutputQuadValues.data(), numDegenerateVec,
- //     &zeroDouble, tempOutputDotProdMemSpace.data(), one);
+  // d_BLASWrapperPtr->xgemm(
+  //     'N', 'T', one, numDegenerateVec, d_numCells * d_numQuadsPerCell,
+  //     &oneDouble, jxwVec.data(), one, vecOutputQuadValues.data(),
+  //     numDegenerateVec, &zeroDouble, tempOutputDotProdMemSpace.data(), one);
 
   dotProductOutputHost.resize(numDegenerateVec);
   dotProductOutputHost.copyFrom(tempOutputDotProdMemSpace);
 
-  MPI_Allreduce(MPI_IN_PLACE, &dotProductOutputHost[0], numDegenerateVec , MPI_DOUBLE,
-                MPI_SUM, mpi_communicator);
+  MPI_Allreduce(MPI_IN_PLACE, &dotProductOutputHost[0], numDegenerateVec,
+                MPI_DOUBLE, MPI_SUM, mpi_communicator);
 
- MPI_Barrier(mpi_communicator);
-	    /*
-	    d_cellBlockSize = d_numCells;
+  MPI_Barrier(mpi_communicator);
+  /*
+  d_cellBlockSize = d_numCells;
 
-  d_basisOperationsPtr->reinit(d_blockSize,
-                               d_cellBlockSize,
-                               d_matrixFreeQuadratureComponentRhs,
-                               true,   // TODO should this be set to true
-                               false); // TODO should this be set to true
-                                       //
+d_basisOperationsPtr->reinit(d_blockSize,
+                     d_cellBlockSize,
+                     d_matrixFreeQuadratureComponentRhs,
+                     true,   // TODO should this be set to true
+                     false); // TODO should this be set to true
+                             //
 
-  auto jxwVec = d_basisOperationsPtr->JxW();
+auto jxwVec = d_basisOperationsPtr->JxW();
 
-  unsigned int numDegenerateVec = d_vectorListMemSpace.size()/2;
+unsigned int numDegenerateVec = d_vectorListMemSpace.size()/2;
 
-  vec1QuadValues.resize(d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
-  vec2QuadValues.resize(d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
-  vecOutputQuadValues.resize(numDegenerateVec * d_cellBlockSize *d_numQuadsPerCell);
+vec1QuadValues.resize(d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
+vec2QuadValues.resize(d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
+vecOutputQuadValues.resize(numDegenerateVec * d_cellBlockSize
+*d_numQuadsPerCell);
 
- // 
- // if ( vec1QuadValues.size() < d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
- // {
-//	  vec1QuadValues.resize(d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
+//
+// if ( vec1QuadValues.size() < d_cellBlockSize *
+d_blockSize*d_numQuadsPerCell);
+// {
+//	  vec1QuadValues.resize(d_cellBlockSize *
+d_blockSize*d_numQuadsPerCell);
 //  }
 //
-//  if ( vec2QuadValues.size() < d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
+//  if ( vec2QuadValues.size() < d_cellBlockSize *
+d_blockSize*d_numQuadsPerCell);
 //  {
-//          vec2QuadValues.resize(d_cellBlockSize * d_blockSize*d_numQuadsPerCell);
+//          vec2QuadValues.resize(d_cellBlockSize *
+d_blockSize*d_numQuadsPerCell);
 //  }
 //
-//  if (vecOutputQuadValues.size() < numDegenerateVec * d_cellBlockSize *d_numQuadsPerCell)
+//  if (vecOutputQuadValues.size() < numDegenerateVec * d_cellBlockSize
+*d_numQuadsPerCell)
 //  {
-//	  vecOutputQuadValues.resize(numDegenerateVec * d_cellBlockSize *d_numQuadsPerCell);
+//	  vecOutputQuadValues.resize(numDegenerateVec * d_cellBlockSize
+*d_numQuadsPerCell);
 //  }
 
-  vecOutputQuadValues.setValue(0.0);
-   unsigned int one = 1;
-  double oneDouble = 1.0;
-  double zeroDouble = 0.0;
+vecOutputQuadValues.setValue(0.0);
+unsigned int one = 1;
+double oneDouble = 1.0;
+double zeroDouble = 0.0;
 
-  tempOutputDotProdMemSpace.resize(numDegenerateVec);
-  tempOutputDotProdMemSpace.setValue(0.0);
-  for(unsigned int iCell = 0 ; iCell < d_numCells; iCell += d_cellBlockSize)
-  {
-	  unsigned int cellEnd = iCell + d_cellBlockSize;
-	  cellEnd = std::min(cellEnd, d_numCells);
-	  unsigned int numCellTemp = cellEnd - iCell;
-	  
-	  d_basisOperationsPtr->interpolateKernel(vec1, vec1QuadValues.data(), nullptr , std::pair<unsigned int, unsigned int>(iCell, cellEnd));
-	  d_basisOperationsPtr->interpolateKernel(vec2, vec2QuadValues.data(), nullptr , std::pair<unsigned int, unsigned int>(iCell, cellEnd));
-	  //d_BLASWrapperPtr->stridedBlockScaleCopy(
-      //d_blockSize, numCellTemp * d_numQuadsPerCell, 1.0, jxwVec.data() ,
-      //vec1QuadValues.data(), vec1QuadValues.data(), d_mapQuadIdToProcId.data() + iCell*d_numQuadsPerCell);
+tempOutputDotProdMemSpace.resize(numDegenerateVec);
+tempOutputDotProdMemSpace.setValue(0.0);
+for(unsigned int iCell = 0 ; iCell < d_numCells; iCell += d_cellBlockSize)
+{
+unsigned int cellEnd = iCell + d_cellBlockSize;
+cellEnd = std::min(cellEnd, d_numCells);
+unsigned int numCellTemp = cellEnd - iCell;
 
-       performHadamardProduct(d_blockSize,
-		       numCellTemp * d_numQuadsPerCell, 
-		       numDegenerateVec,
-		       d_vectorListMemSpace,
-		       vec1QuadValues, 
-		       vec2QuadValues,
-		       vecOutputQuadValues); 	  
+d_basisOperationsPtr->interpolateKernel(vec1, vec1QuadValues.data(), nullptr ,
+std::pair<unsigned int, unsigned int>(iCell, cellEnd));
+d_basisOperationsPtr->interpolateKernel(vec2, vec2QuadValues.data(), nullptr ,
+std::pair<unsigned int, unsigned int>(iCell, cellEnd));
+//d_BLASWrapperPtr->stridedBlockScaleCopy(
+//d_blockSize, numCellTemp * d_numQuadsPerCell, 1.0, jxwVec.data() ,
+//vec1QuadValues.data(), vec1QuadValues.data(), d_mapQuadIdToProcId.data() +
+iCell*d_numQuadsPerCell);
+
+performHadamardProduct(d_blockSize,
+             numCellTemp * d_numQuadsPerCell,
+             numDegenerateVec,
+             d_vectorListMemSpace,
+             vec1QuadValues,
+             vec2QuadValues,
+             vecOutputQuadValues);
 
 
 //        d_BLASWrapperPtr->xgemm(
-//      'N', 'T', one, numDegenerateVec, numCellTemp * d_numQuadsPerCell, &oneDouble,
-//      d_onesQuadMemSpace.data(), one, vecOutputQuadValues.data(), numDegenerateVec,
+//      'N', 'T', one, numDegenerateVec, numCellTemp * d_numQuadsPerCell,
+&oneDouble,
+//      d_onesQuadMemSpace.data(), one, vecOutputQuadValues.data(),
+numDegenerateVec,
 //      &oneDouble, tempOutputDotProdMemSpace.data(), one);
- 
-
-        d_BLASWrapperPtr->xgemm(
-      'N', 'T', one, numDegenerateVec, numCellTemp * d_numQuadsPerCell, &oneDouble,
-      jxwVec.data() + iCell*d_numQuadsPerCell, one, vecOutputQuadValues.data(), numDegenerateVec,
-      &oneDouble, tempOutputDotProdMemSpace.data(), one);
-      }
 
 
-  dotProductOutputHost.resize(numDegenerateVec);
-  dotProductOutputHost.copyFrom(tempOutputDotProdMemSpace);
+d_BLASWrapperPtr->xgemm(
+'N', 'T', one, numDegenerateVec, numCellTemp * d_numQuadsPerCell, &oneDouble,
+jxwVec.data() + iCell*d_numQuadsPerCell, one, vecOutputQuadValues.data(),
+numDegenerateVec, &oneDouble, tempOutputDotProdMemSpace.data(), one);
+}
 
-  MPI_Allreduce(MPI_IN_PLACE, &dotProductOutputHost[0], numDegenerateVec, MPI_DOUBLE,
-                MPI_SUM, mpi_communicator);
+
+dotProductOutputHost.resize(numDegenerateVec);
+dotProductOutputHost.copyFrom(tempOutputDotProdMemSpace);
+
+MPI_Allreduce(MPI_IN_PLACE, &dotProductOutputHost[0], numDegenerateVec,
+MPI_DOUBLE, MPI_SUM, mpi_communicator);
 
 
-   d_cellBlockSize = 100;
-   d_cellBlockSize = std::min(d_cellBlockSize,d_numCells);
+d_cellBlockSize = 100;
+d_cellBlockSize = std::min(d_cellBlockSize,d_numCells);
 */
 }
 

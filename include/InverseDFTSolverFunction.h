@@ -22,6 +22,7 @@
 #define DFTFE_INVERSEDFTSOLVERFUNCTION_H
 
 #include "inverseDFTParameters.h"
+#include <MultiVectorAdjointLinearSolverProblem.h>
 #include <MultiVectorMinResSolver.h>
 #include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include <constraintMatrixInfo.h>
@@ -31,7 +32,6 @@
 #include <linearAlgebraOperationsInternal.h>
 #include <nonlinearSolverFunction.h>
 #include <vectorUtilities.h>
-#include <MultiVectorAdjointLinearSolverProblem.h>
 namespace invDFT {
 /**
  * @brief Class implementing the inverse DFT problem
@@ -99,11 +99,13 @@ public:
       const dftfe::dftParameters &dftParams,
       const inverseDFTParameters &inverseDFTParams);
 
-  void writeVxcDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &data,
-                          const unsigned int counter);
+  void
+  writeVxcDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &data,
+                     const unsigned int counter);
 
-  void writeChildMeshDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &pot,
-                          const std::string fileName);
+  void writeChildMeshDataToFile(
+      const std::vector<dftfe::distributedCPUVec<double>> &pot,
+      const std::string fileName);
 
   void solveEigen(const std::vector<dftfe::distributedCPUVec<double>> &pot);
 

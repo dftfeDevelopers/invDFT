@@ -22,9 +22,9 @@
 
 #include "BLASWrapper.h"
 #include "FEBasisOperations.h"
+#include "KohnShamHamiltonianOperator.h"
 #include "MultiVectorLinearSolverProblem.h"
 #include "headers.h"
-#include "KohnShamHamiltonianOperator.h"
 namespace invDFT {
 template <dftfe::utils::MemorySpace memorySpace>
 class MultiVectorAdjointLinearSolverProblem
@@ -94,8 +94,7 @@ public:
                   basisOperationsPtr,
               dftfe::KohnShamHamiltonianOperator<memorySpace> &ksHamiltonianObj,
               const dealii::AffineConstraints<double> &constraintMatrix,
-	      const double TVal,
-              const unsigned int matrixFreeVectorComponent,
+              const double TVal, const unsigned int matrixFreeVectorComponent,
               const unsigned int matrixFreeQuadratureComponentRhs,
               const bool isComputeDiagonalA);
 
@@ -115,8 +114,8 @@ public:
       std::vector<double>
           &effectiveOrbitalOccupancy, // incorporates spin information
       dftfe::utils::MemoryStorage<double, memorySpace> &differenceInDensity,
-      std::vector<std::vector<unsigned int>> &degeneracy,
-      double fermiEnergy, std::vector<double> &eigenValues, unsigned int blockSize);
+      std::vector<std::vector<unsigned int>> &degeneracy, double fermiEnergy,
+      std::vector<double> &eigenValues, unsigned int blockSize);
 
 private:
   void computeMuMatrix(

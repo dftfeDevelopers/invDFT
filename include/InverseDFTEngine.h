@@ -47,6 +47,7 @@ public:
   void testAdjoint() override;
 
   void interpolateVxc();
+
 private:
   //
   // TODO

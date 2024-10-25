@@ -101,7 +101,7 @@ InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   d_previousBlockSize = 0;
   d_numCellBlockSizeParent = 100;
   d_numCellBlockSizeChild = 100;
-  d_tolForChebFiltering = 1e-8; //starting cheb tolerance
+  d_tolForChebFiltering = 1e-8; // starting cheb tolerance
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -370,12 +370,12 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
-writeChildMeshDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &pot,
-                          const std::string fileName)
-{
+    writeChildMeshDataToFile(
+        const std::vector<dftfe::distributedCPUVec<double>> &pot,
+        const std::string fileName) {
 
-	 const unsigned int poolId =
-  dealii::Utilities::MPI::this_mpi_process(d_mpi_comm_interpool);
+  const unsigned int poolId =
+      dealii::Utilities::MPI::this_mpi_process(d_mpi_comm_interpool);
   const unsigned int bandGroupId =
       dealii::Utilities::MPI::this_mpi_process(d_mpi_comm_interband);
   const unsigned int minPoolId =
@@ -404,7 +404,7 @@ writeChildMeshDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &po
         nodeVals.push_back(dof_coord_child[iNode][2]);
 
         nodeVals.push_back(pot[0][iNode]);
-	if (d_numSpins == 2) {
+        if (d_numSpins == 2) {
           nodeVals.push_back(pot[1][iNode]);
         }
         data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(nodeVals));
@@ -418,20 +418,18 @@ writeChildMeshDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &po
   }
 }
 
-
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
     writeVxcDataToFile(const std::vector<dftfe::distributedCPUVec<double>> &pot,
                        const unsigned int counter) {
 
-    const std::string filename = d_inverseDFTParams->vxcDataFolder + "/" +
-                                 d_inverseDFTParams->fileNameWriteVxcPostFix +
-                                 "_" + std::to_string(counter);
+  const std::string filename = d_inverseDFTParams->vxcDataFolder + "/" +
+                               d_inverseDFTParams->fileNameWriteVxcPostFix +
+                               "_" + std::to_string(counter);
 
-
-    writeChildMeshDataToFile(pot,filename);
-    }
+  writeChildMeshDataToFile(pot, filename);
+}
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -461,21 +459,20 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   d_computingTimerStandard.enter_subsection("SolveEigen in inverse call");
   this->solveEigen(pot);
 
-
   const std::vector<std::vector<double>> &eigenValuesHost =
       d_dftClassPtr->getEigenValues();
   const double fermiEnergy = d_dftClassPtr->getFermiEnergy();
 
-for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) 
-	  for (unsigned int iKPoint = 0; iKPoint < d_numKPoints; ++iKPoint) 
-  {
-	  for (unsigned int iWave = 0 ; iWave < d_numEigenValues; iWave++)
-	  {
-		  double deriFermi =  dftfe::dftUtils::getPartialOccupancyDer(eigenValuesHost[iKPoint][d_numEigenValues*iSpin + iWave],
-                           fermiEnergy,  dftfe::C_kb, d_dftParams->TVal);
-	          pcout<<" derivative of iSpin = "<<iSpin<<" kPoint = "<<iKPoint<<" iWave = "<<iWave<<" : "<<deriFermi<<"\n";
-	  } 
-  }
+  for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin)
+    for (unsigned int iKPoint = 0; iKPoint < d_numKPoints; ++iKPoint) {
+      for (unsigned int iWave = 0; iWave < d_numEigenValues; iWave++) {
+        double deriFermi = dftfe::dftUtils::getPartialOccupancyDer(
+            eigenValuesHost[iKPoint][d_numEigenValues * iSpin + iWave],
+            fermiEnergy, dftfe::C_kb, d_dftParams->TVal);
+        pcout << " derivative of iSpin = " << iSpin << " kPoint = " << iKPoint
+              << " iWave = " << iWave << " : " << deriFermi << "\n";
+      }
+    }
 #if defined(DFTFE_WITH_DEVICE)
   if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
     dftfe::utils::deviceSynchronize();
@@ -847,7 +844,9 @@ for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin)
         d_multiVectorAdjointProblem.updateInputPsi(
             psiBlockVecMemSpace, effectiveOrbitalOccupancy, d_uValsMemSpace,
             degeneracyMap, fermiEnergy, shiftValues, currentBlockSize);
-        double adjoinTolForThisIteration = d_tolForChebFiltering/ d_inverseDFTParams->adaptiveFactorForAdjoint;
+        double adjoinTolForThisIteration =
+            d_tolForChebFiltering /
+            d_inverseDFTParams->adaptiveFactorForAdjoint;
         d_adjointTol = std::min(d_adjointTol, adjoinTolForThisIteration);
 
 #if defined(DFTFE_WITH_DEVICE)
@@ -862,7 +861,7 @@ for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin)
           dftfe::utils::deviceSynchronize();
 #endif
 
-	pcout<<" Minres solved to "<<d_adjointTol<<" tolerance \n";
+        pcout << " Minres solved to " << d_adjointTol << " tolerance \n";
         MPI_Barrier(d_mpi_comm_domain);
         d_computingTimerStandard.enter_subsection("MINRES Solve");
         d_multiVectorLinearMINRESSolver.solve(
@@ -1060,13 +1059,18 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
   const double chebyTol = d_dftParams->chebyshevTolerance;
   if (d_getForceCounter > 3) {
     double tolPreviousIter = d_tolForChebFiltering;
-    d_tolForChebFiltering = std::min(chebyTol, d_lossPreviousIteration / d_inverseDFTParams->adaptiveFactorForChebFiltering);
+    d_tolForChebFiltering = std::min(
+        chebyTol, d_lossPreviousIteration /
+                      d_inverseDFTParams->adaptiveFactorForChebFiltering);
     d_tolForChebFiltering = std::min(d_tolForChebFiltering, tolPreviousIter);
   } else {
-    d_tolForChebFiltering = std::min(d_dftParams->chebyshevTolerance, d_inverseDFTParams->initialTolForChebFiltering);
+    d_tolForChebFiltering =
+        std::min(d_dftParams->chebyshevTolerance,
+                 d_inverseDFTParams->initialTolForChebFiltering);
   }
 
-  pcout<<" Chebyshev filtering is solved to "<<d_tolForChebFiltering<<" tolerance \n";
+  pcout << " Chebyshev filtering is solved to " << d_tolForChebFiltering
+        << " tolerance \n";
 
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
     d_computingTimerStandard.enter_subsection(
@@ -1159,13 +1163,11 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
               dftfe::dftUtils::getPartialOccupancy(
                   eigenValue, fermiEnergy, dftfe::C_kb, d_dftParams->TVal);
 
-	  if ( eigenValue < fermiEnergy + 1e-3)
-	  {
-		  if (homoLevel < iEig)
-		  {
-			  homoLevel = iEig ;
-		  }
-	  }
+          if (eigenValue < fermiEnergy + 1e-3) {
+            if (homoLevel < iEig) {
+              homoLevel = iEig;
+            }
+          }
           if (d_dftParams->constraintMagnetization) {
             d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] =
                 1.0;
@@ -1180,10 +1182,10 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
             }
           }
 
-          if  ((d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] >
-              d_fractionalOccupancyTol) || ( iEig <= homoLevel + d_inverseDFTParams->additionalEigenStatesSolved
-		      ))
-	  {
+          if ((d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] >
+               d_fractionalOccupancyTol) ||
+              (iEig <=
+               homoLevel + d_inverseDFTParams->additionalEigenStatesSolved)) {
             if (residualNorms[iSpin][iKpoint][iEig] > maxResidual)
               maxResidual = residualNorms[iSpin][iKpoint][iEig];
           }
@@ -1467,13 +1469,11 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro,
 
   {
     xc_func_type funcXMGGA, funcCMGGA;
-    int exceptParamX =
-        xc_func_init(&funcXMGGA, XC_MGGA_X_SCAN, XC_UNPOLARIZED);
-    int exceptParamC =
-        xc_func_init(&funcCMGGA, XC_MGGA_C_SCAN, XC_UNPOLARIZED);
-    double xcMGGAEnergy = computeMGGAEnergy(
-        rhoValues[0], gradRhoValues[0], kineticEnergyDensityValues,
-        "MGGA-SCAN", funcXMGGA, funcCMGGA);
+    int exceptParamX = xc_func_init(&funcXMGGA, XC_MGGA_X_SCAN, XC_UNPOLARIZED);
+    int exceptParamC = xc_func_init(&funcCMGGA, XC_MGGA_C_SCAN, XC_UNPOLARIZED);
+    double xcMGGAEnergy = computeMGGAEnergy(rhoValues[0], gradRhoValues[0],
+                                            kineticEnergyDensityValues,
+                                            "MGGA-SCAN", funcXMGGA, funcCMGGA);
   }
 }
 
@@ -1515,17 +1515,14 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 
   dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(
       d_mpi_comm_domain);
-  
-  if (d_dftParams->multipoleBoundaryConditions)
-    {
-        d_dftClassPtr->computeMultipoleMoments(basisOperationsElectroHost,
-                                                mfRhsId,
-                                                totalRhoValues,
-                                                &(bQuadValuesAllAtoms));
-        d_dftClassPtr->updatePRefinedConstraints();
-    }
 
-  
+  if (d_dftParams->multipoleBoundaryConditions) {
+    d_dftClassPtr->computeMultipoleMoments(basisOperationsElectroHost, mfRhsId,
+                                           totalRhoValues,
+                                           &(bQuadValuesAllAtoms));
+    d_dftClassPtr->updatePRefinedConstraints();
+  }
+
   poissonSolverObj.reinit(
       basisOperationsElectroHost, vTotElectroNodal, *constraintMatrix,
       mfVectorComponent, mfRhsId, mfAXId, atomNodeToChargeMap,
@@ -1674,13 +1671,12 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   for (unsigned int i = 0;
        i < d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
        i++) {
-    totalSigmaRhoValues.data()[i] =
-         (totalGradRhoValues.data()[i * 3 + 0] *
-                   totalGradRhoValues.data()[i * 3 + 0] +
-               totalGradRhoValues.data()[i * 3 + 1] *
-                   totalGradRhoValues.data()[i * 3 + 1] +
-               totalGradRhoValues.data()[i * 3 + 2] *
-                   totalGradRhoValues.data()[i * 3 + 2]);
+    totalSigmaRhoValues.data()[i] = (totalGradRhoValues.data()[i * 3 + 0] *
+                                         totalGradRhoValues.data()[i * 3 + 0] +
+                                     totalGradRhoValues.data()[i * 3 + 1] *
+                                         totalGradRhoValues.data()[i * 3 + 1] +
+                                     totalGradRhoValues.data()[i * 3 + 2] *
+                                         totalGradRhoValues.data()[i * 3 + 2]);
   }
 
   xc_gga_exc(&funcXGGA,
@@ -1769,13 +1765,12 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   for (unsigned int i = 0;
        i < d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
        i++) {
-    totalSigmaRhoValues.data()[i] =
-         (totalGradRhoValues.data()[i * 3 + 0] *
-                   totalGradRhoValues.data()[i * 3 + 0] +
-               totalGradRhoValues.data()[i * 3 + 1] *
-                   totalGradRhoValues.data()[i * 3 + 1] +
-               totalGradRhoValues.data()[i * 3 + 2] *
-                   totalGradRhoValues.data()[i * 3 + 2]);
+    totalSigmaRhoValues.data()[i] = (totalGradRhoValues.data()[i * 3 + 0] *
+                                         totalGradRhoValues.data()[i * 3 + 0] +
+                                     totalGradRhoValues.data()[i * 3 + 1] *
+                                         totalGradRhoValues.data()[i * 3 + 1] +
+                                     totalGradRhoValues.data()[i * 3 + 2] *
+                                         totalGradRhoValues.data()[i * 3 + 2]);
   }
 
   xc_mgga_exc(&funcXMGGA,
@@ -1839,35 +1834,55 @@ template class InverseDFTSolverFunction<7, 8, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<7, 9, dftfe::utils::MemorySpace::HOST>;
 
 #ifdef DFTFE_WITH_DEVICE
-template class InverseDFTSolverFunction<2, 2, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<2, 3, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<2, 4, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<2, 2,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<2, 3,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<2, 4,
+                                        dftfe::utils::MemorySpace::DEVICE>;
 
-template class InverseDFTSolverFunction<3, 3, dftfe::utils::MemorySpace::DEVICE>;
- template class InverseDFTSolverFunction<3, 4, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<3, 5, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<3, 6, dftfe::utils::MemorySpace::DEVICE>;
-template class InverseDFTSolverFunction<4, 4, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<4, 5, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<4, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<4, 7, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<3, 3,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<3, 4,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<3, 5,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<3, 6,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<4, 4,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<4, 5,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<4, 6,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<4, 7,
+                                        dftfe::utils::MemorySpace::DEVICE>;
 
-template class InverseDFTSolverFunction<5, 5, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<5, 5,
+                                        dftfe::utils::MemorySpace::DEVICE>;
 
-    template class InverseDFTSolverFunction<5, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<5, 7, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<5, 8, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<5, 6,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<5, 7,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<5, 8,
+                                        dftfe::utils::MemorySpace::DEVICE>;
 
+template class InverseDFTSolverFunction<6, 6,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<6, 7,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<6, 8,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<6, 9,
+                                        dftfe::utils::MemorySpace::DEVICE>;
 
-template class InverseDFTSolverFunction<6, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<6, 7, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<6, 8, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<6, 9, dftfe::utils::MemorySpace::DEVICE>;
-
-
-template class InverseDFTSolverFunction<7, 7, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<7, 8, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<7, 9, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<7, 7,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<7, 8,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<7, 9,
+                                        dftfe::utils::MemorySpace::DEVICE>;
 #endif
 
 } // end of namespace invDFT

@@ -268,13 +268,12 @@ inline double Dm(const int m) {
     return 1.0 / sqrt(M_PI);
 }
 
-double Blm(const int l, const int m)
-    {
-      if (m==0)
-        return sqrt((2.0*l+1)/2.0);
-      else
-        return Blm(l, m-1)/sqrt((l-m+1.0)*(l+m));
-    }
+double Blm(const int l, const int m) {
+  if (m == 0)
+    return sqrt((2.0 * l + 1) / 2.0);
+  else
+    return Blm(l, m - 1) / sqrt((l - m + 1.0) * (l + m));
+}
 
 inline double Clm(const int l, const int m) {
   Assert(m >= 0 && m <= l,
@@ -285,7 +284,7 @@ inline double Clm(const int l, const int m) {
               (2.0 * boost::math::factorial<double>(l + m)));
 */
   return Blm(l, abs(m));
-	      }
+}
 
 double Qm(const int m, const double phi) {
   double returnValue = 0.0;
@@ -1148,13 +1147,10 @@ gaussianFunctionManager::gaussianFunctionManager(
   d_basisCutoff.resize(numBasis, 0.0);
   getBasisCutoff(d_basisFunctions, d_basisCutoff, DFTFE_GAUSSIAN_ZERO_TOL);
 
-
-  for(unsigned int iBasis = 0 ; iBasis < numBasis; iBasis++)
-  {
-	  pcout<<" i = "<<iBasis<<" cutoff = "<<d_basisCutoff[iBasis]<<"\n";
+  for (unsigned int iBasis = 0; iBasis < numBasis; iBasis++) {
+    pcout << " i = " << iBasis << " cutoff = " << d_basisCutoff[iBasis] << "\n";
   }
-
-      }
+}
 
 //
 // Destructor
@@ -1197,7 +1193,7 @@ void gaussianFunctionManager::evaluateForQuad(
   for (unsigned i = 0; i < numBasis; ++i) {
     const double r =
         getClosestDistanceToBasis(points, nPoints, d_basisFunctions[i]);
-    if (r < d_basisCutoff[i])  
+    if (r < d_basisCutoff[i])
       basisIdsWithCompactSupportInProc.push_back(i);
   }
 
@@ -1296,19 +1292,16 @@ void gaussianFunctionManager::evaluateForQuad(
     }
 
     // ******
-    
 
     int rank;
     MPI_Comm_rank(d_mpiComm_domain, &rank);
-    if ( rank == 0 )
-    {
-	    for (unsigned int i = 0; i < numBasis; ++i)
-    {
-            std::cout<<" i = "<<i <<" norm const = "<<d_basisFunctions[i]->basisNormConst<<"\n";
-
+    if (rank == 0) {
+      for (unsigned int i = 0; i < numBasis; ++i) {
+        std::cout << " i = " << i
+                  << " norm const = " << d_basisFunctions[i]->basisNormConst
+                  << "\n";
+      }
     }
-    }
-
 
     ////////
 
@@ -1621,9 +1614,9 @@ void gaussianFunctionManager::getRhoGradient(const double *x,
 // basisFunctionLaplacians[j];
 //
 //		const double term1 =
-// basisFunctionValueI*basisFunctionLaplacianJ; 		const double term2
-// = basisFunctionValueJ*basisFunctionLaplacianI; 		const double
-// term3 = 2.0*dotProduct(basisFunctionGradientI,
+// basisFunctionValueI*basisFunctionLaplacianJ; 		const double
+// term2 = basisFunctionValueJ*basisFunctionLaplacianI; 		const
+// double term3 = 2.0*dotProduct(basisFunctionGradientI,
 // basisFunctionGradientJ); 		returnValue +=
 // d_densityMats[spinIndex][i][j]*(term1 + term2 + term3);
 //

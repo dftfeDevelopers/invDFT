@@ -19,14 +19,14 @@
 
 #include "InverseDFTEngine.h"
 #include "BFGSInverseDFTSolver.h"
-#include "InverseDFTSolverFunction.h"
-#include <densityCalculator.h>
-#include <gaussianFunctionManager.h>
-#include <xc.h>
 #include "CompositeData.h"
+#include "InverseDFTSolverFunction.h"
 #include "MPIWriteOnFile.h"
 #include "NodalData.h"
 #include "dftUtils.h"
+#include <densityCalculator.h>
+#include <gaussianFunctionManager.h>
+#include <xc.h>
 namespace invDFT {
 namespace {
 double realPart(const double x) { return x; }
@@ -365,7 +365,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       dftfe::TransferDataBetweenMeshesIncompatiblePartitioning<memorySpace>>(
       *d_dftMatrixFreeData, d_dftDensityDoFHandlerIndex, d_dftQuadIndex,
       d_matrixFreeDataVxc, d_dofHandlerVxcIndex, d_quadVxcIndex,
-      d_dftParams.verbosity, d_mpiComm_domain, d_inverseDFTParams.useMemOptForTransfer);
+      d_dftParams.verbosity, d_mpiComm_domain,
+      d_inverseDFTParams.useMemOptForTransfer);
   MPI_Barrier(d_mpiComm_domain);
   double createMapEnd = MPI_Wtime();
 
@@ -491,7 +492,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0, gradVal);
 
         d_sigmaGradRhoTarget[qPointId] =
-             4.0 * (gradVal[0] * gradVal[0] + gradVal[1] * gradVal[1] +
+            4.0 * (gradVal[0] * gradVal[0] + gradVal[1] * gradVal[1] +
                    gradVal[2] * gradVal[2]);
         //                if ( d_sigmaGradRhoTarget[qPointId] > 1e8)
         //                  {
@@ -605,31 +606,30 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     cell = dofHandlerParent->begin_active();
     iElem = 0;
 
-    if ( d_inverseDFTParams.useDeltaRhoCorrection)
-    {
+    if (d_inverseDFTParams.useDeltaRhoCorrection) {
       for (; cell != endc; ++cell)
-      if (cell->is_locally_owned()) {
-        for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
-             iQuad++) {
-          unsigned int index = iElem * numQuadraturePointsPerCellParent + iQuad;
-          d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index] -
-                                      rhoGaussianDFT[iSpin][index] +
-                                      rhoValuesFeSpin[iSpin][index];
+        if (cell->is_locally_owned()) {
+          for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
+               iQuad++) {
+            unsigned int index =
+                iElem * numQuadraturePointsPerCellParent + iQuad;
+            d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index] -
+                                        rhoGaussianDFT[iSpin][index] +
+                                        rhoValuesFeSpin[iSpin][index];
+          }
+          iElem++;
         }
-        iElem++;
-      }
-    }
-    else
-    {
-     for (; cell != endc; ++cell)
-      if (cell->is_locally_owned()) {
-        for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
-             iQuad++) {
-          unsigned int index = iElem * numQuadraturePointsPerCellParent + iQuad;
-          d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index];
+    } else {
+      for (; cell != endc; ++cell)
+        if (cell->is_locally_owned()) {
+          for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
+               iQuad++) {
+            unsigned int index =
+                iElem * numQuadraturePointsPerCellParent + iQuad;
+            d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index];
+          }
+          iElem++;
         }
-        iElem++;
-      }
     }
 
     for (; cell != endc; ++cell)
@@ -668,7 +668,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             0.0) {
           unsigned int qPointCoordIndex =
               ((iElem * numQuadraturePointsPerCellParent) + iQuad) * 3;
-          
+
           std::cout << " qPoint = (" << quadCoordinates[qPointCoordIndex + 0]
                     << "," << quadCoordinates[qPointCoordIndex + 1] << ","
                     << quadCoordinates[qPointCoordIndex + 2]
@@ -676,7 +676,6 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
           std::cout << "primary = " << rhoGaussianPrimary[0][index]
                     << " secondary = " << rhoGaussianDFT[0][index]
                     << " Fe = " << rhoValuesFeSpin[0][index] << "\n";
-        
         }
         rhoSumGaussian +=
             d_rhoTarget[0][iElem * numQuadraturePointsPerCellParent + iQuad] *
@@ -1539,11 +1538,11 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   std::vector<std::vector<double>> atomLocations =
       d_dftBaseClass->getAtomLocationsCart();
 
-    double netChargeOnAtom = 0.0;
-    if (d_dftParams.multipoleBoundaryConditions)
-    {
-        netChargeOnAtom = (double)d_inverseDFTParams.netCharge/atomLocations.size();
-    }
+  double netChargeOnAtom = 0.0;
+  if (d_dftParams.multipoleBoundaryConditions) {
+    netChargeOnAtom =
+        (double)d_inverseDFTParams.netCharge / atomLocations.size();
+  }
 
   dealii::IndexSet locallyRelevantDofsElectro;
 
@@ -1625,9 +1624,11 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                     (atomLocations[iAtom][4] - dof_coords_electro[nodeId][2]);
                 rad = std::sqrt(rad);
                 if (d_dftParams.isPseudopotential)
-                  nodalConstraintVal += (atomLocations[iAtom][1] + netChargeOnAtom) / rad;
+                  nodalConstraintVal +=
+                      (atomLocations[iAtom][1] + netChargeOnAtom) / rad;
                 else
-                  nodalConstraintVal += (atomLocations[iAtom][0] + netChargeOnAtom) / rad;
+                  nodalConstraintVal +=
+                      (atomLocations[iAtom][0] + netChargeOnAtom) / rad;
               }
               d_constraintMatrixElectroHartree.add_line(nodeId);
               d_constraintMatrixElectroHartree.set_inhomogeneity(
@@ -2181,12 +2182,11 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       iElemElectro++;
     }
 
-    if (d_dftParams.confiningPotential)
-    {
-        auto confiningPot = d_dftBaseClass->getConfiningPotential();
-        confiningPot.addConfiningPotential(d_potBaseQuadData[0]);
-    }
-    
+  if (d_dftParams.confiningPotential) {
+    auto confiningPot = d_dftBaseClass->getConfiningPotential();
+    confiningPot.addConfiningPotential(d_potBaseQuadData[0]);
+  }
+
   if (d_numSpins == 2) {
     std::copy(d_potBaseQuadData[0].begin(), d_potBaseQuadData[0].end(),
               d_potBaseQuadData[1].begin());
@@ -2297,10 +2297,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   std::copy(quadratureValueData.begin(), quadratureValueData.end(),
             d_potBaseQuadData[0].begin());
 
-  if (d_dftParams.confiningPotential)
-  {
-      auto confiningPot = d_dftBaseClass->getConfiningPotential();
-      confiningPot.addConfiningPotential(d_potBaseQuadData[0]);
+  if (d_dftParams.confiningPotential) {
+    auto confiningPot = d_dftBaseClass->getConfiningPotential();
+    confiningPot.addConfiningPotential(d_potBaseQuadData[0]);
   }
 
   if (d_numSpins == 2) {
@@ -2333,16 +2332,14 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
   x = 0.0;
 
-    if (d_dftParams.multipoleBoundaryConditions)
-    {
-        d_dftBaseClass->computeMultipoleMoments(d_basisOperationsElectroHost,
-                                                d_dftElectroRhsQuadIndex,
-                                                rhoValues,
-                                                &(d_dftBaseClass->getBQuadValuesAllAtoms()));
-        d_dftBaseClass->updatePRefinedConstraints();
-    }
+  if (d_dftParams.multipoleBoundaryConditions) {
+    d_dftBaseClass->computeMultipoleMoments(
+        d_basisOperationsElectroHost, d_dftElectroRhsQuadIndex, rhoValues,
+        &(d_dftBaseClass->getBQuadValuesAllAtoms()));
+    d_dftBaseClass->updatePRefinedConstraints();
+  }
 
-    poissonSolverObj.reinit(d_basisOperationsElectroHost, x,
+  poissonSolverObj.reinit(d_basisOperationsElectroHost, x,
                           *(d_dftBaseClass->getConstraintsVectorElectro()),
                           d_dftElectroDoFHandlerIndex, d_dftElectroRhsQuadIndex,
                           d_dftElectroAxQuadIndex,
@@ -2523,217 +2520,191 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
   setAdjointBoundaryCondition(rhoInputTotal);
 }
 
+template <unsigned int FEOrder, unsigned int FEOrderElectro,
+          dftfe::utils::MemorySpace memorySpace>
+void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
 
-    template <unsigned int FEOrder, unsigned int FEOrderElectro,
-            dftfe::utils::MemorySpace memorySpace>
-    void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc()
-    {
+  std::vector<std::vector<double>> targetPts;
+  // if (d_inverseDFTParams.readPointsFromFile)
+  //{
+  //
+  //}
+  // else
+  //{
+  unsigned int numPointsX = d_inverseDFTParams.numPointsX;
+  unsigned int numPointsY = d_inverseDFTParams.numPointsY;
+  unsigned int numPointsZ = d_inverseDFTParams.numPointsZ;
 
-        std::vector<std::vector<double>> targetPts;
-    //if (d_inverseDFTParams.readPointsFromFile)
-    //{
-//
-    //}
-    //else
-    //{
-        unsigned int numPointsX = d_inverseDFTParams.numPointsX;
-        unsigned int numPointsY = d_inverseDFTParams.numPointsY;
-        unsigned int numPointsZ = d_inverseDFTParams.numPointsZ;
+  double startingX = d_inverseDFTParams.startX;
+  double endingX = d_inverseDFTParams.endX;
 
-        double startingX = d_inverseDFTParams.startX;
-        double endingX = d_inverseDFTParams.endX;
+  std::vector<double> x_coord(numPointsX, 0.0);
+  x_coord[0] = startingX;
+  x_coord[numPointsX - 1] = endingX;
+  if ((std::abs(startingX - endingX) < 1e-6) && (numPointsX != 1)) {
+    AssertThrow(false, ExcMessage(" x coords are too close to interpolate "));
+  }
+  double dx = (endingX - startingX) / (numPointsX - 1);
 
-        std::vector<double> x_coord(numPointsX,0.0);
-        x_coord[0] = startingX;
-        x_coord[numPointsX - 1] = endingX;
-        if( ( std::abs( startingX - endingX ) < 1e-6) && (numPointsX != 1))
-        {
-             AssertThrow( false, ExcMessage(
-                 " x coords are too close to interpolate "));
+  AssertThrow((dx > 0.0) || (numPointsX == 1), ExcMessage(" dx is negative"));
+  for (unsigned int iCoord = 1; iCoord < numPointsX - 1; iCoord++) {
+    x_coord[iCoord] = x_coord[iCoord - 1] + dx;
+  }
 
-        }
-        double dx =  (endingX - startingX)/(numPointsX - 1);
+  double startingY = d_inverseDFTParams.startY;
+  double endingY = d_inverseDFTParams.endY;
 
-        AssertThrow( (dx > 0.0) || (numPointsX  == 1), ExcMessage(
-                " dx is negative"));
-        for( unsigned int iCoord = 1; iCoord < numPointsX - 1; iCoord++)
-        {
-            x_coord[iCoord] = x_coord[iCoord -1] + dx;
-        }
+  std::vector<double> y_coord(numPointsY, 0.0);
+  y_coord[0] = startingY;
+  y_coord[numPointsY - 1] = endingY;
+  if ((std::abs(startingY - endingY) < 1e-6) && (numPointsY != 1)) {
+    AssertThrow(false, ExcMessage(" y coords are too close to interpolate "));
+  }
+  double dy = (endingY - startingY) / (numPointsY - 1);
 
-        double startingY = d_inverseDFTParams.startY;
-        double endingY = d_inverseDFTParams.endY;
+  AssertThrow((dy > 0.0) || (numPointsY == 1), ExcMessage(" dy is negative"));
+  for (unsigned int iCoord = 1; iCoord < numPointsY - 1; iCoord++) {
+    y_coord[iCoord] = y_coord[iCoord - 1] + dy;
+  }
 
-        std::vector<double> y_coord(numPointsY,0.0);
-        y_coord[0] = startingY;
-        y_coord[numPointsY - 1] = endingY;
-        if( ( std::abs( startingY - endingY ) < 1e-6) && (numPointsY != 1))
-        {
-            AssertThrow( false, ExcMessage(
-                    " y coords are too close to interpolate "));
+  double startingZ = d_inverseDFTParams.startZ;
+  double endingZ = d_inverseDFTParams.endZ;
 
-        }
-        double dy =  (endingY - startingY)/(numPointsY - 1);
+  std::vector<double> z_coord(numPointsZ, 0.0);
+  z_coord[0] = startingZ;
+  z_coord[numPointsZ - 1] = endingZ;
+  if ((std::abs(startingZ - endingZ) < 1e-6) && (numPointsZ != 1)) {
+    AssertThrow(false, ExcMessage(" z coords are too close to interpolate "));
+  }
+  double dz = (endingZ - startingZ) / (numPointsZ - 1);
 
-        AssertThrow( (dy > 0.0) || (numPointsY==1), ExcMessage(
-                " dy is negative"));
-        for( unsigned int iCoord = 1; iCoord < numPointsY - 1; iCoord++)
-        {
-            y_coord[iCoord] = y_coord[iCoord -1] + dy;
-        }
+  AssertThrow((dz > 0.0) || (numPointsZ == 1), ExcMessage(" dz is negative"));
+  for (unsigned int iCoord = 1; iCoord < numPointsZ - 1; iCoord++) {
+    z_coord[iCoord] = z_coord[iCoord - 1] + dz;
+  }
 
-        double startingZ = d_inverseDFTParams.startZ;
-        double endingZ = d_inverseDFTParams.endZ;
+  unsigned int totalNumPoints = numPointsX * numPointsY * numPointsZ;
 
-        std::vector<double> z_coord(numPointsZ,0.0);
-        z_coord[0] = startingZ;
-        z_coord[numPointsZ - 1] = endingZ;
-        if( ( std::abs( startingZ - endingZ ) < 1e-6) && (numPointsZ != 1))
-        {
-            AssertThrow( false, ExcMessage(
-                    " z coords are too close to interpolate "));
+  // TODO a better domain decomposition would be cubic
+  // but I am doing linear for simplicity
 
-        }
-        double dz =  (endingZ - startingZ)/(numPointsZ - 1);
+  int thisRank, numRank;
+  MPI_Comm_rank(d_mpiComm_domain, &thisRank);
+  MPI_Comm_size(d_mpiComm_domain, &numRank);
 
-        AssertThrow( (dz > 0.0) || (numPointsZ==1), ExcMessage(
-                " dz is negative"));
-        for( unsigned int iCoord = 1; iCoord < numPointsZ - 1; iCoord++)
-        {
-            z_coord[iCoord] = z_coord[iCoord -1] + dz;
-        }
+  unsigned int numPointsInProc = totalNumPoints / numRank;
+  if (thisRank == numRank - 1) {
+    numPointsInProc = numPointsInProc + totalNumPoints % numRank;
+  }
 
+  unsigned int startingIndex = (totalNumPoints / numRank) * thisRank;
 
-        unsigned int totalNumPoints = numPointsX*numPointsY*numPointsZ;
+  targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
 
-        // TODO a better domain decomposition would be cubic
-        // but I am doing linear for simplicity
+  for (unsigned int index = startingIndex;
+       index < startingIndex + numPointsInProc; index++) {
+    unsigned int xIndex = index / (numPointsZ * numPointsY);
+    unsigned int yIndex =
+        (index - xIndex * numPointsZ * numPointsY) / (numPointsZ);
+    unsigned int zIndex =
+        (index - xIndex * numPointsZ * numPointsY) % (numPointsZ);
 
-        int thisRank, numRank;
-        MPI_Comm_rank(d_mpiComm_domain, &thisRank);
-        MPI_Comm_size(d_mpiComm_domain, &numRank);
+    targetPts[index - startingIndex][0] = x_coord[xIndex];
+    targetPts[index - startingIndex][1] = y_coord[yIndex];
+    targetPts[index - startingIndex][2] = z_coord[zIndex];
+  }
+  //}
 
-        unsigned int numPointsInProc = totalNumPoints/numRank;
-        if( thisRank == numRank - 1)
-        {
-            numPointsInProc = numPointsInProc + totalNumPoints%numRank;
-        }
+  dftfe::size_type totallyOwnedCellsMeshVxc =
+      d_matrixFreeDataVxc.n_physical_cells();
+  typename dealii::DoFHandler<3>::active_cell_iterator
+      cellMeshVxc = d_dofHandlerTriaVxc.begin_active(),
+      endcMeshVxc = d_dofHandlerTriaVxc.end();
 
-        unsigned int startingIndex = (totalNumPoints/numRank)*thisRank;
+  const dealii::FiniteElement<3> &feMeshVxc = d_dofHandlerTriaVxc.get_fe();
+  std::vector<unsigned int> numberDofsPerCellVxc;
+  numberDofsPerCellVxc.resize(totallyOwnedCellsMeshVxc);
 
-        targetPts.resize(numPointsInProc, std::vector<double>(3,0.0));
+  std::vector<std::shared_ptr<const dftfe::utils::Cell<3>>> srcCellsMeshVxc(0);
 
-        for(unsigned int index = startingIndex ; index < startingIndex + numPointsInProc; index++)
-        {
-            unsigned int xIndex = index/(numPointsZ*numPointsY);
-            unsigned int yIndex = (index - xIndex*numPointsZ*numPointsY)/(numPointsZ);
-            unsigned int zIndex = (index - xIndex*numPointsZ*numPointsY)%(numPointsZ);
+  std::vector<
+      std::shared_ptr<dftfe::InterpolateFromCellToLocalPoints<memorySpace>>>
+      interpolateLocalMeshVxc(0);
+  // iterate through child cells
+  dftfe::size_type iElemIndex = 0;
+  for (; cellMeshVxc != endcMeshVxc; cellMeshVxc++) {
+    if (cellMeshVxc->is_locally_owned()) {
+      numberDofsPerCellVxc[iElemIndex] =
+          d_dofHandlerTriaVxc.get_fe().dofs_per_cell;
+      auto srcCellPtr =
+          std::make_shared<dftfe::utils::FECell<3>>(cellMeshVxc, feMeshVxc);
+      srcCellsMeshVxc.push_back(srcCellPtr);
 
-            targetPts[index - startingIndex][0] = x_coord[xIndex];
-            targetPts[index - startingIndex][1] = y_coord[yIndex];
-            targetPts[index - startingIndex][2] = z_coord[zIndex];
-        }
-    //}
-
-    dftfe::size_type totallyOwnedCellsMeshVxc = d_matrixFreeDataVxc.n_physical_cells();
-        typename dealii::DoFHandler<3>::active_cell_iterator
-                cellMeshVxc = d_dofHandlerTriaVxc.begin_active(),
-                endcMeshVxc = d_dofHandlerTriaVxc.end();
-
-        const dealii::FiniteElement<3> &feMeshVxc = d_dofHandlerTriaVxc.get_fe();
-        std::vector<unsigned int>       numberDofsPerCellVxc;
-        numberDofsPerCellVxc.resize(totallyOwnedCellsMeshVxc);
-
-        std::vector<std::shared_ptr<const dftfe::utils::Cell<3>>> srcCellsMeshVxc(0);
-
-        std::vector<std::shared_ptr<dftfe::InterpolateFromCellToLocalPoints<memorySpace>>>
-        interpolateLocalMeshVxc(0);
-        // iterate through child cells
-	dftfe::size_type iElemIndex = 0;
-        for (; cellMeshVxc != endcMeshVxc; cellMeshVxc++)
-        {
-            if (cellMeshVxc->is_locally_owned())
-            {
-                numberDofsPerCellVxc[iElemIndex] =
-                        d_dofHandlerTriaVxc.get_fe().dofs_per_cell;
-                auto srcCellPtr =
-                        std::make_shared<dftfe::utils::FECell<3>>(cellMeshVxc, feMeshVxc);
-                srcCellsMeshVxc.push_back(srcCellPtr);
-
-                interpolateLocalMeshVxc.push_back(
-                        std::make_shared<dftfe::InterpolateFromCellToLocalPoints<memorySpace>>(
-                                srcCellPtr, numberDofsPerCellVxc[iElemIndex],d_inverseDFTParams.useMemOptForTransfer));
-                iElemIndex++;
-            }
-        }
-
-	dftfe::InterpolateCellWiseDataToPoints<dftfe::dataTypes::number, memorySpace> d_meshVxctoPoints(srcCellsMeshVxc,
-                                                                                                 interpolateLocalMeshVxc,
-                                                                                                 targetPts,
-                                                                                                 numberDofsPerCellVxc,
-                                                                                                 4,
-        d_mpiComm_domain);
-
-
-        dftfe::linearAlgebra::MultiVector<double, dftfe::utils::MemorySpace::HOST>
-                dummyPotVec;
-
-        dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
-                d_matrixFreeDataVxc.get_vector_partitioner(
-                        d_dofHandlerVxcIndex),
-                1, dummyPotVec);
-
-        std::vector<dealii::types::global_dof_index> fullFlattenedMapChild;
-        dftfe::vectorTools::computeCellLocalIndexSetMap(
-                dummyPotVec.getMPIPatternP2P(), d_matrixFreeDataVxc,
-                d_dofHandlerVxcIndex, 1, fullFlattenedMapChild);
-
-        dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
-                dftfe::utils::MemorySpace::HOST> fullFlattenedMapVxc;
-        fullFlattenedMapVxc.resize(fullFlattenedMapChild.size());
-        fullFlattenedMapVxc.copyFrom(fullFlattenedMapChild);
-
-
-	d_vxcInitialChildNodes[0].update_ghost_values();
-    	d_constraintMatrixVxc.distribute(d_vxcInitialChildNodes[0]);
-    	d_vxcInitialChildNodes[0].update_ghost_values();
-
-        dftfe::utils::MemoryStorage<dftfe::dataTypes::number,
-        dftfe::utils::MemorySpace::HOST> outputQuadData;
-        d_meshVxctoPoints.interpolateSrcDataToTargetPoints(
-                d_blasWrapperHost,
-                d_vxcInitialChildNodes[0],
-                1,
-                fullFlattenedMapVxc,
-                outputQuadData,
-                true);
-
-        const std::string filename = d_inverseDFTParams.fileNameWriteVxcPostProcess;
-        std::vector<std::shared_ptr<dftfe::dftUtils::CompositeData>> data(0);
-
-
-	MPI_Barrier(d_mpiComm_domain);
-        for(unsigned int index = startingIndex ; index < startingIndex + numPointsInProc; index++)
-        {
-            std::vector<double> nodeVals(0);
-            nodeVals.push_back(index);
-            nodeVals.push_back(targetPts[index - startingIndex][0]);
-            nodeVals.push_back(targetPts[index - startingIndex][1]);
-            nodeVals.push_back(targetPts[index - startingIndex][2]);
-
-            nodeVals.push_back(outputQuadData.data()[index - startingIndex]);
-            data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(nodeVals));
-
-	}
-
-        std::vector<dftfe::dftUtils::CompositeData *> dataRawPtrs(data.size());
-        for (unsigned int i = 0; i < data.size(); ++i)
-            dataRawPtrs[i] = data[i].get();
-        dftfe::dftUtils::MPIWriteOnFile().writeData(dataRawPtrs, filename,
-                                                    d_mpiComm_domain);
-        MPI_Barrier(d_mpiComm_domain);
+      interpolateLocalMeshVxc.push_back(
+          std::make_shared<
+              dftfe::InterpolateFromCellToLocalPoints<memorySpace>>(
+              srcCellPtr, numberDofsPerCellVxc[iElemIndex],
+              d_inverseDFTParams.useMemOptForTransfer));
+      iElemIndex++;
     }
+  }
 
+  dftfe::InterpolateCellWiseDataToPoints<dftfe::dataTypes::number, memorySpace>
+      d_meshVxctoPoints(srcCellsMeshVxc, interpolateLocalMeshVxc, targetPts,
+                        numberDofsPerCellVxc, 4, d_mpiComm_domain);
+
+  dftfe::linearAlgebra::MultiVector<double, dftfe::utils::MemorySpace::HOST>
+      dummyPotVec;
+
+  dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
+      d_matrixFreeDataVxc.get_vector_partitioner(d_dofHandlerVxcIndex), 1,
+      dummyPotVec);
+
+  std::vector<dealii::types::global_dof_index> fullFlattenedMapChild;
+  dftfe::vectorTools::computeCellLocalIndexSetMap(
+      dummyPotVec.getMPIPatternP2P(), d_matrixFreeDataVxc, d_dofHandlerVxcIndex,
+      1, fullFlattenedMapChild);
+
+  dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
+                              dftfe::utils::MemorySpace::HOST>
+      fullFlattenedMapVxc;
+  fullFlattenedMapVxc.resize(fullFlattenedMapChild.size());
+  fullFlattenedMapVxc.copyFrom(fullFlattenedMapChild);
+
+  d_vxcInitialChildNodes[0].update_ghost_values();
+  d_constraintMatrixVxc.distribute(d_vxcInitialChildNodes[0]);
+  d_vxcInitialChildNodes[0].update_ghost_values();
+
+  dftfe::utils::MemoryStorage<dftfe::dataTypes::number,
+                              dftfe::utils::MemorySpace::HOST>
+      outputQuadData;
+  d_meshVxctoPoints.interpolateSrcDataToTargetPoints(
+      d_blasWrapperHost, d_vxcInitialChildNodes[0], 1, fullFlattenedMapVxc,
+      outputQuadData, true);
+
+  const std::string filename = d_inverseDFTParams.fileNameWriteVxcPostProcess;
+  std::vector<std::shared_ptr<dftfe::dftUtils::CompositeData>> data(0);
+
+  MPI_Barrier(d_mpiComm_domain);
+  for (unsigned int index = startingIndex;
+       index < startingIndex + numPointsInProc; index++) {
+    std::vector<double> nodeVals(0);
+    nodeVals.push_back(index);
+    nodeVals.push_back(targetPts[index - startingIndex][0]);
+    nodeVals.push_back(targetPts[index - startingIndex][1]);
+    nodeVals.push_back(targetPts[index - startingIndex][2]);
+
+    nodeVals.push_back(outputQuadData.data()[index - startingIndex]);
+    data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(nodeVals));
+  }
+
+  std::vector<dftfe::dftUtils::CompositeData *> dataRawPtrs(data.size());
+  for (unsigned int i = 0; i < data.size(); ++i)
+    dataRawPtrs[i] = data[i].get();
+  dftfe::dftUtils::MPIWriteOnFile().writeData(dataRawPtrs, filename,
+                                              d_mpiComm_domain);
+  MPI_Barrier(d_mpiComm_domain);
+}
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -2741,10 +2712,10 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   dftfe::dftUtils::printCurrentMemoryUsage(d_mpiComm_domain,
                                            "Before parent cell manager");
 
-  if( d_inverseDFTParams.netCharge != 0)
-  {
-	  AssertThrow(d_dftParams.multipoleBoundaryConditions == true, 
-			  ExcMessage ("DFT-FE error: set MULTIPOLE BOUNDARY CONDITIONS in DFT-FE to true "));
+  if (d_inverseDFTParams.netCharge != 0) {
+    AssertThrow(d_dftParams.multipoleBoundaryConditions == true,
+                ExcMessage("DFT-FE error: set MULTIPOLE BOUNDARY CONDITIONS in "
+                           "DFT-FE to true "));
   }
 
   createParentChildDofManager();
@@ -2821,10 +2792,10 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
     setInitialPotL2Proj();
   }
 
- 
-  unsigned int numElectronsWithCharge = d_dftBaseClass->getNumElectrons() + d_inverseDFTParams.netCharge;
-  d_dftBaseClass->setNumElectrons(numElectronsWithCharge); 
-  
+  unsigned int numElectronsWithCharge =
+      d_dftBaseClass->getNumElectrons() + d_inverseDFTParams.netCharge;
+  d_dftBaseClass->setNumElectrons(numElectronsWithCharge);
+
   setPotBase();
 
   InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
@@ -2849,30 +2820,27 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
     unsigned int sizeOfQuadTotal = d_rhoTarget[iSpin].size();
     for (unsigned int iQuad = 0; iQuad < sizeOfQuadTotal; iQuad++) {
-       //weightQuadData[iSpin][iQuad] = 1.0;
-       weightQuadData[iSpin][iQuad] = 1.0/(std::pow(
-                    spinFactor*d_rhoTarget[iSpin][iQuad],d_inverseDFTParams.inverseAlpha1ForWeights)
-                    + tauWeight);
-       weightQuadData[iSpin][iQuad] +=
-       std::pow(spinFactor*d_rhoTarget[iSpin][iQuad],d_inverseDFTParams.inverseAlpha2ForWeights);
+      // weightQuadData[iSpin][iQuad] = 1.0;
+      weightQuadData[iSpin][iQuad] =
+          1.0 / (std::pow(spinFactor * d_rhoTarget[iSpin][iQuad],
+                          d_inverseDFTParams.inverseAlpha1ForWeights) +
+                 tauWeight);
+      weightQuadData[iSpin][iQuad] +=
+          std::pow(spinFactor * d_rhoTarget[iSpin][iQuad],
+                   d_inverseDFTParams.inverseAlpha2ForWeights);
     }
   }
 
   dftfe::KohnShamHamiltonianOperator<memorySpace> *kohnShamClassPtr =
       d_dftBaseClass->getOperatorClass();
 
-  if(d_inverseDFTParams.solvermode == "FUNCTIONAL_TEST")
-  {
-      testAdjoint();
-      return; 
+  if (d_inverseDFTParams.solvermode == "FUNCTIONAL_TEST") {
+    testAdjoint();
+    return;
+  } else if (d_inverseDFTParams.solvermode == "POST_PROCESS") {
+    interpolateVxc();
+    return;
   }
-  else if(d_inverseDFTParams.solvermode == "POST_PROCESS")
-  {
-      interpolateVxc();
-      return;
-  }
-
-
 
   inverseDFTSolverFunctionObj.reinit(
       d_rhoTarget, weightQuadData, d_potBaseQuadData, *d_dftBaseClass,
@@ -3090,7 +3058,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::testAdjoint() {
     degeneracy[iWave].push_back(iWave);
   }
 
-  const double fermiEnergy = d_dftBaseClass->getFermiEnergy(); 
+  const double fermiEnergy = d_dftBaseClass->getFermiEnergy();
   multiVectorAdjointProblem.updateInputPsi(
       psiBlockVecMemSpace, effectiveOrbitalOccupancy, differenceInDensities,
       degeneracy, fermiEnergy, shiftValues, currentBlockSize);
@@ -3113,56 +3081,54 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::testAdjoint() {
 }
 
 template class InverseDFTEngine<2, 2, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<2, 3, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<2, 4, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<2, 3, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<2, 4, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<3, 3, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<3, 4, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<3, 5, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<3, 6, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<3, 4, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<3, 5, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<3, 6, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<4, 4, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<4, 5, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<4, 6, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<4, 7, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<4, 5, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<4, 6, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<4, 7, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<5, 5, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<5, 6, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<5, 7, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<5, 8, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<5, 6, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<5, 7, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<5, 8, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<6, 6, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<6, 7, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<6, 8, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<6, 9, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<6, 7, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<6, 8, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<6, 9, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<7, 7, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<7, 8, dftfe::utils::MemorySpace::HOST>;
-    template class InverseDFTEngine<7, 9, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<7, 8, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<7, 9, dftfe::utils::MemorySpace::HOST>;
 #ifdef DFTFE_WITH_DEVICE
 template class InverseDFTEngine<2, 2, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<2, 3, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<2, 4, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<2, 3, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<2, 4, dftfe::utils::MemorySpace::DEVICE>;
 
 template class InverseDFTEngine<3, 3, dftfe::utils::MemorySpace::DEVICE>;
- template class InverseDFTEngine<3, 4, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<3, 5, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<3, 6, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<3, 4, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<3, 5, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<3, 6, dftfe::utils::MemorySpace::DEVICE>;
 template class InverseDFTEngine<4, 4, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<4, 5, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<4, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<4, 7, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<4, 5, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<4, 6, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<4, 7, dftfe::utils::MemorySpace::DEVICE>;
 
 template class InverseDFTEngine<5, 5, dftfe::utils::MemorySpace::DEVICE>;
 
-    template class InverseDFTEngine<5, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<5, 7, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<5, 8, dftfe::utils::MemorySpace::DEVICE>;
-
+template class InverseDFTEngine<5, 6, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<5, 7, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<5, 8, dftfe::utils::MemorySpace::DEVICE>;
 
 template class InverseDFTEngine<6, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<6, 7, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<6, 8, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<6, 9, dftfe::utils::MemorySpace::DEVICE>;
-
+template class InverseDFTEngine<6, 7, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<6, 8, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<6, 9, dftfe::utils::MemorySpace::DEVICE>;
 
 template class InverseDFTEngine<7, 7, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<7, 8, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTEngine<7, 9, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<7, 8, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<7, 9, dftfe::utils::MemorySpace::DEVICE>;
 #endif
 } // namespace invDFT

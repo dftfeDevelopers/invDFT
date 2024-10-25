@@ -23,65 +23,60 @@ namespace invDFT {
 
 namespace internalInvDFTParams {
 void declare_parameters(dealii::ParameterHandler &prm) {
+  prm.declare_entry(
+      "SOLVER MODE", "INVERSE",
+      dealii::Patterns::Selection("INVERSE|POST_PROCESS|FUNCTIONAL_TEST"),
+      "[Standard] invDFT SOLVER MODE: If GS: performs inverse DFT calculation. "
+      "If POST_PROCESS: interpolates the Vxc from an input file to a set of "
+      "points. If FUNCTIONAL_TEST: run a functional test on the adjoint solve");
+
+  prm.enter_subsection("POST PROCESS");
+  {
+    prm.declare_entry("READS POINTS FROM FILE", "false",
+                      dealii::Patterns::Bool(),
+                      "[Standard] if the the points to which the Vxc has to be "
+                      "interpolated should be read from file");
+
     prm.declare_entry(
-            "SOLVER MODE",
-            "INVERSE",
-            dealii::Patterns::Selection(
-                    "INVERSE|POST_PROCESS|FUNCTIONAL_TEST"),
-            "[Standard] invDFT SOLVER MODE: If GS: performs inverse DFT calculation. If POST_PROCESS: interpolates the Vxc from an input file to a set of points. If FUNCTIONAL_TEST: run a functional test on the adjoint solve");
+        "FILENAME FOR POINTS", ".", dealii::Patterns::Anything(),
+        "[Standard] Name of the file from which the points are to be read");
 
-    prm.enter_subsection("POST PROCESS");
-    {
-        prm.declare_entry("READS POINTS FROM FILE", "false", dealii::Patterns::Bool(),
-                          "[Standard] if the the points to which the Vxc has to be interpolated should be read from file");
+    prm.declare_entry("FILENAME FOR OUTPUT", ".", dealii::Patterns::Anything(),
+                      "[Standard] Name of the file to which the interpolated "
+                      "values are written");
 
-        prm.declare_entry("FILENAME FOR POINTS", ".",
-                          dealii::Patterns::Anything(),
-                          "[Standard] Name of the file from which the points are to be read");
+    prm.declare_entry("STARTING X", "-2.0", dealii::Patterns::Double(),
+                      "[Standard] Starting point for X axis");
 
-        prm.declare_entry("FILENAME FOR OUTPUT", ".",
-                          dealii::Patterns::Anything(),
-                          "[Standard] Name of the file to which the interpolated values are written");
+    prm.declare_entry("STARTING Y", "-2.0", dealii::Patterns::Double(),
+                      "[Standard] Starting point for Y axis");
 
-        prm.declare_entry("STARTING X", "-2.0",
-                          dealii::Patterns::Double(),
-                          "[Standard] Starting point for X axis");
+    prm.declare_entry("STARTING Z", "-2.0", dealii::Patterns::Double(),
+                      "[Standard] Starting point for Z axis");
 
-        prm.declare_entry("STARTING Y", "-2.0",
-                          dealii::Patterns::Double(),
-                          "[Standard] Starting point for Y axis");
+    prm.declare_entry("ENDING X", "2.0", dealii::Patterns::Double(),
+                      "[Standard] Ending point for X axis");
 
-        prm.declare_entry("STARTING Z", "-2.0",
-                          dealii::Patterns::Double(),
-                          "[Standard] Starting point for Z axis");
+    prm.declare_entry("ENDING Y", "2.0", dealii::Patterns::Double(),
+                      "[Standard] Ending point for Y axis");
 
-        prm.declare_entry("ENDING X", "2.0",
-                          dealii::Patterns::Double(),
-                          "[Standard] Ending point for X axis");
+    prm.declare_entry("ENDING Z", "2.0", dealii::Patterns::Double(),
+                      "[Standard] Ending point for Z axis");
 
-        prm.declare_entry("ENDING Y", "2.0",
-                          dealii::Patterns::Double(),
-                          "[Standard] Ending point for Y axis");
+    prm.declare_entry("NUMBER OF POINTS ALONG X DIRECTION", "1000",
+                      dealii::Patterns::Integer(1, 100000),
+                      "[Standard] Number of points along x direction.");
 
-        prm.declare_entry("ENDING Z", "2.0",
-                          dealii::Patterns::Double(),
-                          "[Standard] Ending point for Z axis");
+    prm.declare_entry("NUMBER OF POINTS ALONG Y DIRECTION", "1000",
+                      dealii::Patterns::Integer(1, 100000),
+                      "[Standard] Number of points along y direction.");
 
-        prm.declare_entry("NUMBER OF POINTS ALONG X DIRECTION", "1000",
-                          dealii::Patterns::Integer(1, 100000),
-                          "[Standard] Number of points along x direction.");
-
-        prm.declare_entry("NUMBER OF POINTS ALONG Y DIRECTION", "1000",
-                          dealii::Patterns::Integer(1, 100000),
-                          "[Standard] Number of points along y direction.");
-
-        prm.declare_entry("NUMBER OF POINTS ALONG Z DIRECTION", "1000",
-                          dealii::Patterns::Integer(1, 100000),
-                          "[Standard] Number of points along z direction.");
-
-    }
-    prm.leave_subsection();
-    prm.enter_subsection("Inverse DFT parameters");
+    prm.declare_entry("NUMBER OF POINTS ALONG Z DIRECTION", "1000",
+                      dealii::Patterns::Integer(1, 100000),
+                      "[Standard] Number of points along z direction.");
+  }
+  prm.leave_subsection();
+  prm.enter_subsection("Inverse DFT parameters");
   {
     prm.declare_entry("TOL FOR BFGS", "1e-12", dealii::Patterns::Double(0.0),
                       "[Standard] tol for the BFGS solver convergence");
@@ -90,12 +85,13 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       "[Standard] Number of times line search is performed "
                       "before finding the optimal lambda.");
 
-
     prm.declare_entry("NET CHARGE", "0", dealii::Patterns::Integer(-20, 20),
                       "[Standard] NET CHARGE ON THE SYSTEM");
-   
-    prm.declare_entry("Solve Additional States During Cheb Filtering", "0", dealii::Patterns::Integer(0, 20),
-                      "[Standard] Additional states on top of HOMO level that is soled to Cheb tol during chebyshev filtering");
+
+    prm.declare_entry("Solve Additional States During Cheb Filtering", "0",
+                      dealii::Patterns::Integer(0, 20),
+                      "[Standard] Additional states on top of HOMO level that "
+                      "is soled to Cheb tol during chebyshev filtering");
 
     prm.declare_entry("TOL FOR BFGS LINE SEARCH", "1e-6",
                       dealii::Patterns::Double(0.0),
@@ -108,9 +104,11 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("BFGS MAX ITERATIONS", "10000",
                       dealii::Patterns::Integer(1, 100000),
                       "[Standard] Max number of iterations in BFGS.");
-	
-    prm.declare_entry("USE DELTA RHO CORRECTION", "true", dealii::Patterns::Bool(),
-                      "[Standard] Flag to determine if the delta rho correction is to be applied"
+
+    prm.declare_entry("USE DELTA RHO CORRECTION", "true",
+                      dealii::Patterns::Bool(),
+                      "[Standard] Flag to determine if the delta rho "
+                      "correction is to be applied"
                       "from a file or not");
 
     prm.declare_entry("READ VXC DATA", "true", dealii::Patterns::Bool(),
@@ -138,18 +136,23 @@ void declare_parameters(dealii::ParameterHandler &prm) {
         "[Standard] Frequency with which the Vxc data is written to the disk");
 
     prm.declare_entry("INITIAL TOL FOR CHEBYSHEV FILTERING", "1e-6",
-		    dealii::Patterns::Double(0.0),
-                    "[Standard] The tolerance to which the chebyshev filtering is solved to initially. The tolerance is progressively made tighteer as the loss decreases.");
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] The tolerance to which the chebyshev "
+                      "filtering is solved to initially. The tolerance is "
+                      "progressively made tighteer as the loss decreases.");
 
     prm.declare_entry("ADAPTIVE FACTOR FOR ADJOINT", "1000.0",
                       dealii::Patterns::Double(0.0),
-                      "[Standard] The tol to which the adjoint problem is solved is chosen as the minimum of the tol used"
-                      "for the previous iteration and the tol used for Cheb filtering by adaptive factor");
+                      "[Standard] The tol to which the adjoint problem is "
+                      "solved is chosen as the minimum of the tol used"
+                      "for the previous iteration and the tol used for Cheb "
+                      "filtering by adaptive factor");
 
     prm.declare_entry("ADAPTIVE FACTOR FOR CHEBYSHEV FILTERING", "100.0",
                       dealii::Patterns::Double(0.0),
-                      "[Standard] Chebyshev filterting tol is chosen as the minimum of the tol for the preivous iteration"
-		      "and the loss unweighted divided by the adptive factor ");
+                      "[Standard] Chebyshev filterting tol is chosen as the "
+                      "minimum of the tol for the preivous iteration"
+                      "and the loss unweighted divided by the adptive factor ");
 
     prm.declare_entry("RHO TOL FOR CONSTRAINTS", "1e-6",
                       dealii::Patterns::Double(0.0),
@@ -212,10 +215,10 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       dealii::Patterns::Double(0.0),
                       "[STANDARD] tol for checking fractional occupancy");
 
-    prm.declare_entry("USE MEM OPT FOR TRANSFER", "false",
-                      dealii::Patterns::Bool(),
-                      "[Standard] Flag to determine if the shape func values are stored "
-                      "while doing data transfer");
+    prm.declare_entry(
+        "USE MEM OPT FOR TRANSFER", "false", dealii::Patterns::Bool(),
+        "[Standard] Flag to determine if the shape func values are stored "
+        "while doing data transfer");
 
     prm.declare_entry("READ GAUSSIAN DATA AS INPUT", "true",
                       dealii::Patterns::Bool(),
@@ -271,19 +274,19 @@ void declare_parameters(dealii::ParameterHandler &prm) {
 
 inverseDFTParameters::inverseDFTParameters() {
 
-    // parameters for post process
-    readPointsFromFile = false;
-     fileNameReadPoints = "";
-    fileNameWriteVxcPostProcess = "output_file";
-    startX = -2.0;
-    startY = -2.0;
-    startZ = -2.0;
-    endX = 2.0;
-    endY = 2.0;
-    endZ = 2.0;
-    numPointsX = 100;
-    numPointsY = 100;
-    numPointsZ = 100;
+  // parameters for post process
+  readPointsFromFile = false;
+  fileNameReadPoints = "";
+  fileNameWriteVxcPostProcess = "output_file";
+  startX = -2.0;
+  startY = -2.0;
+  startZ = -2.0;
+  endX = 2.0;
+  endY = 2.0;
+  endZ = 2.0;
+  numPointsX = 100;
+  numPointsY = 100;
+  numPointsZ = 100;
   // Parameters for inverse problem
   inverseBFGSTol = 1e-12;
   inverseBFGSLineSearch = 1;
@@ -333,23 +336,23 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
   internalInvDFTParams::declare_parameters(prm);
   prm.parse_input(parameter_file);
 
-    solvermode       = prm.get("SOLVER MODE");
-    prm.enter_subsection("POST PROCESS");
-    {
-        readPointsFromFile = prm.get_bool("READS POINTS FROM FILE");
-        fileNameReadPoints = prm.get("FILENAME FOR POINTS");
-        fileNameWriteVxcPostProcess = prm.get("FILENAME FOR OUTPUT");
-        startX = prm.get_double("STARTING X");
-        startY = prm.get_double("STARTING Y");
-        startZ = prm.get_double("STARTING Z");
-        endX = prm.get_double("ENDING X");
-        endY = prm.get_double("ENDING Y");
-        endZ = prm.get_double("ENDING Z");
-        numPointsX = prm.get_integer("NUMBER OF POINTS ALONG X DIRECTION");
-        numPointsY = prm.get_integer("NUMBER OF POINTS ALONG Y DIRECTION");
-        numPointsZ = prm.get_integer("NUMBER OF POINTS ALONG Z DIRECTION");
-    }
-    prm.leave_subsection();
+  solvermode = prm.get("SOLVER MODE");
+  prm.enter_subsection("POST PROCESS");
+  {
+    readPointsFromFile = prm.get_bool("READS POINTS FROM FILE");
+    fileNameReadPoints = prm.get("FILENAME FOR POINTS");
+    fileNameWriteVxcPostProcess = prm.get("FILENAME FOR OUTPUT");
+    startX = prm.get_double("STARTING X");
+    startY = prm.get_double("STARTING Y");
+    startZ = prm.get_double("STARTING Z");
+    endX = prm.get_double("ENDING X");
+    endY = prm.get_double("ENDING Y");
+    endZ = prm.get_double("ENDING Z");
+    numPointsX = prm.get_integer("NUMBER OF POINTS ALONG X DIRECTION");
+    numPointsY = prm.get_integer("NUMBER OF POINTS ALONG Y DIRECTION");
+    numPointsZ = prm.get_integer("NUMBER OF POINTS ALONG Z DIRECTION");
+  }
+  prm.leave_subsection();
   prm.enter_subsection("Inverse DFT parameters");
   {
     inverseBFGSTol = prm.get_double("TOL FOR BFGS");
@@ -371,14 +374,15 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     rhoTolForConstraints = prm.get_double("RHO TOL FOR CONSTRAINTS");
     VxcInnerDomain = prm.get_double("VXC MESH DOMAIN SIZE");
     VxcInnerMeshSize = prm.get_double("VXC MESH SIZE NEAR ATOM");
-    initialTolForChebFiltering = prm.get_double("INITIAL TOL FOR CHEBYSHEV FILTERING");
-    additionalEigenStatesSolved = prm.get_integer("Solve Additional States During Cheb Filtering");
+    initialTolForChebFiltering =
+        prm.get_double("INITIAL TOL FOR CHEBYSHEV FILTERING");
+    additionalEigenStatesSolved =
+        prm.get_integer("Solve Additional States During Cheb Filtering");
     inverseAdjointInitialTol =
         prm.get_double("INITIAL TOL FOR ADJOINT PROBLEM");
-    adaptiveFactorForAdjoint = 
-	    prm.get_double("ADAPTIVE FACTOR FOR ADJOINT");
+    adaptiveFactorForAdjoint = prm.get_double("ADAPTIVE FACTOR FOR ADJOINT");
     adaptiveFactorForChebFiltering =
-	    prm.get_double("ADAPTIVE FACTOR FOR CHEBYSHEV FILTERING");
+        prm.get_double("ADAPTIVE FACTOR FOR CHEBYSHEV FILTERING");
     inverseAdjointMaxIterations =
         prm.get_integer("MAX ITERATIONS FOR ADJOINT PROBLEM");
     inverseAdjointInitialTol =
