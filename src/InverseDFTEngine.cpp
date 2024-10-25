@@ -3113,17 +3113,64 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::testAdjoint() {
 }
 
 template class InverseDFTEngine<2, 2, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<2, 3, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<2, 4, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<2, 5, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<2, 6, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<2, 7, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<3, 3, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<3, 4, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<3, 5, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<3, 6, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<3, 7, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<4, 4, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<4, 5, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<4, 6, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<4, 7, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<5, 5, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<5, 6, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<5, 7, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<5, 8, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<6, 6, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<6, 7, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<6, 8, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<6, 9, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<7, 7, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<7, 8, dftfe::utils::MemorySpace::HOST>;
+    template class InverseDFTEngine<7, 9, dftfe::utils::MemorySpace::HOST>;
 #ifdef DFTFE_WITH_DEVICE
 template class InverseDFTEngine<2, 2, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<2, 3, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<2, 4, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<2, 5, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<2, 6, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<2, 7, dftfe::utils::MemorySpace::DEVICE>;
+
 template class InverseDFTEngine<3, 3, dftfe::utils::MemorySpace::DEVICE>;
+ template class InverseDFTEngine<3, 4, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<3, 5, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<3, 6, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<3, 7, dftfe::utils::MemorySpace::DEVICE>;
 template class InverseDFTEngine<4, 4, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<4, 5, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<4, 6, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<4, 7, dftfe::utils::MemorySpace::DEVICE>;
+
 template class InverseDFTEngine<5, 5, dftfe::utils::MemorySpace::DEVICE>;
+
+    template class InverseDFTEngine<5, 6, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<5, 7, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<5, 8, dftfe::utils::MemorySpace::DEVICE>;
+
+
 template class InverseDFTEngine<6, 6, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<6, 7, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<6, 8, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<6, 9, dftfe::utils::MemorySpace::DEVICE>;
+
+
 template class InverseDFTEngine<7, 7, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<7, 8, dftfe::utils::MemorySpace::DEVICE>;
+    template class InverseDFTEngine<7, 9, dftfe::utils::MemorySpace::DEVICE>;
 #endif
 } // namespace invDFT
