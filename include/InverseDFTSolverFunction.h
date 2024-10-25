@@ -62,7 +62,7 @@ public:
       const std::vector<
           dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
           &potBaseQuadDataHost,
-      dftfe::dftClass<FEOrder, FEOrder, memorySpace> &dftClass,
+      dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> &dftClass,
       const dealii::AffineConstraints<double>
           &constraintMatrixHomogeneousPsi, // assumes that the constraint matrix
                                            // has homogenous BC
@@ -285,7 +285,7 @@ private:
   bool d_resizeMemSpaceVecDuringInterpolation;
   bool d_resizeMemSpaceBlockSizeChildQuad;
 
-  dftfe::dftClass<FEOrder, FEOrder, memorySpace> *d_dftClassPtr;
+  dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> *d_dftClassPtr;
 
   std::shared_ptr<
       dftfe::linearAlgebra::BLASWrapper<dftfe::utils::MemorySpace::HOST>>

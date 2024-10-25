@@ -116,7 +116,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     const std::vector<
         dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
         &potBaseQuadDataHost,
-    dftfe::dftClass<FEOrder, FEOrder, memorySpace> &dftClass,
+    dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> &dftClass,
     const dealii::AffineConstraints<double>
         &constraintMatrixHomogeneousPsi, // assumes that the constraint matrix
                                          // has homogenous BC
@@ -1818,14 +1818,10 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 template class InverseDFTSolverFunction<2, 2, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<2, 3, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<2, 4, dftfe::utils::MemorySpace::HOST>;
-template class InverseDFTSolverFunction<2, 5, dftfe::utils::MemorySpace::HOST>;
-template class InverseDFTSolverFunction<2, 6, dftfe::utils::MemorySpace::HOST>;
-template class InverseDFTSolverFunction<2, 7, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<3, 3, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<3, 4, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<3, 5, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<3, 6, dftfe::utils::MemorySpace::HOST>;
-template class InverseDFTSolverFunction<3, 7, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<4, 4, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<4, 5, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<4, 6, dftfe::utils::MemorySpace::HOST>;
@@ -1846,15 +1842,11 @@ template class InverseDFTSolverFunction<7, 9, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<2, 2, dftfe::utils::MemorySpace::DEVICE>;
     template class InverseDFTSolverFunction<2, 3, dftfe::utils::MemorySpace::DEVICE>;
     template class InverseDFTSolverFunction<2, 4, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<2, 5, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<2, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<2, 7, dftfe::utils::MemorySpace::DEVICE>;
 
 template class InverseDFTSolverFunction<3, 3, dftfe::utils::MemorySpace::DEVICE>;
  template class InverseDFTSolverFunction<3, 4, dftfe::utils::MemorySpace::DEVICE>;
     template class InverseDFTSolverFunction<3, 5, dftfe::utils::MemorySpace::DEVICE>;
     template class InverseDFTSolverFunction<3, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class InverseDFTSolverFunction<3, 7, dftfe::utils::MemorySpace::DEVICE>;
 template class InverseDFTSolverFunction<4, 4, dftfe::utils::MemorySpace::DEVICE>;
     template class InverseDFTSolverFunction<4, 5, dftfe::utils::MemorySpace::DEVICE>;
     template class InverseDFTSolverFunction<4, 6, dftfe::utils::MemorySpace::DEVICE>;

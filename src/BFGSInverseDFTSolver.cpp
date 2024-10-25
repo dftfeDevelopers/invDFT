@@ -442,14 +442,10 @@ BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::getSolution()
     template class BFGSInverseDFTSolver<2, 2, dftfe::utils::MemorySpace::HOST>;
     template class BFGSInverseDFTSolver<2, 3, dftfe::utils::MemorySpace::HOST>;
     template class BFGSInverseDFTSolver<2, 4, dftfe::utils::MemorySpace::HOST>;
-    template class BFGSInverseDFTSolver<2, 5, dftfe::utils::MemorySpace::HOST>;
-    template class BFGSInverseDFTSolver<2, 6, dftfe::utils::MemorySpace::HOST>;
-    template class BFGSInverseDFTSolver<2, 7, dftfe::utils::MemorySpace::HOST>;
     template class BFGSInverseDFTSolver<3, 3, dftfe::utils::MemorySpace::HOST>;
     template class BFGSInverseDFTSolver<3, 4, dftfe::utils::MemorySpace::HOST>;
     template class BFGSInverseDFTSolver<3, 5, dftfe::utils::MemorySpace::HOST>;
     template class BFGSInverseDFTSolver<3, 6, dftfe::utils::MemorySpace::HOST>;
-    template class BFGSInverseDFTSolver<3, 7, dftfe::utils::MemorySpace::HOST>;
     template class BFGSInverseDFTSolver<4, 4, dftfe::utils::MemorySpace::HOST>;
     template class BFGSInverseDFTSolver<4, 5, dftfe::utils::MemorySpace::HOST>;
     template class BFGSInverseDFTSolver<4, 6, dftfe::utils::MemorySpace::HOST>;
@@ -469,15 +465,11 @@ BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::getSolution()
     template class BFGSInverseDFTSolver<2, 2, dftfe::utils::MemorySpace::DEVICE>;
     template class BFGSInverseDFTSolver<2, 3, dftfe::utils::MemorySpace::DEVICE>;
     template class BFGSInverseDFTSolver<2, 4, dftfe::utils::MemorySpace::DEVICE>;
-    template class BFGSInverseDFTSolver<2, 5, dftfe::utils::MemorySpace::DEVICE>;
-    template class BFGSInverseDFTSolver<2, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class BFGSInverseDFTSolver<2, 7, dftfe::utils::MemorySpace::DEVICE>;
 
 template class BFGSInverseDFTSolver<3, 3, dftfe::utils::MemorySpace::DEVICE>;
  template class BFGSInverseDFTSolver<3, 4, dftfe::utils::MemorySpace::DEVICE>;
     template class BFGSInverseDFTSolver<3, 5, dftfe::utils::MemorySpace::DEVICE>;
     template class BFGSInverseDFTSolver<3, 6, dftfe::utils::MemorySpace::DEVICE>;
-    template class BFGSInverseDFTSolver<3, 7, dftfe::utils::MemorySpace::DEVICE>;
 template class BFGSInverseDFTSolver<4, 4, dftfe::utils::MemorySpace::DEVICE>;
     template class BFGSInverseDFTSolver<4, 5, dftfe::utils::MemorySpace::DEVICE>;
     template class BFGSInverseDFTSolver<4, 6, dftfe::utils::MemorySpace::DEVICE>;
