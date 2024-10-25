@@ -960,6 +960,14 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::computeMuMatrix(
   MPI_Allreduce(MPI_IN_PLACE, &d_MuMatrixHost[0], d_blockSize * d_blockSize,
                 MPI_DOUBLE, MPI_SUM, mpi_communicator);
 
+
+  for (unsigned int iVecList = 0; iVecList < numVec; iVecList++) {
+    unsigned int iVec = d_vectorList[2 * iVecList];
+    unsigned int degenerateVecId = d_vectorList[2 * iVecList + 1];
+    pcout<<" Mu["<<iVec<<"]["<<degenerateVecId<<"]"<<d_MuMatrixHost[iVec * d_blockSize + degenerateVecId]<<"\n"; 
+  }
+
+
   d_MuMatrixMemSpace.copyFrom(d_MuMatrixHost);
 }
 
@@ -1002,6 +1010,7 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::distributeX() {
       dotProductMemSpace(numDegenerateVec, 0.0);
 
   // Compute eta
+  
   double sum_dFi_dmu = 0.0;
   double dFi_dmu =0.0;
   computeMuMatrix(d_inputJxWMemSpace, oneBlockSizeMemSpace, *d_psiMemSpace);
@@ -1016,16 +1025,16 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::distributeX() {
   }
 
   double etaVal = 0.0;
-if(etaRightSide < 1e-12)
+if(std::abs(etaRightSide) < 1e-16)
 {
-	etaVal = etaRightSide;
+	etaVal = 0.0; // keeping it to zero if the numerator is comparable to machine precision
 }
 else
 {
 	etaVal = etaRightSide/sum_dFi_dmu;
 }
 
-  pcout<<" etaVal = "<<etaVal<<"\n";
+  pcout<<" etaVal = "<<etaVal<< " etaRightSide = "<<etaRightSide<<" sum_dFi_dmu = "<<sum_dFi_dmu<<"\n";
 
 
   for (unsigned int i = 0; i < numDegenerateVec; i++) {
@@ -1037,9 +1046,17 @@ else
 	  {
 		  correction += DFi_epsi*etaVal;
 	  }
+
+	  pcout<<" iVec = "<<vec1<<" jVec = "<<vec2<<" dotProd = "<<dotProductHost[i]<<" corr = "<<correction<<"\n";
     dotProductHost[i] = -1.0 * dotProductHost[i] + correction;
     //dotProductHost[i] = -1.0 * dotProductHost[i];
    }
+
+/*
+      for (unsigned int i = 0; i < numDegenerateVec; i++) {
+        dotProductHost[i] = -1.0 * dotProductHost[i]; 	      
+      }
+*/
 
   dotProductMemSpace.copyFrom(dotProductHost);
 
@@ -1050,6 +1067,22 @@ else
   removeNullSpace(d_blockSize, d_locallyOwnedSize, numDegenerateVec, d_vectorListMemSpace, *d_psiMemSpace, dotProductMemSpace, *d_blockedXPtr);
 
   d_blockedXPtr->updateGhostValues();
+
+  /*
+   *  For testing purpose
+   */
+
+  multiVectorDotProdQuadWise(*d_blockedXPtr, *d_psiMemSpace, dotProductHost);
+
+   for (unsigned int i = 0; i < numDegenerateVec; i++) {
+          unsigned int vec1 = d_vectorList[2*i];
+          unsigned int vec2 = d_vectorList[2*i + 1];
+          pcout<<" iVec = "<<vec1<<" jVec = "<<vec2<<" dotProd = "<<dotProductHost[i]<<"\n";
+   }
+   /*
+   *  End testing purpose
+   */
+ 
 
   MPI_Barrier(mpi_communicator);
 /*	

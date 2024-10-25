@@ -93,7 +93,10 @@ void declare_parameters(dealii::ParameterHandler &prm) {
 
     prm.declare_entry("NET CHARGE", "0", dealii::Patterns::Integer(-20, 20),
                       "[Standard] NET CHARGE ON THE SYSTEM");
-    
+   
+    prm.declare_entry("Solve Additional States During Cheb Filtering", "0", dealii::Patterns::Integer(0, 20),
+                      "[Standard] Additional states on top of HOMO level that is soled to Cheb tol during chebyshev filtering");
+
     prm.declare_entry("TOL FOR BFGS LINE SEARCH", "1e-6",
                       dealii::Patterns::Double(0.0),
                       "[Standard] tol for the BFGS solver line search");
@@ -209,6 +212,11 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       dealii::Patterns::Double(0.0),
                       "[STANDARD] tol for checking fractional occupancy");
 
+    prm.declare_entry("USE MEM OPT FOR TRANSFER", "false",
+                      dealii::Patterns::Bool(),
+                      "[Standard] Flag to determine if the shape func values are stored "
+                      "while doing data transfer");
+
     prm.declare_entry("READ GAUSSIAN DATA AS INPUT", "true",
                       dealii::Patterns::Bool(),
                       "[Standard] Flag to determine if the initial Vxc is read "
@@ -306,6 +314,7 @@ inverseDFTParameters::inverseDFTParameters() {
   inverseFractionOccTol = 1e-8;
   inverseDegeneracyTol = 0.002;
 
+  additionalEigenStatesSolved = 0;
   netCharge = 0;
   readGaussian = false;
   fermiAmaldiBC = false;
@@ -363,6 +372,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     VxcInnerDomain = prm.get_double("VXC MESH DOMAIN SIZE");
     VxcInnerMeshSize = prm.get_double("VXC MESH SIZE NEAR ATOM");
     initialTolForChebFiltering = prm.get_double("INITIAL TOL FOR CHEBYSHEV FILTERING");
+    additionalEigenStatesSolved = prm.get_integer("Solve Additional States During Cheb Filtering");
     inverseAdjointInitialTol =
         prm.get_double("INITIAL TOL FOR ADJOINT PROBLEM");
     adaptiveFactorForAdjoint = 
@@ -385,6 +395,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     inverseTauForFABC = prm.get_double("TAU FOR WEIGHTS FOR SETTING FABC");
     inverseFractionOccTol = prm.get_double("TOL FOR FRACTIONAL OCCUPANCY");
     inverseDegeneracyTol = prm.get_double("TOL FOR DEGENERACY");
+    useMemOptForTransfer = prm.get_bool("USE MEM OPT FOR TRANSFER");
     readGaussian = prm.get_bool("READ GAUSSIAN DATA AS INPUT");
     fermiAmaldiBC = prm.get_bool("SET FERMIAMALDI IN THE FAR FIELD AS INPUT");
     densityMatPrimaryFileNameSpinUp =

@@ -444,11 +444,13 @@ template class BFGSInverseDFTSolver<3, 3, dftfe::utils::MemorySpace::HOST>;
 template class BFGSInverseDFTSolver<4, 4, dftfe::utils::MemorySpace::HOST>;
 template class BFGSInverseDFTSolver<5, 5, dftfe::utils::MemorySpace::HOST>;
 template class BFGSInverseDFTSolver<6, 6, dftfe::utils::MemorySpace::HOST>;
+template class BFGSInverseDFTSolver<7, 7, dftfe::utils::MemorySpace::HOST>;
 #ifdef DFTFE_WITH_DEVICE
 template class BFGSInverseDFTSolver<2, 2, dftfe::utils::MemorySpace::DEVICE>;
 template class BFGSInverseDFTSolver<3, 3, dftfe::utils::MemorySpace::DEVICE>;
 template class BFGSInverseDFTSolver<4, 4, dftfe::utils::MemorySpace::DEVICE>;
 template class BFGSInverseDFTSolver<5, 5, dftfe::utils::MemorySpace::DEVICE>;
 template class BFGSInverseDFTSolver<6, 6, dftfe::utils::MemorySpace::DEVICE>;
+template class BFGSInverseDFTSolver<7, 7, dftfe::utils::MemorySpace::DEVICE>;
 #endif
 } // namespace invDFT

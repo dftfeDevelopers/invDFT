@@ -113,6 +113,13 @@ int main(int argc, char *argv[]) {
                 dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
                 dftBasePtr->getMPIInterPool());
         break;
+      case 7:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<7, 7, dftfe::utils::MemorySpace::HOST>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
       default:
         AssertThrow(false,
                     dealii::ExcMessage(
@@ -161,6 +168,14 @@ int main(int argc, char *argv[]) {
       case 6:
         invBasePtr =
             new invDFT::InverseDFTEngine<6, 6,
+                                         dftfe::utils::MemorySpace::DEVICE>(
+                *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+                dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+                dftBasePtr->getMPIInterPool());
+        break;
+	case 7:
+        invBasePtr =
+            new invDFT::InverseDFTEngine<7, 7,
                                          dftfe::utils::MemorySpace::DEVICE>(
                 *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
                 dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),

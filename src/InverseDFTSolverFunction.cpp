@@ -1148,6 +1148,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
     d_dftClassPtr->compute_fermienergy(eigenValuesHost, d_numElectrons);
     const double fermiEnergy = d_dftClassPtr->getFermiEnergy();
     maxResidual = 0.0;
+    unsigned int homoLevel = 0;
     for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
       for (unsigned int iKpoint = 0; iKpoint < d_numKPoints; ++iKpoint) {
         // pcout << "compute partial occupancy eigen\n";
@@ -1158,6 +1159,13 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
               dftfe::dftUtils::getPartialOccupancy(
                   eigenValue, fermiEnergy, dftfe::C_kb, d_dftParams->TVal);
 
+	  if ( eigenValue < fermiEnergy + 1e-3)
+	  {
+		  if (homoLevel < iEig)
+		  {
+			  homoLevel = iEig ;
+		  }
+	  }
           if (d_dftParams->constraintMagnetization) {
             d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] =
                 1.0;
@@ -1172,8 +1180,10 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
             }
           }
 
-          if (d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] >
-              d_fractionalOccupancyTol) {
+          if  ((d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] >
+              d_fractionalOccupancyTol) || ( iEig <= homoLevel + d_inverseDFTParams->additionalEigenStatesSolved
+		      ))
+	  {
             if (residualNorms[iSpin][iKpoint][iEig] > maxResidual)
               maxResidual = residualNorms[iSpin][iKpoint][iEig];
           }
@@ -1810,6 +1820,7 @@ template class InverseDFTSolverFunction<3, 3, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<4, 4, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<5, 5, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTSolverFunction<6, 6, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTSolverFunction<7, 7, dftfe::utils::MemorySpace::HOST>;
 #ifdef DFTFE_WITH_DEVICE
 template class InverseDFTSolverFunction<2, 2,
                                         dftfe::utils::MemorySpace::DEVICE>;
@@ -1820,6 +1831,8 @@ template class InverseDFTSolverFunction<4, 4,
 template class InverseDFTSolverFunction<5, 5,
                                         dftfe::utils::MemorySpace::DEVICE>;
 template class InverseDFTSolverFunction<6, 6,
+                                        dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTSolverFunction<7, 7,
                                         dftfe::utils::MemorySpace::DEVICE>;
 #endif
 

@@ -52,6 +52,7 @@ public:
   std::string fileNameWriteVxcPostFix;
   unsigned int writeVxcFrequency;
 
+  unsigned int additionalEigenStatesSolved;
   unsigned int netCharge;
   bool useDeltaRhoCorrection;
   double adaptiveFactorForAdjoint;
@@ -70,6 +71,7 @@ public:
   double inverseFractionOccTol;
   double inverseDegeneracyTol;
 
+  bool useMemOptForTransfer;
   bool readGaussian;
   bool fermiAmaldiBC;
   std::string densityMatPrimaryFileNameSpinUp;

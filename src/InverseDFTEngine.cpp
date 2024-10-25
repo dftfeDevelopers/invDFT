@@ -365,7 +365,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       dftfe::TransferDataBetweenMeshesIncompatiblePartitioning<memorySpace>>(
       *d_dftMatrixFreeData, d_dftDensityDoFHandlerIndex, d_dftQuadIndex,
       d_matrixFreeDataVxc, d_dofHandlerVxcIndex, d_quadVxcIndex,
-      d_dftParams.verbosity, d_mpiComm_domain);
+      d_dftParams.verbosity, d_mpiComm_domain, d_inverseDFTParams.useMemOptForTransfer);
   MPI_Barrier(d_mpiComm_domain);
   double createMapEnd = MPI_Wtime();
 
@@ -1542,7 +1542,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     double netChargeOnAtom = 0.0;
     if (d_dftParams.multipoleBoundaryConditions)
     {
-        netChargeOnAtom = d_inverseDFTParams.netCharge/atomLocations.size();
+        netChargeOnAtom = (double)d_inverseDFTParams.netCharge/atomLocations.size();
     }
 
   dealii::IndexSet locallyRelevantDofsElectro;
@@ -2662,7 +2662,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
 
                 interpolateLocalMeshVxc.push_back(
                         std::make_shared<dftfe::InterpolateFromCellToLocalPoints<memorySpace>>(
-                                srcCellPtr, numberDofsPerCellVxc[iElemIndex]));
+                                srcCellPtr, numberDofsPerCellVxc[iElemIndex],d_inverseDFTParams.useMemOptForTransfer));
                 iElemIndex++;
             }
         }
@@ -3117,11 +3117,13 @@ template class InverseDFTEngine<3, 3, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<4, 4, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<5, 5, dftfe::utils::MemorySpace::HOST>;
 template class InverseDFTEngine<6, 6, dftfe::utils::MemorySpace::HOST>;
+template class InverseDFTEngine<7, 7, dftfe::utils::MemorySpace::HOST>;
 #ifdef DFTFE_WITH_DEVICE
 template class InverseDFTEngine<2, 2, dftfe::utils::MemorySpace::DEVICE>;
 template class InverseDFTEngine<3, 3, dftfe::utils::MemorySpace::DEVICE>;
 template class InverseDFTEngine<4, 4, dftfe::utils::MemorySpace::DEVICE>;
 template class InverseDFTEngine<5, 5, dftfe::utils::MemorySpace::DEVICE>;
 template class InverseDFTEngine<6, 6, dftfe::utils::MemorySpace::DEVICE>;
+template class InverseDFTEngine<7, 7, dftfe::utils::MemorySpace::DEVICE>;
 #endif
 } // namespace invDFT
