@@ -30,6 +30,7 @@
 #include <DeviceAPICalls.h>
 #endif
 
+#include <xc.h>
 namespace invDFT {
 namespace {
 
@@ -116,6 +117,10 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     const std::vector<
         dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
         &potBaseQuadDataHost,
+	std::vector< 
+	dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+       &vxcLDAQuadData,
+	const std::vector<double> &quadCoordinatesParent,
     dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> &dftClass,
     const dealii::AffineConstraints<double>
         &constraintMatrixHomogeneousPsi, // assumes that the constraint matrix
@@ -162,6 +167,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
   d_basisOperationsParentHostPtr = basisOperationsParentHostPtr;
   d_basisOperationsChildPtr = basisOperationsChildPtr;
 
+  d_vxcLDAQuadDataPtr = &vxcLDAQuadData;
+  d_quadCoordinatesParentPtr = &quadCoordinatesParent[0];
   d_dftClassPtr = &dftClass;
   d_constraintMatrixHomogeneousPsi = &constraintMatrixHomogeneousPsi;
   d_constraintMatrixHomogeneousAdjoint = &constraintMatrixHomogeneousAdjoint;
@@ -365,7 +372,133 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
       d_numSpins,
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
           d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
+
+  /***
+   *
+   * computing Vxc LDA
+   *
+   */
+
+  /*
+  d_vxcLDAQuadData.resize(
+      d_numSpins,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+          d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
+
+  xc_func_type funcXLDA, funcCLDA;
+
+  std::vector<double> exchangePotentialVal(d_numSpins *
+                                               d_numLocallyOwnedCellsParent *
+                                               numQuadraturePointsPerCellParent,
+                                           0.0);
+
+  std::vector<double> corrPotentialVal(d_numSpins *
+                                           d_numLocallyOwnedCellsParent *
+                                           numQuadraturePointsPerCellParent,
+                                       0.0);
+
+  std::vector<double> rhoSpinFlattened(d_numSpins *
+                                           d_numLocallyOwnedCellsParent *
+                                           numQuadraturePointsPerCellParent,
+                                       0.0);
+
+  double spinFactor = (d_numSpins == 2) ? 1.0 : 2.0;
+
+  for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
+    for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent; iCell++) {
+      for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent; iQuad++) {
+        rhoSpinFlattened[(iCell * numQuadraturePointsPerCellParent + iQuad) *
+                             d_numSpins +
+                         iSpin] =
+            spinFactor *
+            d_rhoTargetQuadDataHost[iSpin]
+                                   [iCell * numQuadraturePointsPerCellParent + iQuad];
+      }
+    }
+  }
+
+  xc_func_init(&funcXLDA, XC_LDA_X,
+               (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
+
+  xc_lda_vxc(&funcXLDA,
+             d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
+             &rhoSpinFlattened[0], &exchangePotentialVal[0]);
+
+  xc_func_init(&funcCLDA, XC_LDA_C_PW,
+               (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
+  xc_lda_vxc(&funcCLDA, d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
+             &rhoSpinFlattened[0], &corrPotentialVal[0]);
+
+  for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
+    for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent; iCell++) {
+      for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent; iQuad++) {
+        d_vxcLDAQuadData[iSpin][iCell * numQuadraturePointsPerCellParent + iQuad] =
+            exchangePotentialVal[(iCell * numQuadraturePointsPerCellParent+ iQuad) *
+                                 d_numSpins +
+                             iSpin] +
+            corrPotentialVal[(iCell * numQuadraturePointsPerCellParent + iQuad) *
+                                 d_numSpins +
+                             iSpin];
+      }
+    }
+  }
+  */
 }
+
+template <unsigned int FEOrder, unsigned int FEOrderElectro,
+          dftfe::utils::MemorySpace memorySpace>
+void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
+    writeParentMeshQuadDataToFile(
+        const std::vector<dftfe::utils::MemoryStorage<double,
+                                          dftfe::utils::MemorySpace::HOST>> &deltaVxcQuadData,
+        const std::vector<
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> &vxcLDAQuadData,
+	const double* quadCoords,
+	const std::string fileName) {
+
+  const unsigned int poolId =
+      dealii::Utilities::MPI::this_mpi_process(d_mpi_comm_interpool);
+  const unsigned int bandGroupId =
+      dealii::Utilities::MPI::this_mpi_process(d_mpi_comm_interband);
+  const unsigned int minPoolId =
+      dealii::Utilities::MPI::min(poolId, d_mpi_comm_interpool);
+  const unsigned int minBandGroupId =
+      dealii::Utilities::MPI::min(bandGroupId, d_mpi_comm_interband);
+
+  if (poolId == minPoolId && bandGroupId == minBandGroupId) {
+    const dealii::Quadrature<3> &quadratureRuleParent =
+      d_matrixFreeDataParent->get_quadrature(
+          d_matrixFreeQuadratureComponentAdjointRhs);
+  const unsigned int numQuadraturePointsPerCellParent =
+      quadratureRuleParent.size();
+	  
+	  dealii::types::global_dof_index numberQuadPts = numQuadraturePointsPerCellParent*d_numLocallyOwnedCellsParent; 
+
+    std::vector<std::shared_ptr<dftfe::dftUtils::CompositeData>> data(0);
+
+    for (dealii::types::global_dof_index iQuad = 0; iQuad < numberQuadPts;
+         iQuad++) {
+        std::vector<double> quadVals(0);
+        quadVals.push_back(iQuad);
+        quadVals.push_back(*(quadCoords + iQuad*3 + 0));
+        quadVals.push_back(*(quadCoords + iQuad*3 + 1));
+        quadVals.push_back(*(quadCoords + iQuad*3 + 2));
+
+        quadVals.push_back( d_inverseDFTParams->factorForLDAVxc*vxcLDAQuadData[0][iQuad] + deltaVxcQuadData[0][iQuad]);
+        if (d_numSpins == 2) {
+          quadVals.push_back( d_inverseDFTParams->factorForLDAVxc*vxcLDAQuadData[1][iQuad] + deltaVxcQuadData[1][iQuad]);
+        }
+        data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(quadVals));
+    }
+    std::vector<dftfe::dftUtils::CompositeData *> dataRawPtrs(data.size());
+    for (unsigned int i = 0; i < data.size(); ++i)
+      dataRawPtrs[i] = data[i].get();
+    dftfe::dftUtils::MPIWriteOnFile().writeData(dataRawPtrs, fileName,
+                                                d_mpi_comm_domain);
+  }
+}
+
+
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -996,6 +1129,18 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
       (d_inverseDFTParams->writeVxcData)) {
     computeEnergyMetrics();
     writeVxcDataToFile(pot, d_getForceCounter);
+
+
+    const std::string quadDataFilename = d_inverseDFTParams->vxcDataFolder + "/" +
+                               d_inverseDFTParams->fileNameWriteVxcPostFix +
+                               "_denistyParentQuad_" + std::to_string(d_getForceCounter);
+
+    writeParentMeshQuadDataToFile(
+		    d_potParentQuadDataSolveEigen,
+		    *d_vxcLDAQuadDataPtr,
+		    d_quadCoordinatesParentPtr,
+		    quadDataFilename);
+
   }
   MPI_Allreduce(MPI_IN_PLACE, &loss[0], d_numSpins, MPI_DOUBLE, MPI_SUM,
                 d_mpi_comm_domain);
@@ -1097,7 +1242,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
             d_potBaseQuadDataHost[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] +
             d_potParentQuadDataSolveEigen
-                [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad];
+                [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad] + 
+	    d_inverseDFTParams->factorForLDAVxc*(*(d_vxcLDAQuadDataPtr))[iSpin][iCell * numQuadraturePointsPerCellParent + iQuad];
       }
     }
 

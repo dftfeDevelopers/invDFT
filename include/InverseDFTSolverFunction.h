@@ -21,10 +21,10 @@
 #ifndef DFTFE_INVERSEDFTSOLVERFUNCTION_H
 #define DFTFE_INVERSEDFTSOLVERFUNCTION_H
 
+#include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include "inverseDFTParameters.h"
 #include <MultiVectorAdjointLinearSolverProblem.h>
 #include <MultiVectorMinResSolver.h>
-#include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include <constraintMatrixInfo.h>
 #include <dft.h>
 #include <headers.h>
@@ -62,6 +62,10 @@ public:
       const std::vector<
           dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
           &potBaseQuadDataHost,
+	  std::vector<
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+       &vxcLDAQuadData,
+	  const std::vector<double> &quadCoordinatesParent,
       dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> &dftClass,
       const dealii::AffineConstraints<double>
           &constraintMatrixHomogeneousPsi, // assumes that the constraint matrix
@@ -107,6 +111,14 @@ public:
       const std::vector<dftfe::distributedCPUVec<double>> &pot,
       const std::string fileName);
 
+  void writeParentMeshQuadDataToFile(
+        const std::vector<dftfe::utils::MemoryStorage<double,
+                                          dftfe::utils::MemorySpace::HOST>> &deltaVxcQuadData,
+        const std::vector<
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> &vxcLDAQuadData,
+        const double* quadCoords,
+        const std::string fileName);
+    
   void solveEigen(const std::vector<dftfe::distributedCPUVec<double>> &pot);
 
   void dotProduct(const dftfe::distributedCPUVec<double> &vec1,
@@ -338,6 +350,10 @@ private:
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
       rhoDiff;
 
+  std::vector<
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+      *d_vxcLDAQuadDataPtr;
+  const double *d_quadCoordinatesParentPtr;
   unsigned int d_previousBlockSize;
 };
 } // end of namespace invDFT

@@ -71,6 +71,7 @@ public:
   double inverseFractionOccTol;
   double inverseDegeneracyTol;
 
+  bool useLb94InInitialguess;
   bool useMemOptForTransfer;
   bool readGaussian;
   bool fermiAmaldiBC;
@@ -81,6 +82,7 @@ public:
   std::string densityMatDFTFileNameSpinUp;
   std::string densityMatDFTFileNameSpinDown;
 
+  double factorForLDAVxc;
   inverseDFTParameters();
 
   /**

@@ -407,7 +407,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   //
 
   std::vector<double> quadJxWValues(numTotalQuadraturePointsParent, 0.0);
-  std::vector<double> quadCoordinates(numTotalQuadraturePointsParent * 3, 0.0);
+  d_quadCoordinatesParent.resize(numTotalQuadraturePointsParent * 3, 0.0);
   typename dealii::DoFHandler<3>::active_cell_iterator
       cell = dofHandlerParent->begin_active(),
       endc = dofHandlerParent->end();
@@ -425,9 +425,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             fe_valuesParent.quadrature_point(q_point);
         unsigned int qPointCoordIndex =
             ((iElem * numQuadraturePointsPerCellParent) + q_point) * 3;
-        quadCoordinates[qPointCoordIndex + 0] = qPointVal[0];
-        quadCoordinates[qPointCoordIndex + 1] = qPointVal[1];
-        quadCoordinates[qPointCoordIndex + 2] = qPointVal[2];
+        d_quadCoordinatesParent[qPointCoordIndex + 0] = qPointVal[0];
+        d_quadCoordinatesParent[qPointCoordIndex + 1] = qPointVal[1];
+        d_quadCoordinatesParent[qPointCoordIndex + 2] = qPointVal[2];
       }
       iElem++;
     }
@@ -448,7 +448,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
   unsigned int gaussQuadIndex = 0;
   gaussianFuncManPrimaryObj.evaluateForQuad(
-      &quadCoordinates[0], &quadJxWValues[0], numTotalQuadraturePointsParent,
+      &d_quadCoordinatesParent[0], &quadJxWValues[0], numTotalQuadraturePointsParent,
       true,  // evalBasis,
       false, // evalBasisDerivatives,
       false, // evalBasisDoubleDerivatives,
@@ -469,6 +469,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                                           rhoGaussianPrimary[iSpin].data());
   }
 
+if (d_inverseDFTParams.useLb94InInitialguess)
+{
+
   if (d_numSpins == 1) {
     std::vector<double> qpointCoord(3, 0.0);
     std::vector<double> gradVal(3, 0.0);
@@ -485,9 +488,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             (iCell * numQuadraturePointsPerCellParent) + q_point;
         unsigned int qPointCoordIndex = qPointId * 3;
 
-        qpointCoord[0] = quadCoordinates[qPointCoordIndex + 0];
-        qpointCoord[1] = quadCoordinates[qPointCoordIndex + 1];
-        qpointCoord[2] = quadCoordinates[qPointCoordIndex + 2];
+        qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
+        qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
+        qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
 
         gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0, gradVal);
 
@@ -520,9 +523,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             (iCell * numQuadraturePointsPerCellParent) + q_point;
         unsigned int qPointCoordIndex = qPointId * 3;
 
-        qpointCoord[0] = quadCoordinates[qPointCoordIndex + 0];
-        qpointCoord[1] = quadCoordinates[qPointCoordIndex + 1];
-        qpointCoord[2] = quadCoordinates[qPointCoordIndex + 2];
+        qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
+        qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
+        qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
 
         gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
                                                  gradValSpinUp);
@@ -555,6 +558,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                 d_mpiComm_domain);
 
   pcout << " Max vlaue of sigmaGradVal = " << maxSigmaGradVal << "\n";
+}
   std::vector<std::string> densityMatDFTFileNames;
   densityMatDFTFileNames.push_back(
       d_inverseDFTParams.densityMatDFTFileNameSpinUp);
@@ -570,7 +574,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       d_mpiComm_parent, d_mpiComm_domain);
 
   gaussianFuncManDFTObj.evaluateForQuad(
-      &quadCoordinates[0], &quadJxWValues[0], numTotalQuadraturePointsParent,
+      &d_quadCoordinatesParent[0], &quadJxWValues[0], numTotalQuadraturePointsParent,
       true,  // evalBasis,
       false, // evalBasisDerivatives,
       false, // evalBasisDoubleDerivatives,
@@ -669,9 +673,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
           unsigned int qPointCoordIndex =
               ((iElem * numQuadraturePointsPerCellParent) + iQuad) * 3;
 
-          std::cout << " qPoint = (" << quadCoordinates[qPointCoordIndex + 0]
-                    << "," << quadCoordinates[qPointCoordIndex + 1] << ","
-                    << quadCoordinates[qPointCoordIndex + 2]
+          std::cout << " qPoint = (" << d_quadCoordinatesParent[qPointCoordIndex + 0]
+                    << "," << d_quadCoordinatesParent[qPointCoordIndex + 1] << ","
+                    << d_quadCoordinatesParent[qPointCoordIndex + 2]
                     << ") RHO IS NEGATIVE!!!!!!!!!!\n";
           std::cout << "primary = " << rhoGaussianPrimary[0][index]
                     << " secondary = " << rhoGaussianDFT[0][index]
@@ -847,9 +851,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   std::vector<double> rhoSpinFlattened(d_numSpins * totalOwnedCellsPsi *
                                        numQuadPointsPerPsiCell);
 
-  std::vector<
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-  initialPotValuesParentQuadData(
+  d_vxcLDAQuadData.resize(
       d_numSpins,
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
           totalOwnedCellsPsi * numQuadPointsPerPsiCell));
@@ -923,7 +925,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   std::vector<double> corrPotentialVal(
       d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell, 0.0);
 
-  std::vector<double> derExchEnergyWithSigmaValDummy(
+  if (d_inverseDFTParams.useLb94InInitialguess)
+  {
+	  std::vector<double> derExchEnergyWithSigmaValDummy(
       d_sigmaGradRhoTarget.size(), 0.0);
 
   xc_func_type funcXGGA;
@@ -932,7 +936,15 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   xc_gga_vxc(&funcXGGA, totalOwnedCellsPsi * numQuadPointsPerPsiCell,
              &rhoSpinFlattened[0], &d_sigmaGradRhoTarget[0],
              &exchangePotentialVal[0], &derExchEnergyWithSigmaValDummy[0]);
+  }
+  else
+  {
+	  xc_func_type funcXLDA;
+	  xc_func_init(&funcXLDA, XC_LDA_X, (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
 
+	  xc_lda_vxc(&funcXLDA,totalOwnedCellsPsi * numQuadPointsPerPsiCell, &rhoSpinFlattened[0], &exchangePotentialVal[0]);
+
+  }
   xc_func_type funcCLDA;
 
   xc_func_init(&funcCLDA, XC_LDA_C_PW,
@@ -1038,29 +1050,17 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
               corrPotentialVal[(iElemPsi * numQuadPointsPerPsiCell + iQuad) *
                                    d_numSpins +
                                spinIndex];
-          initialPotValuesParentQuadData[spinIndex][(
+          d_vxcLDAQuadData[spinIndex][(
               iElemPsi * numQuadPointsPerPsiCell + iQuad)] =
               cellLevelQuadInput[iQuad];
-          sumInitialValuesVxcParent +=
-              initialPotValuesParentQuadData[spinIndex][(
-                  iElemPsi * numQuadPointsPerPsiCell + iQuad)] *
-              initialPotValuesParentQuadData[spinIndex][(
-                  iElemPsi * numQuadPointsPerPsiCell + iQuad)];
         }
         iElemPsi++;
       }
 
-    MPI_Allreduce(MPI_IN_PLACE, &sumInitialValuesVxcParent, 1,
-                  dftfe::dataTypes::mpi_type_id(&sumInitialValuesVxcParent),
-                  MPI_SUM, d_mpiComm_domain);
-
-    pcout << " sumInitialValuesVxcParent = " << sumInitialValuesVxcParent
-          << "\n";
-
-    d_dftBaseClass->l2ProjectionQuadToNodal(
+	   d_dftBaseClass->l2ProjectionQuadToNodal(
         d_basisOperationsHost, *d_constraintDFTClass,
         d_dftDensityDoFHandlerIndex, d_dftQuadIndex,
-        initialPotValuesParentQuadData[spinIndex], vxcInitialGuess[spinIndex]);
+        d_vxcLDAQuadData[spinIndex], vxcInitialGuess[spinIndex]);
 
     pcout << " vxcInitialGuess norm before distribute= "
           << vxcInitialGuess[spinIndex].l2_norm() << "\n";
@@ -1163,6 +1163,14 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
                                                 endc =
                                                     d_dofHandlerTriaVxc.end();
     unsigned int iElem = 0;
+
+
+    for(unsigned int iQuad = 0 ; iQuad < totalLocallyOwnedCellsVxc *
+                                                numQuadPointsPerCellInVxc; iQuad++)
+    {
+	    initialPotValuesChildQuad[spinIndex].data()[iQuad] = initialPotValuesChildQuad[spinIndex].data()[iQuad]
+		    *(1.0 - d_inverseDFTParams.factorForLDAVxc); 
+    }
 
     d_dftBaseClass->l2ProjectionQuadToNodal(
         d_basisOperationsChildHostPtr, d_constraintMatrixVxc,
@@ -2470,6 +2478,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
     }
   }
 
+  /*
   // TODO unComment this to set the adjoint constraints
   dftfe::distributedCPUVec<double> rhoInputTotal;
   dftfe::vectorTools::createDealiiVector<double>(
@@ -2518,6 +2527,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
   rhoInputTotal.update_ghost_values();
 
   setAdjointBoundaryCondition(rhoInputTotal);
+  */
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -2786,11 +2796,11 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
     setTargetDensity(rhoInValues, rhoInSpinPolarised);
   }
 
+  setInitialPotL2Proj();
   if (d_inverseDFTParams.readVxcData) {
     readVxcInput();
-  } else {
-    setInitialPotL2Proj();
-  }
+  } 
+  
 
   unsigned int numElectronsWithCharge =
       d_dftBaseClass->getNumElectrons() + d_inverseDFTParams.netCharge;
@@ -2843,7 +2853,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   }
 
   inverseDFTSolverFunctionObj.reinit(
-      d_rhoTarget, weightQuadData, d_potBaseQuadData, *d_dftBaseClass,
+      d_rhoTarget, weightQuadData, d_potBaseQuadData, d_vxcLDAQuadData,
+      d_quadCoordinatesParent, *d_dftBaseClass,
       *d_constraintDFTClass,     // assumes that the constraint matrix has
                                  // homogenous BC
       d_constraintMatrixAdjoint, // assumes that the constraint matrix has

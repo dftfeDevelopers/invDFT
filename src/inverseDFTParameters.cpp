@@ -191,6 +191,11 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       "\frac{1}{\rho^{\alpha} + \tau} + \rho^{\alpha2}");
 
     prm.declare_entry(
+        "FACTOR FOR LDA VXC", "0.0",
+        dealii::Patterns::Double(0.0),
+        "[Standard] The factor with which the Vxc LDA is added to the hamiltonian. By setting to 1, we compute the delta Vxc");
+
+    prm.declare_entry(
         "TAU FOR WEIGHTS FOR LOSS FUNCTION", "1e-2",
         dealii::Patterns::Double(0.0),
         "[Standard] The parameter used for weight assigned to loss. The weight "
@@ -214,6 +219,10 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("TOL FOR DEGENERACY", "0.002",
                       dealii::Patterns::Double(0.0),
                       "[STANDARD] tol for checking fractional occupancy");
+
+    prm.declare_entry("USE LB94_X IN INITIAL GUESS","true",dealii::Patterns::Bool(),
+		    "[Standard] Flag to determine if LB 94_X is used in initial guess. If set to false, then LDA_X is used.");
+
 
     prm.declare_entry(
         "USE MEM OPT FOR TRANSFER", "false", dealii::Patterns::Bool(),
@@ -300,6 +309,7 @@ inverseDFTParameters::inverseDFTParameters() {
   fileNameWriteVxcPostFix = ".";
   writeVxcFrequency = 20;
 
+  factorForLDAVxc = 0.0;
   useDeltaRhoCorrection = true;
   adaptiveFactorForAdjoint = 1000.0;
   adaptiveFactorForChebFiltering = 100.0;
@@ -317,6 +327,7 @@ inverseDFTParameters::inverseDFTParameters() {
   inverseFractionOccTol = 1e-8;
   inverseDegeneracyTol = 0.002;
 
+  useLb94InInitialguess = true;
   additionalEigenStatesSolved = 0;
   netCharge = 0;
   readGaussian = false;
@@ -369,6 +380,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
         prm.get("POSTFIX TO THE FILENAME FOR WRITING VXC DATA");
     writeVxcFrequency = prm.get_integer("FREQUENCY FOR WRITING VXC");
 
+    factorForLDAVxc = prm.get_double("FACTOR FOR LDA VXC");
     netCharge = prm.get_integer("NET CHARGE");
     useDeltaRhoCorrection = prm.get_bool("USE DELTA RHO CORRECTION");
     rhoTolForConstraints = prm.get_double("RHO TOL FOR CONSTRAINTS");
@@ -397,6 +409,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
         prm.get_double("TAU FOR WEIGHTS FOR LOSS FUNCTION");
     inverseTauForVxBc = prm.get_double("TAU FOR WEIGHTS FOR SETTING VX BC");
     inverseTauForFABC = prm.get_double("TAU FOR WEIGHTS FOR SETTING FABC");
+    useLb94InInitialguess = prm.get_bool("USE LB94_X IN INITIAL GUESS");
     inverseFractionOccTol = prm.get_double("TOL FOR FRACTIONAL OCCUPANCY");
     inverseDegeneracyTol = prm.get_double("TOL FOR DEGENERACY");
     useMemOptForTransfer = prm.get_bool("USE MEM OPT FOR TRANSFER");

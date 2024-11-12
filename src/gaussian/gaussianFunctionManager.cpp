@@ -1421,10 +1421,9 @@ void gaussianFunctionManager::getRhoValue(const unsigned int quadIndex,
                                           const unsigned int spinIndex,
                                           double *rho) const {
   unsigned int numBasis = d_basisFunctions.size();
-
   auto it = d_basisVals.find(quadIndex);
   AssertThrow(
-      it != d_basisVals.end(),
+      d_basisVals.find(quadIndex) != d_basisVals.end(),
       dealii::ExcMessage("Gaussian basis values are not computed for the given "
                          "quadIndex"));
 

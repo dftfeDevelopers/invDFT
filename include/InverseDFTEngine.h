@@ -233,6 +233,10 @@ private:
   std::vector<const dealii::AffineConstraints<double> *>
       d_constraintsVectorAdjoint;
 
+  std::vector<double> d_quadCoordinatesParent;
+  std::vector<
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+      d_vxcLDAQuadData;
 }; // end of inverseDFT class
 
 } // end of namespace invDFT
