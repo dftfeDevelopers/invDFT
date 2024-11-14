@@ -34,6 +34,8 @@ public:
 
   // post process
   bool readPointsFromFile;
+    bool writeVtuFile ;
+    bool writeToPoints;
   std::string fileNameReadPoints;
   std::string fileNameWriteVxcPostProcess;
   double startX, startY, startZ;
