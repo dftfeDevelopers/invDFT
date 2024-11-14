@@ -471,10 +471,46 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
 if (d_inverseDFTParams.useLb94InInitialguess)
 {
+	const dftfe::utils::MemoryStorage<dftfe::dataTypes::number, memorySpace>
+      &eigenVectorsMemSpace = d_dftBaseClass->getEigenVectors();
+
+	const std::vector<std::vector<double>> &eigenValuesHost =
+      d_dftBaseClass->getEigenValues();
+  const double fermiEnergy = d_dftBaseClass->getFermiEnergy();
+
+  auto dftBasisOp = d_dftBaseClass->getBasisOperationsMemSpace();
+
+  std::vector< dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> rhoValues, gradRhoValues;
+  rhoValues.resize(
+      d_numSpins,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+          numQuadraturePointsPerCellParent * totalLocallyOwnedCellsParent));
+
+  gradRhoValues.resize(
+      d_numSpins,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+          3.0 * numQuadraturePointsPerCellParent *
+          totalLocallyOwnedCellsParent));
+
+	dftfe::computeRhoFromPSI<dftfe::dataTypes::number>(
+      &eigenVectorsMemSpace, &eigenVectorsMemSpace, d_numEigenValues,
+      d_numEigenValues, eigenValuesHost, fermiEnergy,
+      fermiEnergy, // fermi energy up
+      fermiEnergy, // fermi energy down
+      dftBasisOp,
+      // d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
+      d_blasWrapperMemSpace, d_dftBaseClass->getDensityDofHandlerIndex(),
+      d_dftBaseClass->getDensityQuadratureId(),
+      // d_matrixFreePsiVectorComponent,            // matrixFreeDofhandlerIndex
+      // d_matrixFreeQuadratureComponentAdjointRhs, // quadratureIndex
+      d_kpointWeights, rhoValues, gradRhoValues, true, d_mpiComm_parent,
+      d_mpiComm_interpool , d_mpiComm_bandgroup , d_dftParams,
+      false // spectrum splitting
+	);
 
   if (d_numSpins == 1) {
-    std::vector<double> qpointCoord(3, 0.0);
-    std::vector<double> gradVal(3, 0.0);
+  //  std::vector<double> qpointCoord(3, 0.0);
+  //  std::vector<double> gradVal(3, 0.0);
 
     d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
                                 numQuadraturePointsPerCellParent);
@@ -487,16 +523,18 @@ if (d_inverseDFTParams.useLb94InInitialguess)
         unsigned int qPointId =
             (iCell * numQuadraturePointsPerCellParent) + q_point;
         unsigned int qPointCoordIndex = qPointId * 3;
-
+/*
         qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
         qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
         qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
 
         gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0, gradVal);
-
+*/
         d_sigmaGradRhoTarget[qPointId] =
-            4.0 * (gradVal[0] * gradVal[0] + gradVal[1] * gradVal[1] +
-                   gradVal[2] * gradVal[2]);
+             gradRhoValues[0].data()[qPointCoordIndex + 0] *gradRhoValues[0].data()[qPointCoordIndex + 0] +
+	     gradRhoValues[0].data()[qPointCoordIndex + 1] *gradRhoValues[0].data()[qPointCoordIndex + 1] +
+	     gradRhoValues[0].data()[qPointCoordIndex + 2] * gradRhoValues[0].data()[qPointCoordIndex + 2];
+
         //                if ( d_sigmaGradRhoTarget[qPointId] > 1e8)
         //                  {
         //                    std::cout<<" Large value of d_sigmaGradRhoTarget
@@ -1029,7 +1067,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
 
             cellLevelQuadInput[iQuad] =
                 preFactorBC * cellLevelQuadInput[iQuad] +
-                (1.0 - preFactorBC) * (-1.0 / numElectrons) *
+                (1.0 - preFactorBC) * (-1.0 / numElectrons) * d_inverseDFTParams.factorFermiAmaldi * 
                     hartreeQuadData[iElemPsi * numQuadPointsPerPsiCell + iQuad];
           }
           d_targetPotValuesParentQuadData[spinIndex][iElemPsi][iQuad] =

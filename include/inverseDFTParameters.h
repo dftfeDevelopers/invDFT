@@ -75,6 +75,7 @@ public:
   bool useMemOptForTransfer;
   bool readGaussian;
   bool fermiAmaldiBC;
+  double factorFermiAmaldi;
   std::string densityMatPrimaryFileNameSpinUp;
   std::string densityMatPrimaryFileNameSpinDown;
   std::string gaussianAtomicCoord;

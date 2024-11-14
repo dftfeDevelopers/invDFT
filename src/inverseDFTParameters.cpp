@@ -238,6 +238,9 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       "[Standard] Flag to determine if the initial Vxc has "
                       "fermi-amaldi as the far field in the input");
 
+    prm.declare_entry("FACTOR FOR FERMIAMALDI", "1.0",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] Factor for FEMIAMALDI in the far field");
     prm.declare_entry(
         "GAUSSIAN DENSITY FOR PRIMARY RHO SPIN UP", ".",
         dealii::Patterns::Anything(),
@@ -332,6 +335,7 @@ inverseDFTParameters::inverseDFTParameters() {
   netCharge = 0;
   readGaussian = false;
   fermiAmaldiBC = false;
+  factorFermiAmaldi = 1.0;
   densityMatPrimaryFileNameSpinUp = ".";
   densityMatPrimaryFileNameSpinDown = ".";
   gaussianAtomicCoord = ".";
@@ -415,6 +419,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     useMemOptForTransfer = prm.get_bool("USE MEM OPT FOR TRANSFER");
     readGaussian = prm.get_bool("READ GAUSSIAN DATA AS INPUT");
     fermiAmaldiBC = prm.get_bool("SET FERMIAMALDI IN THE FAR FIELD AS INPUT");
+    factorFermiAmaldi = prm.get_double("FACTOR FOR FERMIAMALDI");
     densityMatPrimaryFileNameSpinUp =
         prm.get("GAUSSIAN DENSITY FOR PRIMARY RHO SPIN UP");
     densityMatPrimaryFileNameSpinDown =
