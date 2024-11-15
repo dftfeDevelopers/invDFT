@@ -1130,7 +1130,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
     computeEnergyMetrics();
     writeVxcDataToFile(pot, d_getForceCounter);
 
-
+/*
     const std::string quadDataFilename = d_inverseDFTParams->vxcDataFolder + "/" +
                                d_inverseDFTParams->fileNameWriteVxcPostFix +
                                "_denistyParentQuad_" + std::to_string(d_getForceCounter);
@@ -1140,7 +1140,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 		    *d_vxcLDAQuadDataPtr,
 		    d_quadCoordinatesParentPtr,
 		    quadDataFilename);
-
+*/
   }
   MPI_Allreduce(MPI_IN_PLACE, &loss[0], d_numSpins, MPI_DOUBLE, MPI_SUM,
                 d_mpi_comm_domain);

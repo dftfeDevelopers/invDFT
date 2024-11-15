@@ -50,7 +50,7 @@ public:
 
     void
     projectVxcToParentMesh(std::vector<dftfe::distributedCPUVec<double>> &vxcInitialGuessParentMesh,
-                           std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes)
+                           std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes);
 
 private:
   //

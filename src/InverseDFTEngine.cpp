@@ -2592,13 +2592,18 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
         dealii::DataOut<3> data_out_vxc;
 
         data_out_vxc.set_flags(flags);
-        data_out_vxc.attach_dof_handler(d_dofHandlerDFTClass);
+        data_out_vxc.attach_dof_handler(*d_dofHandlerDFTClass);
 
-        std::string outputVecName1 = "Vxc Total";
-        data_out_vxc.add_data_vector(vxcNodalParentMesh,outputVecName1);
+	       std::string outputVecName1 = "Vxc alpha";
+        data_out_vxc.add_data_vector(vxcNodalParentMesh[0],outputVecName1);
+	if(d_numSpins == 2)
+	{
+		std::string outputVecName1 = "Vxc beta";
+        data_out_vxc.add_data_vector(vxcNodalParentMesh[1],outputVecName1);
+	}
 
         data_out_vxc.build_patches(dealii::MappingQ1<3, 3>(), FEOrder);
-        data_out_rho.write_vtu_with_pvtu_record("./", vtuFilename,
+        data_out_vxc.write_vtu_with_pvtu_record("./", vtuFilename,
                                                 0,d_mpiComm_domain,2, 4);
 
     }
@@ -2742,9 +2747,17 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
                                   numberDofsPerCell, 4, d_mpiComm_domain);
 
 
+	dftfe::linearAlgebra::MultiVector<double, dftfe::utils::MemorySpace::HOST>
+      dummyPotVec;
+
+	dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
+      d_dftMatrixFreeData->get_vector_partitioner(
+          d_dftDensityDoFHandlerIndex),
+      1, dummyPotVec);
+
         std::vector<dealii::types::global_dof_index> fullFlattenedMapParent;
         dftfe::vectorTools::computeCellLocalIndexSetMap(
-                vxcNodalParentMesh.getMPIPatternP2P(), d_dftMatrixFreeData, d_dftDensityDoFHandlerIndex,
+                dummyPotVec.getMPIPatternP2P(), *d_dftMatrixFreeData, d_dftDensityDoFHandlerIndex,
                 1, fullFlattenedMapParent);
 
         dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
@@ -2814,6 +2827,28 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
                 dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
                         totalOwnedCellsPsi * numQuadPointsPerPsiCell));
 
+
+	dftfe::linearAlgebra::MultiVector<double, dftfe::utils::MemorySpace::HOST>
+      dummyPotVec;
+
+  dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
+      d_matrixFreeDataVxc.get_vector_partitioner(
+          d_dofHandlerVxcIndex),
+      1, dummyPotVec);
+
+  std::vector<dealii::types::global_dof_index> fullFlattenedMapChild;
+  dftfe::vectorTools::computeCellLocalIndexSetMap(
+      dummyPotVec.getMPIPatternP2P(), d_matrixFreeDataVxc,
+      d_dofHandlerVxcIndex, 1, fullFlattenedMapChild);
+
+ dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
+                              dftfe::utils::MemorySpace::HOST>
+      fullFlattenedMapChildMemStorage;
+ fullFlattenedMapChildMemStorage.resize(fullFlattenedMapChild.size());
+ fullFlattenedMapChildMemStorage.copyFrom(fullFlattenedMapChild);
+
+
+
         for (unsigned int spinIndex = 0; spinIndex < d_numSpins; ++spinIndex) {
             dealii::DoFHandler<3>::active_cell_iterator cellPsi = d_dofHandlerDFTClass
                     ->begin_active(),
@@ -2821,8 +2856,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
                     d_dofHandlerDFTClass->end();
 
             d_inverseDftDoFManagerObjPtr->interpolateMesh2DataToMesh1QuadPoints(
-                    d_BLASWrapperHostPtr, vxcChildNodes[iSpin], 1, d_fullFlattenedMapChild,
-                    vxcInterpolateToParent[iSpin],
+                    d_blasWrapperHost, vxcChildNodes[spinIndex], 1, fullFlattenedMapChildMemStorage,
+                    vxcInterpolateToParent[spinIndex],
                     true);
 
             unsigned int iElemPsi = 0;
@@ -2830,10 +2865,13 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
                 if (cellPsi->is_locally_owned()) {
 
 
-                    vxcOutputData[spinIndex][(
+			for (unsigned int iQuad = 0; iQuad < numQuadPointsPerPsiCell;
+           ++iQuad) {
+				vxcOutputData[spinIndex][(
                             iElemPsi * numQuadPointsPerPsiCell + iQuad)] = d_vxcLDAQuadData[spinIndex][(
                             iElemPsi * numQuadPointsPerPsiCell + iQuad)] * d_inverseDFTParams.factorForLDAVxc +
-    vxcInterpolateToParent.data()[iElemPsi * numQuadPointsPerPsiCell + iQuad];
+    vxcInterpolateToParent[spinIndex].data()[iElemPsi * numQuadPointsPerPsiCell + iQuad];
+			}
                     iElemPsi++;
                 }
 
