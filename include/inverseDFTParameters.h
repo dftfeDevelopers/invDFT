@@ -73,6 +73,8 @@ public:
   double inverseFractionOccTol;
   double inverseDegeneracyTol;
 
+  bool readFEDensity;
+  std::string fileNameReadDensity;
   bool useLb94InInitialguess;
   bool useMemOptForTransfer;
   bool readGaussian;

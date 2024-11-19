@@ -52,6 +52,11 @@ public:
     projectVxcToParentMesh(std::vector<dftfe::distributedCPUVec<double>> &vxcInitialGuessParentMesh,
                            std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes);
 
+void 
+    readDensityDataFromFile(
+        std::vector<
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> &densityParentQuad,
+      std::vector<double> & quadCoord);
 private:
   //
   // TODO
@@ -97,7 +102,7 @@ private:
   void setInitialPotL2Proj();
 
   void setInitialDensityFromGaussian(
-      const std::vector<
+     std::vector<
           dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
           &rhoValuesFeSpin);
 

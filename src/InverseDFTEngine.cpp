@@ -380,7 +380,7 @@ template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     setInitialDensityFromGaussian(
-        const std::vector<dftfe::utils::MemoryStorage<
+        std::vector<dftfe::utils::MemoryStorage<
             double, dftfe::utils::MemorySpace::HOST>> &rhoValuesFeSpin) {
   // Quadrature for AX multiplication will FEOrderElectro+1
   const dealii::Quadrature<3> &quadratureRuleParent =
@@ -639,6 +639,12 @@ if (d_inverseDFTParams.useLb94InInitialguess)
     gaussianFuncManDFTObj.getRhoValue(gaussQuadIndex, iSpin,
                                       rhoGaussianDFT[iSpin].data());
   }
+
+if ( d_inverseDFTParams.readFEDensity)
+{
+	readDensityDataFromFile(rhoValuesFeSpin,
+			  d_quadCoordinatesParent);
+}
 
   d_rhoTarget.resize(
       d_numSpins,
@@ -2415,6 +2421,103 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::setPotBase() {
   setPotBasePoissonNuclear();
 }
 
+
+template <unsigned int FEOrder, unsigned int FEOrderElectro,
+          dftfe::utils::MemorySpace memorySpace>
+void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
+    readDensityDataFromFile(
+        std::vector<
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> &densityParentQuad,
+      std::vector<double> & quadCoord) {
+
+  densityParentQuad.resize(d_numSpins);
+
+  const dealii::Quadrature<3> &quadratureRuleParent =
+      d_dftMatrixFreeData->get_quadrature(d_dftQuadIndex);
+  const unsigned int numQuadraturePointsPerCellParent =
+      quadratureRuleParent.size();
+  unsigned int totalLocallyOwnedCellsParent =
+      d_dftMatrixFreeData->n_physical_cells();
+  densityParentQuad.resize(totalLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
+
+  const std::string filename = d_inverseDFTParams.fileNameReadDensity;
+  std::ifstream densityInputFile(filename);
+
+  double nodalValue = 0.0;
+  double xcoordValue = 0.0;
+  double ycoordValue = 0.0;
+  double zcoordValue = 0.0;
+  double fieldValue0 = 0.0;
+  double fieldValue1 = 0.0;
+
+  const unsigned int numTotalQuadraturePointsParent =
+      totalLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
+
+         std::vector<unsigned int> numberOfPointsInEachProc;
+        numberOfPointsInEachProc.resize(n_mpi_processes);
+        std::fill(numberOfPointsInEachProc.begin(),numberOfPointsInEachProc.end(),0);
+
+        numberOfPointsInEachProc[this_mpi_process] = numTotalQuadraturePointsParent;
+
+
+        MPI_Allreduce(
+          MPI_IN_PLACE, &numberOfPointsInEachProc[0], n_mpi_processes, MPI_DOUBLE, MPI_SUM, d_mpiComm_domain);
+
+        unsigned int quadIdStartIndex = 0;
+
+        for( unsigned int iProc = 0; iProc < this_mpi_process; iProc++)
+        {
+                quadIdStartIndex += numberOfPointsInEachProc[iProc];
+        }
+
+	unsigned int totalQuadPtsAcrossAllProc = 0;// TODO too small for unsigned int ??
+	for( unsigned int iProc = 0; iProc < n_mpi_processes; iProc++)
+        {
+                totalQuadPtsAcrossAllProc += numberOfPointsInEachProc[iProc];
+        }
+
+  const dealii::DoFHandler<3> *dofHandlerParent =
+      &d_dftMatrixFreeData->get_dof_handler(d_dftDensityDoFHandlerIndex);
+  dealii::FEValues<3> fe_valuesParent(
+      dofHandlerParent->get_fe(), quadratureRuleParent,
+      dealii::update_JxW_values | dealii::update_quadrature_points);
+
+		      for(unsigned int q_point = 0; q_point <totalQuadPtsAcrossAllProc*numQuadraturePointsPerCellParent; q_point++)
+		      {
+			      densityInputFile >> nodalValue;
+			      densityInputFile >> xcoordValue;
+			      densityInputFile >> ycoordValue;
+			      densityInputFile >> zcoordValue;
+			      densityInputFile >> fieldValue0;
+			      densityInputFile >> fieldValue1;
+
+			      if ((q_point >= quadIdStartIndex) && ( q_point < quadIdStartIndex + numTotalQuadraturePointsParent))
+			      {
+				      double distBetweenQuad = 0.0;
+      distBetweenQuad += (xcoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 0]) *
+                          (xcoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 0]);
+      distBetweenQuad += (ycoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 1]) *
+                          (ycoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 1]);
+      distBetweenQuad += (zcoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 2]) *
+                          (zcoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 2]);
+      distBetweenQuad = std::sqrt(distBetweenQuad);
+      if (distBetweenQuad > 1e-3) {
+        std::cout << " Errorr while reading data quad nodes do not match \n";
+
+	    AssertThrow( distBetweenQuad < 1e-3, ExcMessage(
+         "DFT-FE error:  quad coordinates of density are different "));
+      }
+
+				      densityParentQuad[0].data()[q_point - quadIdStartIndex] = fieldValue0 + fieldValue1 ;
+			      }
+
+
+
+		      }
+  densityInputFile.close();
+}
+
+
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
@@ -2472,6 +2575,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       distBetweenNodes = std::sqrt(distBetweenNodes);
       if (distBetweenNodes > 1e-3) {
         std::cout << " Errorr while reading data global nodes do not match \n";
+
+	 AssertThrow( distBetweenNodes  < 1e-3, ExcMessage(
+         "DFT-FE error: Vxc nodal coordinates of density are different "));
       }
 
       vxcChildNodes[0](iNode) = fieldValue0;

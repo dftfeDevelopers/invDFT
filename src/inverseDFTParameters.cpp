@@ -231,6 +231,15 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("USE LB94_X IN INITIAL GUESS","true",dealii::Patterns::Bool(),
 		    "[Standard] Flag to determine if LB 94_X is used in initial guess. If set to false, then LDA_X is used.");
 
+     prm.declare_entry("READ FE DENSITY DATA", "false",
+                      dealii::Patterns::Bool(),
+                      "[Standard] Flag to determine if the FE density is read from a file");
+
+
+     prm.declare_entry(
+        "FE DENSITY FILENAME", ".",
+        dealii::Patterns::Anything(),
+        "[Standard] File name containing the spin polarised FE GS density");
 
     prm.declare_entry(
         "USE MEM OPT FOR TRANSFER", "false", dealii::Patterns::Bool(),
@@ -322,6 +331,8 @@ inverseDFTParameters::inverseDFTParameters() {
   fileNameWriteVxcPostFix = ".";
   writeVxcFrequency = 20;
 
+  readFEDensity = false;
+  fileNameReadDensity = "";
   factorForLDAVxc = 0.0;
   useDeltaRhoCorrection = true;
   adaptiveFactorForAdjoint = 1000.0;
@@ -396,6 +407,8 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
         prm.get("POSTFIX TO THE FILENAME FOR WRITING VXC DATA");
     writeVxcFrequency = prm.get_integer("FREQUENCY FOR WRITING VXC");
 
+     readFEDensity = prm.get_bool("READ FE DENSITY DATA");
+     fileNameReadDensity = prm.get("FE DENSITY FILENAME");
     factorForLDAVxc = prm.get_double("FACTOR FOR LDA VXC");
     netCharge = prm.get_integer("NET CHARGE");
     useDeltaRhoCorrection = prm.get_bool("USE DELTA RHO CORRECTION");
