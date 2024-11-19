@@ -1169,7 +1169,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
         d_blasWrapperHost, exactVxcTestParent,
         1, // blockSize
         fullFlattenedArrayCellLocalProcIndexIdMapVxcInitialParent,
-        exactPotValuesChildQuad[spinIndex], true);
+        exactPotValuesChildQuad[spinIndex], 1,1,0,true);
 
     double sumExactPotValuesChild = 0.0;
     for (unsigned int iQuad = 0;
@@ -1194,7 +1194,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
         d_blasWrapperHost, vxcInitialGuess[spinIndex],
         1, // blockSize
         fullFlattenedArrayCellLocalProcIndexIdMapVxcInitialParent,
-        initialPotValuesChildQuad[spinIndex], true);
+        initialPotValuesChildQuad[spinIndex], 1,1,0,true);
 
     dealii::DoFHandler<3>::active_cell_iterator cell = d_dofHandlerTriaVxc
                                                            .begin_active(),
@@ -2857,7 +2857,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
 
             d_inverseDftDoFManagerObjPtr->interpolateMesh2DataToMesh1QuadPoints(
                     d_blasWrapperHost, vxcChildNodes[spinIndex], 1, fullFlattenedMapChildMemStorage,
-                    vxcInterpolateToParent[spinIndex],
+                    vxcInterpolateToParent[spinIndex], 1,1,0,
                     true);
 
             unsigned int iElemPsi = 0;

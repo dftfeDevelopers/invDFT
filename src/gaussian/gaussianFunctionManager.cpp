@@ -1147,10 +1147,12 @@ gaussianFunctionManager::gaussianFunctionManager(
   d_basisCutoff.resize(numBasis, 0.0);
   getBasisCutoff(d_basisFunctions, d_basisCutoff, DFTFE_GAUSSIAN_ZERO_TOL);
 
-  for (unsigned int iBasis = 0; iBasis < numBasis; iBasis++) {
-    pcout << " i = " << iBasis << " cutoff = " << d_basisCutoff[iBasis] << "\n";
-  }
-}
+  // for (unsigned int iBasis = 0; iBasis < numBasis; iBasis++) {
+  //   pcout << " i = " << iBasis << " cutoff = " << d_basisCutoff[iBasis] <<
+  //   "\n";
+  //   }
+ 
+} // namespace invDFT
 
 //
 // Destructor
@@ -1292,17 +1294,17 @@ void gaussianFunctionManager::evaluateForQuad(
     }
 
     // ******
-
-    int rank;
-    MPI_Comm_rank(d_mpiComm_domain, &rank);
-    if (rank == 0) {
-      for (unsigned int i = 0; i < numBasis; ++i) {
-        std::cout << " i = " << i
-                  << " norm const = " << d_basisFunctions[i]->basisNormConst
-                  << "\n";
-      }
-    }
-
+    /*
+        int rank;
+        MPI_Comm_rank(d_mpiComm_domain, &rank);
+        if (rank == 0) {
+          for (unsigned int i = 0; i < numBasis; ++i) {
+            std::cout << " i = " << i
+                      << " norm const = " << d_basisFunctions[i]->basisNormConst
+                      << "\n";
+          }
+        }
+    */
     ////////
 
     // scale the S matrix

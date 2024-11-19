@@ -34,8 +34,8 @@ public:
 
   // post process
   bool readPointsFromFile;
-    bool writeVtuFile ;
-    bool writeToPoints;
+  bool writeVtuFile;
+  bool writeToPoints;
   std::string fileNameReadPoints;
   std::string fileNameWriteVxcPostProcess;
   double startX, startY, startZ;
@@ -73,6 +73,7 @@ public:
   double inverseFractionOccTol;
   double inverseDegeneracyTol;
 
+  unsigned int interBlockSize;
   bool useLb94InInitialguess;
   bool useMemOptForTransfer;
   bool readGaussian;

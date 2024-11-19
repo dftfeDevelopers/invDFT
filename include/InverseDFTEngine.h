@@ -48,9 +48,9 @@ public:
 
   void interpolateVxc();
 
-    void
-    projectVxcToParentMesh(std::vector<dftfe::distributedCPUVec<double>> &vxcInitialGuessParentMesh,
-                           std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes);
+  void projectVxcToParentMesh(
+      std::vector<dftfe::distributedCPUVec<double>> &vxcInitialGuessParentMesh,
+      std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes);
 
 private:
   //

@@ -117,10 +117,10 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     const std::vector<
         dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
         &potBaseQuadDataHost,
-	std::vector< 
-	dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-       &vxcLDAQuadData,
-	const std::vector<double> &quadCoordinatesParent,
+    std::vector<
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+        &vxcLDAQuadData,
+    const std::vector<double> &quadCoordinatesParent,
     dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> &dftClass,
     const dealii::AffineConstraints<double>
         &constraintMatrixHomogeneousPsi, // assumes that the constraint matrix
@@ -405,14 +405,11 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
   double spinFactor = (d_numSpins == 2) ? 1.0 : 2.0;
 
   for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
-    for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent; iCell++) {
-      for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent; iQuad++) {
-        rhoSpinFlattened[(iCell * numQuadraturePointsPerCellParent + iQuad) *
-                             d_numSpins +
-                         iSpin] =
-            spinFactor *
-            d_rhoTargetQuadDataHost[iSpin]
-                                   [iCell * numQuadraturePointsPerCellParent + iQuad];
+    for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent; iCell++)
+  { for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
+  iQuad++) { rhoSpinFlattened[(iCell * numQuadraturePointsPerCellParent + iQuad)
+  * d_numSpins + iSpin] = spinFactor * d_rhoTargetQuadDataHost[iSpin] [iCell *
+  numQuadraturePointsPerCellParent + iQuad];
       }
     }
   }
@@ -426,19 +423,16 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
 
   xc_func_init(&funcCLDA, XC_LDA_C_PW,
                (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
-  xc_lda_vxc(&funcCLDA, d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
-             &rhoSpinFlattened[0], &corrPotentialVal[0]);
+  xc_lda_vxc(&funcCLDA, d_numLocallyOwnedCellsParent *
+  numQuadraturePointsPerCellParent, &rhoSpinFlattened[0], &corrPotentialVal[0]);
 
   for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
-    for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent; iCell++) {
-      for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent; iQuad++) {
-        d_vxcLDAQuadData[iSpin][iCell * numQuadraturePointsPerCellParent + iQuad] =
-            exchangePotentialVal[(iCell * numQuadraturePointsPerCellParent+ iQuad) *
-                                 d_numSpins +
-                             iSpin] +
-            corrPotentialVal[(iCell * numQuadraturePointsPerCellParent + iQuad) *
-                                 d_numSpins +
-                             iSpin];
+    for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent; iCell++)
+  { for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
+  iQuad++) { d_vxcLDAQuadData[iSpin][iCell * numQuadraturePointsPerCellParent +
+  iQuad] = exchangePotentialVal[(iCell * numQuadraturePointsPerCellParent+
+  iQuad) * d_numSpins + iSpin] + corrPotentialVal[(iCell *
+  numQuadraturePointsPerCellParent + iQuad) * d_numSpins + iSpin];
       }
     }
   }
@@ -449,12 +443,11 @@ template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
     writeParentMeshQuadDataToFile(
-        const std::vector<dftfe::utils::MemoryStorage<double,
-                                          dftfe::utils::MemorySpace::HOST>> &deltaVxcQuadData,
-        const std::vector<
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> &vxcLDAQuadData,
-	const double* quadCoords,
-	const std::string fileName) {
+        const std::vector<dftfe::utils::MemoryStorage<
+            double, dftfe::utils::MemorySpace::HOST>> &deltaVxcQuadData,
+        const std::vector<dftfe::utils::MemoryStorage<
+            double, dftfe::utils::MemorySpace::HOST>> &vxcLDAQuadData,
+        const double *quadCoords, const std::string fileName) {
 
   const unsigned int poolId =
       dealii::Utilities::MPI::this_mpi_process(d_mpi_comm_interpool);
@@ -467,28 +460,33 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 
   if (poolId == minPoolId && bandGroupId == minBandGroupId) {
     const dealii::Quadrature<3> &quadratureRuleParent =
-      d_matrixFreeDataParent->get_quadrature(
-          d_matrixFreeQuadratureComponentAdjointRhs);
-  const unsigned int numQuadraturePointsPerCellParent =
-      quadratureRuleParent.size();
-	  
-	  dealii::types::global_dof_index numberQuadPts = numQuadraturePointsPerCellParent*d_numLocallyOwnedCellsParent; 
+        d_matrixFreeDataParent->get_quadrature(
+            d_matrixFreeQuadratureComponentAdjointRhs);
+    const unsigned int numQuadraturePointsPerCellParent =
+        quadratureRuleParent.size();
+
+    dealii::types::global_dof_index numberQuadPts =
+        numQuadraturePointsPerCellParent * d_numLocallyOwnedCellsParent;
 
     std::vector<std::shared_ptr<dftfe::dftUtils::CompositeData>> data(0);
 
     for (dealii::types::global_dof_index iQuad = 0; iQuad < numberQuadPts;
          iQuad++) {
-        std::vector<double> quadVals(0);
-        quadVals.push_back(iQuad);
-        quadVals.push_back(*(quadCoords + iQuad*3 + 0));
-        quadVals.push_back(*(quadCoords + iQuad*3 + 1));
-        quadVals.push_back(*(quadCoords + iQuad*3 + 2));
+      std::vector<double> quadVals(0);
+      quadVals.push_back(iQuad);
+      quadVals.push_back(*(quadCoords + iQuad * 3 + 0));
+      quadVals.push_back(*(quadCoords + iQuad * 3 + 1));
+      quadVals.push_back(*(quadCoords + iQuad * 3 + 2));
 
-        quadVals.push_back( d_inverseDFTParams->factorForLDAVxc*vxcLDAQuadData[0][iQuad] + deltaVxcQuadData[0][iQuad]);
-        if (d_numSpins == 2) {
-          quadVals.push_back( d_inverseDFTParams->factorForLDAVxc*vxcLDAQuadData[1][iQuad] + deltaVxcQuadData[1][iQuad]);
-        }
-        data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(quadVals));
+      quadVals.push_back(d_inverseDFTParams->factorForLDAVxc *
+                             vxcLDAQuadData[0][iQuad] +
+                         deltaVxcQuadData[0][iQuad]);
+      if (d_numSpins == 2) {
+        quadVals.push_back(d_inverseDFTParams->factorForLDAVxc *
+                               vxcLDAQuadData[1][iQuad] +
+                           deltaVxcQuadData[1][iQuad]);
+      }
+      data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(quadVals));
     }
     std::vector<dftfe::dftUtils::CompositeData *> dataRawPtrs(data.size());
     for (unsigned int i = 0; i < data.size(); ++i)
@@ -497,8 +495,6 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
                                                 d_mpi_comm_domain);
   }
 }
-
-
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -725,6 +721,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 
   std::vector<double> lossUnWeighted(d_numSpins, 0.0);
   std::vector<double> errorInVxc(d_numSpins, 0.0);
+  std::vector<double> l1ErrorInDensity(d_numSpins, 0.0);
 
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
     d_computingTimerStandard.enter_subsection("Create Force Vector");
@@ -756,6 +753,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 
     loss[iSpin] = 0.0;
     errorInVxc[iSpin] = 0.0;
+    l1ErrorInDensity[iSpin] = 0.0;
 
 #if defined(DFTFE_WITH_DEVICE)
     if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
@@ -765,7 +763,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
     d_computingTimerStandard.enter_subsection("Interpolate To Parent Mesh");
     d_transferDataPtr->interpolateMesh2DataToMesh1QuadPoints(
         d_BLASWrapperHostPtr, pot[iSpin], 1, d_fullFlattenedMapChild,
-        d_potParentQuadDataForce[iSpin],
+        d_potParentQuadDataForce[iSpin], 1, 1, 0,
         d_resizeMemSpaceVecDuringInterpolation);
 #if defined(DFTFE_WITH_DEVICE)
     if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
@@ -785,6 +783,10 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
             d_weightQuadDataHost[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad];
 
+        l1ErrorInDensity[iSpin] += std::abs(
+            rhoDiff[iSpin]
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
+            d_parentCellJxW[iCell * numQuadraturePointsPerCellParent + iQuad]);
         lossUnWeighted[iSpin] +=
             rhoDiff[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
@@ -1044,139 +1046,162 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
           dftfe::utils::deviceSynchronize();
 #endif
         MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.enter_subsection(
-            "interpolate parent data to child quad");
+
+        // d_computingTimerStandard.enter_subsection(
+        //    "interpolate parent data to child quad");
 
         pcout << "d_resizeMemSpaceBlockSizeChildQuad in inverse dft Solver "
                  "func = "
               << d_resizeMemSpaceBlockSizeChildQuad << "\n";
 
-        d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
-            d_BLASWrapperPtr, psiBlockVecMemSpace, currentBlockSize,
-            fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace,
-            d_psiChildQuadDataMemorySpace, d_resizeMemSpaceBlockSizeChildQuad);
+        for (unsigned int interBlockStart = 0;
+             interBlockStart < currentBlockSize;
+             interBlockStart += d_inverseDFTParams->interBlockSize) {
+          unsigned int interOutputBlockSize =
+              std::min(currentBlockSize, d_inverseDFTParams->interBlockSize);
+          unsigned int interCurrentBlockSize =
+              std::min(currentBlockSize - d_inverseDFTParams->interBlockSize,
+                       d_inverseDFTParams->interBlockSize);
 
-        d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
-            d_BLASWrapperPtr,
-            multiVectorAdjointOutputWithAdjointConstraintsMemSpace,
-            currentBlockSize,
-            fullFlattenedArrayCellLocalProcIndexIdMapAdjointMemSpace,
-            d_adjointChildQuadDataMemorySpace,
-            d_resizeMemSpaceBlockSizeChildQuad);
+          d_computingTimerStandard.enter_subsection(
+              "interpolate parent data to child quad");
+
+          d_psiChildQuadDataMemorySpace.setValue(0.0);
+          d_adjointChildQuadDataMemorySpace.setValue(0.0);
+          d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
+              d_BLASWrapperPtr, psiBlockVecMemSpace, interCurrentBlockSize,
+              fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace,
+              d_psiChildQuadDataMemorySpace, currentBlockSize,
+              interOutputBlockSize, interBlockStart,
+              d_resizeMemSpaceBlockSizeChildQuad);
+
+          d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
+              d_BLASWrapperPtr,
+              multiVectorAdjointOutputWithAdjointConstraintsMemSpace,
+              currentBlockSize,
+              fullFlattenedArrayCellLocalProcIndexIdMapAdjointMemSpace,
+              d_adjointChildQuadDataMemorySpace, currentBlockSize,
+              interOutputBlockSize, interBlockStart,
+              d_resizeMemSpaceBlockSizeChildQuad);
+
+          d_resizeMemSpaceBlockSizeChildQuad = false;
 #if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
+          if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
+            dftfe::utils::deviceSynchronize();
 #endif
-        MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.leave_subsection(
-            "interpolate parent data to child quad");
+          MPI_Barrier(d_mpi_comm_domain);
+          d_computingTimerStandard.leave_subsection(
+              "interpolate parent data to child quad");
 
-        d_computingTimerStandard.enter_subsection("Compute P_i Psi_i");
-        d_sumPsiAdjointChildQuadPartialDataMemorySpace.setValue(0.0);
-        d_BLASWrapperPtr->addVecOverContinuousIndex(
-            numTotalQuadraturePointsChild, currentBlockSize,
-            d_psiChildQuadDataMemorySpace.data(),
-            d_adjointChildQuadDataMemorySpace.data(),
-            d_sumPsiAdjointChildQuadPartialDataMemorySpace.data());
+          d_computingTimerStandard.enter_subsection("Compute P_i Psi_i");
+          d_sumPsiAdjointChildQuadPartialDataMemorySpace.setValue(0.0);
+          d_BLASWrapperPtr->addVecOverContinuousIndex(
+              numTotalQuadraturePointsChild, interOutputBlockSize,
+              d_psiChildQuadDataMemorySpace.data(),
+              d_adjointChildQuadDataMemorySpace.data(),
+              d_sumPsiAdjointChildQuadPartialDataMemorySpace.data());
 
-        sumPsiAdjointChildQuadDataPartial.copyFrom(
-            d_sumPsiAdjointChildQuadPartialDataMemorySpace);
+          sumPsiAdjointChildQuadDataPartial.copyFrom(
+              d_sumPsiAdjointChildQuadPartialDataMemorySpace);
 
-        for (unsigned int iQuad = 0; iQuad < numTotalQuadraturePointsChild;
-             ++iQuad) {
-          sumPsiAdjointChildQuadData[iQuad] +=
-              sumPsiAdjointChildQuadDataPartial[iQuad];
+          for (unsigned int iQuad = 0; iQuad < numTotalQuadraturePointsChild;
+               ++iQuad) {
+            sumPsiAdjointChildQuadData[iQuad] +=
+                sumPsiAdjointChildQuadDataPartial[iQuad];
+          }
+          d_computingTimerStandard.leave_subsection("Compute P_i Psi_i");
         }
-        jvec += currentBlockSize;
 
-        d_previousBlockSize = currentBlockSize;
+      jvec += currentBlockSize;
 
-#if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
-#endif
-        MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.leave_subsection("Compute P_i Psi_i");
-      } // block loop
-    }   // kpoint loop
+      d_previousBlockSize = currentBlockSize;
 
-    // Assumes the block size is 1
-    // if that changes, change the d_flattenedArrayCellChildCellMap
+    } // block loop
+  }   // kpoint loop
 
-#if defined(DFTFE_WITH_DEVICE)
-    if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-      dftfe::utils::deviceSynchronize();
-#endif
-    MPI_Barrier(d_mpi_comm_domain);
-    d_computingTimerStandard.enter_subsection("Integrate With Shape function");
-    integrateWithShapeFunctionsForChildData(force[iSpin],
-                                            sumPsiAdjointChildQuadData);
-#if defined(DFTFE_WITH_DEVICE)
-    if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-      dftfe::utils::deviceSynchronize();
-#endif
-    MPI_Barrier(d_mpi_comm_domain);
-    d_computingTimerStandard.leave_subsection("Integrate With Shape function");
+  // Assumes the block size is 1
+  // if that changes, change the d_flattenedArrayCellChildCellMap
 
-    pcout << "force norm = " << force[iSpin].l2_norm() << "\n";
-
-    d_constraintMatrixPot->set_zero(force[iSpin]);
-    force[iSpin].zero_out_ghosts();
-  } // spin loop
-
-  d_computingTimerStandard.enter_subsection("Post process");
-  if ((d_getForceCounter % d_inverseDFTParams->writeVxcFrequency == 0) &&
-      (d_inverseDFTParams->writeVxcData)) {
-    computeEnergyMetrics();
-    writeVxcDataToFile(pot, d_getForceCounter);
-
-/*
-    const std::string quadDataFilename = d_inverseDFTParams->vxcDataFolder + "/" +
-                               d_inverseDFTParams->fileNameWriteVxcPostFix +
-                               "_denistyParentQuad_" + std::to_string(d_getForceCounter);
-
-    writeParentMeshQuadDataToFile(
-		    d_potParentQuadDataSolveEigen,
-		    *d_vxcLDAQuadDataPtr,
-		    d_quadCoordinatesParentPtr,
-		    quadDataFilename);
-*/
-  }
-  MPI_Allreduce(MPI_IN_PLACE, &loss[0], d_numSpins, MPI_DOUBLE, MPI_SUM,
-                d_mpi_comm_domain);
-
-  MPI_Allreduce(MPI_IN_PLACE, &lossUnWeighted[0], d_numSpins, MPI_DOUBLE,
-                MPI_SUM, d_mpi_comm_domain);
-
-  for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
-    pcout << " iter = " << d_getForceCounter
-          << " loss unweighted = " << lossUnWeighted[iSpin] << "\n";
-    pcout << " iter = " << d_getForceCounter
-          << " vxc norm = " << pot[iSpin].l2_norm() << "\n";
-  }
-
-  d_lossPreviousIteration = loss[0];
-  if (d_numSpins == 2) {
-    d_lossPreviousIteration = std::min(d_lossPreviousIteration, loss[1]);
-  }
-
-  for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
-    d_constraintMatrixPot->set_zero(pot[iSpin]);
-    pot[iSpin].zero_out_ghosts();
-  }
-  d_getForceCounter++;
-  d_resizeMemSpaceVecDuringInterpolation = false;
-  d_resizeMemSpaceBlockSizeChildQuad = false;
-
-  d_computingTimerStandard.leave_subsection("Post process");
 #if defined(DFTFE_WITH_DEVICE)
   if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
     dftfe::utils::deviceSynchronize();
 #endif
   MPI_Barrier(d_mpi_comm_domain);
-  d_computingTimerStandard.leave_subsection("Get Force Vector");
-  d_computingTimerStandard.print_summary();
+  d_computingTimerStandard.enter_subsection("Integrate With Shape function");
+  integrateWithShapeFunctionsForChildData(force[iSpin],
+                                          sumPsiAdjointChildQuadData);
+#if defined(DFTFE_WITH_DEVICE)
+  if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
+    dftfe::utils::deviceSynchronize();
+#endif
+  MPI_Barrier(d_mpi_comm_domain);
+  d_computingTimerStandard.leave_subsection("Integrate With Shape function");
+
+  pcout << "force norm = " << force[iSpin].l2_norm() << "\n";
+
+  d_constraintMatrixPot->set_zero(force[iSpin]);
+  force[iSpin].zero_out_ghosts();
+} // spin loop
+
+d_computingTimerStandard.enter_subsection("Post process");
+if ((d_getForceCounter % d_inverseDFTParams->writeVxcFrequency == 0) &&
+    (d_inverseDFTParams->writeVxcData)) {
+  computeEnergyMetrics();
+  writeVxcDataToFile(pot, d_getForceCounter);
+
+  /*
+      const std::string quadDataFilename = d_inverseDFTParams->vxcDataFolder +
+     "/" + d_inverseDFTParams->fileNameWriteVxcPostFix +
+                                 "_denistyParentQuad_" +
+     std::to_string(d_getForceCounter);
+
+      writeParentMeshQuadDataToFile(
+                      d_potParentQuadDataSolveEigen,
+                      *d_vxcLDAQuadDataPtr,
+                      d_quadCoordinatesParentPtr,
+                      quadDataFilename);
+  */
 }
+MPI_Allreduce(MPI_IN_PLACE, &loss[0], d_numSpins, MPI_DOUBLE, MPI_SUM,
+              d_mpi_comm_domain);
+
+MPI_Allreduce(MPI_IN_PLACE, &lossUnWeighted[0], d_numSpins, MPI_DOUBLE, MPI_SUM,
+              d_mpi_comm_domain);
+
+MPI_Allreduce(MPI_IN_PLACE, &l1ErrorInDensity[0], d_numSpins, MPI_DOUBLE,
+              MPI_SUM, d_mpi_comm_domain);
+
+for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
+  pcout << " iter = " << d_getForceCounter
+        << " loss unweighted = " << lossUnWeighted[iSpin] << "\n";
+  pcout << " iter = " << d_getForceCounter
+        << " l1 error = " << l1ErrorInDensity[iSpin] << "\n";
+  pcout << " iter = " << d_getForceCounter
+        << " vxc norm = " << pot[iSpin].l2_norm() << "\n";
+}
+
+d_lossPreviousIteration = loss[0];
+if (d_numSpins == 2) {
+  d_lossPreviousIteration = std::min(d_lossPreviousIteration, loss[1]);
+}
+
+for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
+  d_constraintMatrixPot->set_zero(pot[iSpin]);
+  pot[iSpin].zero_out_ghosts();
+}
+d_getForceCounter++;
+d_resizeMemSpaceVecDuringInterpolation = false;
+d_resizeMemSpaceBlockSizeChildQuad = false;
+
+d_computingTimerStandard.leave_subsection("Post process");
+#if defined(DFTFE_WITH_DEVICE)
+if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
+  dftfe::utils::deviceSynchronize();
+#endif
+MPI_Barrier(d_mpi_comm_domain);
+d_computingTimerStandard.leave_subsection("Get Force Vector");
+d_computingTimerStandard.print_summary();
+} // namespace invDFT
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -1222,7 +1247,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
         "interpolate child data to parent quad");
     d_transferDataPtr->interpolateMesh2DataToMesh1QuadPoints(
         d_BLASWrapperHostPtr, pot[iSpin], 1, d_fullFlattenedMapChild,
-        d_potParentQuadDataSolveEigen[iSpin],
+        d_potParentQuadDataSolveEigen[iSpin], 1, 1, 0,
         d_resizeMemSpaceVecDuringInterpolation);
     d_computingTimerStandard.leave_subsection(
         "interpolate child data to parent quad");
@@ -1242,8 +1267,10 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
             d_potBaseQuadDataHost[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] +
             d_potParentQuadDataSolveEigen
-                [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad] + 
-	    d_inverseDFTParams->factorForLDAVxc*(*(d_vxcLDAQuadDataPtr))[iSpin][iCell * numQuadraturePointsPerCellParent + iQuad];
+                [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad] +
+            d_inverseDFTParams->factorForLDAVxc *
+                (*(d_vxcLDAQuadDataPtr))
+                    [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad];
       }
     }
 

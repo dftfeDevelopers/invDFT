@@ -32,18 +32,18 @@ void declare_parameters(dealii::ParameterHandler &prm) {
 
   prm.enter_subsection("POST PROCESS");
   {
-    prm.declare_entry("WRITE VTU FILE", "false",
+    prm.declare_entry(
+        "WRITE VTU FILE", "false", dealii::Patterns::Bool(),
+        "[Standard] Writes the Vxc into a VTU file for visualisation");
+
+    prm.declare_entry(
+        "INTERPOLATE TO POINTS", "false", dealii::Patterns::Bool(),
+        "[Standard] Interpolates Vxc to a set of points and writes to a file");
+
+    prm.declare_entry("READS POINTS FROM FILE", "false",
                       dealii::Patterns::Bool(),
-                      "[Standard] Writes the Vxc into a VTU file for visualisation");
-
-      prm.declare_entry("INTERPOLATE TO POINTS", "false",
-                        dealii::Patterns::Bool(),
-                        "[Standard] Interpolates Vxc to a set of points and writes to a file");
-
-      prm.declare_entry("READS POINTS FROM FILE", "false",
-                        dealii::Patterns::Bool(),
-                        "[Standard] if the the points to which the Vxc has to be "
-                        "interpolated should be read from file");
+                      "[Standard] if the the points to which the Vxc has to be "
+                      "interpolated should be read from file");
 
     prm.declare_entry(
         "FILENAME FOR POINTS", ".", dealii::Patterns::Anything(),
@@ -108,6 +108,10 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("BFGS HISTORY", "100", dealii::Patterns::Integer(1, 1000),
                       "[Standard] Number of times line search is performed "
                       "before finding the optimal lambda.");
+
+    prm.declare_entry("BLOCK SIZE OF INTERPOLATE", "10",
+                      dealii::Patterns::Integer(1, 1000),
+                      "[Standard] Blocksize of the interpolate");
 
     prm.declare_entry("BFGS MAX ITERATIONS", "10000",
                       dealii::Patterns::Integer(1, 100000),
@@ -199,9 +203,9 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       "\frac{1}{\rho^{\alpha} + \tau} + \rho^{\alpha2}");
 
     prm.declare_entry(
-        "FACTOR FOR LDA VXC", "0.0",
-        dealii::Patterns::Double(0.0),
-        "[Standard] The factor with which the Vxc LDA is added to the hamiltonian. By setting to 1, we compute the delta Vxc");
+        "FACTOR FOR LDA VXC", "0.0", dealii::Patterns::Double(0.0),
+        "[Standard] The factor with which the Vxc LDA is added to the "
+        "hamiltonian. By setting to 1, we compute the delta Vxc");
 
     prm.declare_entry(
         "TAU FOR WEIGHTS FOR LOSS FUNCTION", "1e-2",
@@ -228,9 +232,10 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       dealii::Patterns::Double(0.0),
                       "[STANDARD] tol for checking fractional occupancy");
 
-    prm.declare_entry("USE LB94_X IN INITIAL GUESS","true",dealii::Patterns::Bool(),
-		    "[Standard] Flag to determine if LB 94_X is used in initial guess. If set to false, then LDA_X is used.");
-
+    prm.declare_entry("USE LB94_X IN INITIAL GUESS", "true",
+                      dealii::Patterns::Bool(),
+                      "[Standard] Flag to determine if LB 94_X is used in "
+                      "initial guess. If set to false, then LDA_X is used.");
 
     prm.declare_entry(
         "USE MEM OPT FOR TRANSFER", "false", dealii::Patterns::Bool(),
@@ -298,8 +303,8 @@ inverseDFTParameters::inverseDFTParameters() {
   readPointsFromFile = false;
   fileNameReadPoints = "";
   fileNameWriteVxcPostProcess = "output_file";
-    writeVtuFile = false;
-    writeToPoints = false;
+  writeVtuFile = false;
+  writeToPoints = false;
   startX = -2.0;
   startY = -2.0;
   startZ = -2.0;
@@ -340,6 +345,7 @@ inverseDFTParameters::inverseDFTParameters() {
   inverseFractionOccTol = 1e-8;
   inverseDegeneracyTol = 0.002;
 
+  interBlockSize = 10;
   useLb94InInitialguess = true;
   additionalEigenStatesSolved = 0;
   netCharge = 0;
@@ -364,8 +370,8 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
   solvermode = prm.get("SOLVER MODE");
   prm.enter_subsection("POST PROCESS");
   {
-      writeVtuFile = prm.get_bool("WRITE VTU FILE");
-      writeToPoints = prm.get_bool("INTERPOLATE TO POINTS");
+    writeVtuFile = prm.get_bool("WRITE VTU FILE");
+    writeToPoints = prm.get_bool("INTERPOLATE TO POINTS");
     readPointsFromFile = prm.get_bool("READS POINTS FROM FILE");
     fileNameReadPoints = prm.get("FILENAME FOR POINTS");
     fileNameWriteVxcPostProcess = prm.get("FILENAME FOR OUTPUT");
@@ -387,6 +393,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     inverseBFGSLineSearchTol = prm.get_double("TOL FOR BFGS LINE SEARCH");
     inverseBFGSHistory = prm.get_integer("BFGS HISTORY");
     inverseMaxBFGSIter = prm.get_integer("BFGS MAX ITERATIONS");
+    interBlockSize = prm.get_integer("BLOCK SIZE OF INTERPOLATE");
     readVxcData = prm.get_bool("READ VXC DATA");
     fileNameReadVxcPostFix =
         prm.get("POSTFIX TO THE FILENAME FOR READING VXC DATA");
