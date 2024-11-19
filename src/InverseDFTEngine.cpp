@@ -448,7 +448,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
   unsigned int gaussQuadIndex = 0;
   gaussianFuncManPrimaryObj.evaluateForQuad(
-      &d_quadCoordinatesParent[0], &quadJxWValues[0], numTotalQuadraturePointsParent,
+      &d_quadCoordinatesParent[0], &quadJxWValues[0],
+      numTotalQuadraturePointsParent,
       true,  // evalBasis,
       false, // evalBasisDerivatives,
       false, // evalBasisDoubleDerivatives,
@@ -469,134 +470,142 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                                           rhoGaussianPrimary[iSpin].data());
   }
 
-if (d_inverseDFTParams.useLb94InInitialguess)
-{
-	const dftfe::utils::MemoryStorage<dftfe::dataTypes::number, memorySpace>
-      &eigenVectorsMemSpace = d_dftBaseClass->getEigenVectors();
+  if (d_inverseDFTParams.useLb94InInitialguess) {
+    const dftfe::utils::MemoryStorage<dftfe::dataTypes::number, memorySpace>
+        &eigenVectorsMemSpace = d_dftBaseClass->getEigenVectors();
 
-	const std::vector<std::vector<double>> &eigenValuesHost =
-      d_dftBaseClass->getEigenValues();
-  const double fermiEnergy = d_dftBaseClass->getFermiEnergy();
+    const std::vector<std::vector<double>> &eigenValuesHost =
+        d_dftBaseClass->getEigenValues();
+    const double fermiEnergy = d_dftBaseClass->getFermiEnergy();
 
-  auto dftBasisOp = d_dftBaseClass->getBasisOperationsMemSpace();
+    auto dftBasisOp = d_dftBaseClass->getBasisOperationsMemSpace();
 
-  std::vector< dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> rhoValues, gradRhoValues;
-  rhoValues.resize(
-      d_numSpins,
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-          numQuadraturePointsPerCellParent * totalLocallyOwnedCellsParent));
+    std::vector<
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+        rhoValues, gradRhoValues;
+    rhoValues.resize(
+        d_numSpins,
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+            numQuadraturePointsPerCellParent * totalLocallyOwnedCellsParent));
 
-  gradRhoValues.resize(
-      d_numSpins,
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-          3.0 * numQuadraturePointsPerCellParent *
-          totalLocallyOwnedCellsParent));
+    gradRhoValues.resize(
+        d_numSpins,
+        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+            3.0 * numQuadraturePointsPerCellParent *
+            totalLocallyOwnedCellsParent));
 
-	dftfe::computeRhoFromPSI<dftfe::dataTypes::number>(
-      &eigenVectorsMemSpace, &eigenVectorsMemSpace, d_numEigenValues,
-      d_numEigenValues, eigenValuesHost, fermiEnergy,
-      fermiEnergy, // fermi energy up
-      fermiEnergy, // fermi energy down
-      dftBasisOp,
-      // d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
-      d_blasWrapperMemSpace, d_dftBaseClass->getDensityDofHandlerIndex(),
-      d_dftBaseClass->getDensityQuadratureId(),
-      // d_matrixFreePsiVectorComponent,            // matrixFreeDofhandlerIndex
-      // d_matrixFreeQuadratureComponentAdjointRhs, // quadratureIndex
-      d_kpointWeights, rhoValues, gradRhoValues, true, d_mpiComm_parent,
-      d_mpiComm_interpool , d_mpiComm_bandgroup , d_dftParams,
-      false // spectrum splitting
-	);
+    dftfe::computeRhoFromPSI<dftfe::dataTypes::number>(
+        &eigenVectorsMemSpace, &eigenVectorsMemSpace, d_numEigenValues,
+        d_numEigenValues, eigenValuesHost, fermiEnergy,
+        fermiEnergy, // fermi energy up
+        fermiEnergy, // fermi energy down
+        dftBasisOp,
+        // d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
+        d_blasWrapperMemSpace, d_dftBaseClass->getDensityDofHandlerIndex(),
+        d_dftBaseClass->getDensityQuadratureId(),
+        // d_matrixFreePsiVectorComponent,            //
+        // matrixFreeDofhandlerIndex d_matrixFreeQuadratureComponentAdjointRhs,
+        // // quadratureIndex
+        d_kpointWeights, rhoValues, gradRhoValues, true, d_mpiComm_parent,
+        d_mpiComm_interpool, d_mpiComm_bandgroup, d_dftParams,
+        false // spectrum splitting
+    );
 
-  if (d_numSpins == 1) {
-  //  std::vector<double> qpointCoord(3, 0.0);
-  //  std::vector<double> gradVal(3, 0.0);
+    if (d_numSpins == 1) {
+      //  std::vector<double> qpointCoord(3, 0.0);
+      //  std::vector<double> gradVal(3, 0.0);
 
-    d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
-                                numQuadraturePointsPerCellParent);
-    std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
-    // TODO uncomment this after testing
-    for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
-         iCell++) {
-      for (unsigned int q_point = 0; q_point < numQuadraturePointsPerCellParent;
-           ++q_point) {
-        unsigned int qPointId =
-            (iCell * numQuadraturePointsPerCellParent) + q_point;
-        unsigned int qPointCoordIndex = qPointId * 3;
-/*
-        qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
-        qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
-        qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
+      d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
+                                  numQuadraturePointsPerCellParent);
+      std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
+      // TODO uncomment this after testing
+      for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
+           iCell++) {
+        for (unsigned int q_point = 0;
+             q_point < numQuadraturePointsPerCellParent; ++q_point) {
+          unsigned int qPointId =
+              (iCell * numQuadraturePointsPerCellParent) + q_point;
+          unsigned int qPointCoordIndex = qPointId * 3;
+          /*
+                  qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex +
+             0]; qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
+                  qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex +
+             2];
 
-        gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0, gradVal);
-*/
-        d_sigmaGradRhoTarget[qPointId] =
-             gradRhoValues[0].data()[qPointCoordIndex + 0] *gradRhoValues[0].data()[qPointCoordIndex + 0] +
-	     gradRhoValues[0].data()[qPointCoordIndex + 1] *gradRhoValues[0].data()[qPointCoordIndex + 1] +
-	     gradRhoValues[0].data()[qPointCoordIndex + 2] * gradRhoValues[0].data()[qPointCoordIndex + 2];
+                  gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
+             gradVal);
+          */
+          d_sigmaGradRhoTarget[qPointId] =
+              gradRhoValues[0].data()[qPointCoordIndex + 0] *
+                  gradRhoValues[0].data()[qPointCoordIndex + 0] +
+              gradRhoValues[0].data()[qPointCoordIndex + 1] *
+                  gradRhoValues[0].data()[qPointCoordIndex + 1] +
+              gradRhoValues[0].data()[qPointCoordIndex + 2] *
+                  gradRhoValues[0].data()[qPointCoordIndex + 2];
 
-        //                if ( d_sigmaGradRhoTarget[qPointId] > 1e8)
-        //                  {
-        //                    std::cout<<" Large value of d_sigmaGradRhoTarget
-        //                    found at "<<qpointCoord[0]<<" "<<qpointCoord[1]<<"
-        //                    "<<qpointCoord[2]<<"\n";
-        //                  }
+          //                if ( d_sigmaGradRhoTarget[qPointId] > 1e8)
+          //                  {
+          //                    std::cout<<" Large value of d_sigmaGradRhoTarget
+          //                    found at "<<qpointCoord[0]<<"
+          //                    "<<qpointCoord[1]<<"
+          //                    "<<qpointCoord[2]<<"\n";
+          //                  }
+        }
       }
     }
-  }
-  if (d_numSpins == 2) {
-    std::vector<double> qpointCoord(3, 0.0);
-    std::vector<double> gradValSpinUp(3, 0.0);
-    std::vector<double> gradValSpinDown(3, 0.0);
-    d_sigmaGradRhoTarget.resize(3 * totalLocallyOwnedCellsParent *
-                                numQuadraturePointsPerCellParent);
+    if (d_numSpins == 2) {
+      std::vector<double> qpointCoord(3, 0.0);
+      std::vector<double> gradValSpinUp(3, 0.0);
+      std::vector<double> gradValSpinDown(3, 0.0);
+      d_sigmaGradRhoTarget.resize(3 * totalLocallyOwnedCellsParent *
+                                  numQuadraturePointsPerCellParent);
 
-    std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
-    for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
-         iCell++) {
-      for (unsigned int q_point = 0; q_point < numQuadraturePointsPerCellParent;
-           ++q_point) {
+      std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
+      for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
+           iCell++) {
+        for (unsigned int q_point = 0;
+             q_point < numQuadraturePointsPerCellParent; ++q_point) {
 
-        unsigned int qPointId =
-            (iCell * numQuadraturePointsPerCellParent) + q_point;
-        unsigned int qPointCoordIndex = qPointId * 3;
+          unsigned int qPointId =
+              (iCell * numQuadraturePointsPerCellParent) + q_point;
+          unsigned int qPointCoordIndex = qPointId * 3;
 
-        qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
-        qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
-        qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
+          qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
+          qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
+          qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
 
-        gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
-                                                 gradValSpinUp);
-        gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 1,
-                                                 gradValSpinDown);
+          gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
+                                                   gradValSpinUp);
+          gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 1,
+                                                   gradValSpinDown);
 
-        d_sigmaGradRhoTarget[3 * qPointId + 0] =
-            gradValSpinUp[0] * gradValSpinUp[0] +
-            gradValSpinUp[1] * gradValSpinUp[1] +
-            gradValSpinUp[2] * gradValSpinUp[2];
+          d_sigmaGradRhoTarget[3 * qPointId + 0] =
+              gradValSpinUp[0] * gradValSpinUp[0] +
+              gradValSpinUp[1] * gradValSpinUp[1] +
+              gradValSpinUp[2] * gradValSpinUp[2];
 
-        d_sigmaGradRhoTarget[3 * qPointId + 1] =
-            gradValSpinUp[0] * gradValSpinDown[0] +
-            gradValSpinUp[1] * gradValSpinDown[1] +
-            gradValSpinUp[2] * gradValSpinDown[2];
+          d_sigmaGradRhoTarget[3 * qPointId + 1] =
+              gradValSpinUp[0] * gradValSpinDown[0] +
+              gradValSpinUp[1] * gradValSpinDown[1] +
+              gradValSpinUp[2] * gradValSpinDown[2];
 
-        d_sigmaGradRhoTarget[3 * qPointId + 2] =
-            gradValSpinDown[0] * gradValSpinDown[0] +
-            gradValSpinDown[1] * gradValSpinDown[1] +
-            gradValSpinDown[2] * gradValSpinDown[2];
+          d_sigmaGradRhoTarget[3 * qPointId + 2] =
+              gradValSpinDown[0] * gradValSpinDown[0] +
+              gradValSpinDown[1] * gradValSpinDown[1] +
+              gradValSpinDown[2] * gradValSpinDown[2];
+        }
       }
     }
+
+    auto sigmaGradIt = std::max_element(d_sigmaGradRhoTarget.begin(),
+                                        d_sigmaGradRhoTarget.end());
+    double maxSigmaGradVal = *sigmaGradIt;
+
+    MPI_Allreduce(MPI_IN_PLACE, &maxSigmaGradVal, 1, MPI_DOUBLE, MPI_MAX,
+                  d_mpiComm_domain);
+
+    pcout << " Max vlaue of sigmaGradVal = " << maxSigmaGradVal << "\n";
   }
-
-  auto sigmaGradIt = std::max_element(d_sigmaGradRhoTarget.begin(),
-                                      d_sigmaGradRhoTarget.end());
-  double maxSigmaGradVal = *sigmaGradIt;
-
-  MPI_Allreduce(MPI_IN_PLACE, &maxSigmaGradVal, 1, MPI_DOUBLE, MPI_MAX,
-                d_mpiComm_domain);
-
-  pcout << " Max vlaue of sigmaGradVal = " << maxSigmaGradVal << "\n";
-}
   std::vector<std::string> densityMatDFTFileNames;
   densityMatDFTFileNames.push_back(
       d_inverseDFTParams.densityMatDFTFileNameSpinUp);
@@ -612,7 +621,8 @@ if (d_inverseDFTParams.useLb94InInitialguess)
       d_mpiComm_parent, d_mpiComm_domain);
 
   gaussianFuncManDFTObj.evaluateForQuad(
-      &d_quadCoordinatesParent[0], &quadJxWValues[0], numTotalQuadraturePointsParent,
+      &d_quadCoordinatesParent[0], &quadJxWValues[0],
+      numTotalQuadraturePointsParent,
       true,  // evalBasis,
       false, // evalBasisDerivatives,
       false, // evalBasisDoubleDerivatives,
@@ -717,8 +727,9 @@ if ( d_inverseDFTParams.readFEDensity)
           unsigned int qPointCoordIndex =
               ((iElem * numQuadraturePointsPerCellParent) + iQuad) * 3;
 
-          std::cout << " qPoint = (" << d_quadCoordinatesParent[qPointCoordIndex + 0]
-                    << "," << d_quadCoordinatesParent[qPointCoordIndex + 1] << ","
+          std::cout << " qPoint = ("
+                    << d_quadCoordinatesParent[qPointCoordIndex + 0] << ","
+                    << d_quadCoordinatesParent[qPointCoordIndex + 1] << ","
                     << d_quadCoordinatesParent[qPointCoordIndex + 2]
                     << ") RHO IS NEGATIVE!!!!!!!!!!\n";
           std::cout << "primary = " << rhoGaussianPrimary[0][index]
@@ -969,25 +980,23 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   std::vector<double> corrPotentialVal(
       d_numSpins * totalOwnedCellsPsi * numQuadPointsPerPsiCell, 0.0);
 
-  if (d_inverseDFTParams.useLb94InInitialguess)
-  {
-	  std::vector<double> derExchEnergyWithSigmaValDummy(
-      d_sigmaGradRhoTarget.size(), 0.0);
+  if (d_inverseDFTParams.useLb94InInitialguess) {
+    std::vector<double> derExchEnergyWithSigmaValDummy(
+        d_sigmaGradRhoTarget.size(), 0.0);
 
-  xc_func_type funcXGGA;
-  xc_func_init(&funcXGGA, XC_GGA_X_LB,
-               (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
-  xc_gga_vxc(&funcXGGA, totalOwnedCellsPsi * numQuadPointsPerPsiCell,
-             &rhoSpinFlattened[0], &d_sigmaGradRhoTarget[0],
-             &exchangePotentialVal[0], &derExchEnergyWithSigmaValDummy[0]);
-  }
-  else
-  {
-	  xc_func_type funcXLDA;
-	  xc_func_init(&funcXLDA, XC_LDA_X, (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
+    xc_func_type funcXGGA;
+    xc_func_init(&funcXGGA, XC_GGA_X_LB,
+                 (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
+    xc_gga_vxc(&funcXGGA, totalOwnedCellsPsi * numQuadPointsPerPsiCell,
+               &rhoSpinFlattened[0], &d_sigmaGradRhoTarget[0],
+               &exchangePotentialVal[0], &derExchEnergyWithSigmaValDummy[0]);
+  } else {
+    xc_func_type funcXLDA;
+    xc_func_init(&funcXLDA, XC_LDA_X,
+                 (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
 
-	  xc_lda_vxc(&funcXLDA,totalOwnedCellsPsi * numQuadPointsPerPsiCell, &rhoSpinFlattened[0], &exchangePotentialVal[0]);
-
+    xc_lda_vxc(&funcXLDA, totalOwnedCellsPsi * numQuadPointsPerPsiCell,
+               &rhoSpinFlattened[0], &exchangePotentialVal[0]);
   }
   xc_func_type funcCLDA;
 
@@ -1073,7 +1082,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
 
             cellLevelQuadInput[iQuad] =
                 preFactorBC * cellLevelQuadInput[iQuad] +
-                (1.0 - preFactorBC) * (-1.0 / numElectrons) * d_inverseDFTParams.factorFermiAmaldi * 
+                (1.0 - preFactorBC) * (-1.0 / numElectrons) *
+                    d_inverseDFTParams.factorFermiAmaldi *
                     hartreeQuadData[iElemPsi * numQuadPointsPerPsiCell + iQuad];
           }
           d_targetPotValuesParentQuadData[spinIndex][iElemPsi][iQuad] =
@@ -1094,14 +1104,14 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
               corrPotentialVal[(iElemPsi * numQuadPointsPerPsiCell + iQuad) *
                                    d_numSpins +
                                spinIndex];
-          d_vxcLDAQuadData[spinIndex][(
-              iElemPsi * numQuadPointsPerPsiCell + iQuad)] =
-              cellLevelQuadInput[iQuad];
+          d_vxcLDAQuadData[spinIndex]
+                          [(iElemPsi * numQuadPointsPerPsiCell + iQuad)] =
+                              cellLevelQuadInput[iQuad];
         }
         iElemPsi++;
       }
 
-	   d_dftBaseClass->l2ProjectionQuadToNodal(
+    d_dftBaseClass->l2ProjectionQuadToNodal(
         d_basisOperationsHost, *d_constraintDFTClass,
         d_dftDensityDoFHandlerIndex, d_dftQuadIndex,
         d_vxcLDAQuadData[spinIndex], vxcInitialGuess[spinIndex]);
@@ -1175,7 +1185,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
         d_blasWrapperHost, exactVxcTestParent,
         1, // blockSize
         fullFlattenedArrayCellLocalProcIndexIdMapVxcInitialParent,
-        exactPotValuesChildQuad[spinIndex], 1,1,0,true);
+        exactPotValuesChildQuad[spinIndex], 1, 1, 0, true);
 
     double sumExactPotValuesChild = 0.0;
     for (unsigned int iQuad = 0;
@@ -1200,7 +1210,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
         d_blasWrapperHost, vxcInitialGuess[spinIndex],
         1, // blockSize
         fullFlattenedArrayCellLocalProcIndexIdMapVxcInitialParent,
-        initialPotValuesChildQuad[spinIndex], 1,1,0,true);
+        initialPotValuesChildQuad[spinIndex], 1, 1, 0, true);
 
     dealii::DoFHandler<3>::active_cell_iterator cell = d_dofHandlerTriaVxc
                                                            .begin_active(),
@@ -1208,12 +1218,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
                                                     d_dofHandlerTriaVxc.end();
     unsigned int iElem = 0;
 
-
-    for(unsigned int iQuad = 0 ; iQuad < totalLocallyOwnedCellsVxc *
-                                                numQuadPointsPerCellInVxc; iQuad++)
-    {
-	    initialPotValuesChildQuad[spinIndex].data()[iQuad] = initialPotValuesChildQuad[spinIndex].data()[iQuad]
-		    *(1.0 - d_inverseDFTParams.factorForLDAVxc); 
+    for (unsigned int iQuad = 0;
+         iQuad < totalLocallyOwnedCellsVxc * numQuadPointsPerCellInVxc;
+         iQuad++) {
+      initialPotValuesChildQuad[spinIndex].data()[iQuad] =
+          initialPotValuesChildQuad[spinIndex].data()[iQuad] *
+          (1.0 - d_inverseDFTParams.factorForLDAVxc);
     }
 
     d_dftBaseClass->l2ProjectionQuadToNodal(
@@ -2678,325 +2688,317 @@ template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
 
+  d_vxcInitialChildNodes[0].update_ghost_values();
+  d_constraintMatrixVxc.distribute(d_vxcInitialChildNodes[0]);
+  d_vxcInitialChildNodes[0].update_ghost_values();
 
-    d_vxcInitialChildNodes[0].update_ghost_values();
-    d_constraintMatrixVxc.distribute(d_vxcInitialChildNodes[0]);
-    d_vxcInitialChildNodes[0].update_ghost_values();
+  std::vector<dftfe::distributedCPUVec<double>> vxcNodalParentMesh;
+  projectVxcToParentMesh(vxcNodalParentMesh, d_vxcInitialChildNodes);
 
-    std::vector<dftfe::distributedCPUVec<double>> vxcNodalParentMesh;
-    projectVxcToParentMesh(vxcNodalParentMesh,
-                           d_vxcInitialChildNodes);
+  if (d_inverseDFTParams.writeVtuFile) {
+    const std::string filename = d_inverseDFTParams.fileNameWriteVxcPostProcess;
+    const std::string vtuFilename = filename + "_vtuOutput";
 
-    if (d_inverseDFTParams.writeVtuFile)
-    {
-        const std::string filename = d_inverseDFTParams.fileNameWriteVxcPostProcess;
-        const std::string vtuFilename = filename + "_vtuOutput";
+    DataOutBase::VtkFlags flags;
+    flags.write_higher_order_cells = true;
 
-        DataOutBase::VtkFlags flags;
-        flags.write_higher_order_cells = true;
+    dealii::DataOut<3> data_out_vxc;
 
-        dealii::DataOut<3> data_out_vxc;
+    data_out_vxc.set_flags(flags);
+    data_out_vxc.attach_dof_handler(*d_dofHandlerDFTClass);
 
-        data_out_vxc.set_flags(flags);
-        data_out_vxc.attach_dof_handler(*d_dofHandlerDFTClass);
-
-	       std::string outputVecName1 = "Vxc alpha";
-        data_out_vxc.add_data_vector(vxcNodalParentMesh[0],outputVecName1);
-	if(d_numSpins == 2)
-	{
-		std::string outputVecName1 = "Vxc beta";
-        data_out_vxc.add_data_vector(vxcNodalParentMesh[1],outputVecName1);
-	}
-
-        data_out_vxc.build_patches(dealii::MappingQ1<3, 3>(), FEOrder);
-        data_out_vxc.write_vtu_with_pvtu_record("./", vtuFilename,
-                                                0,d_mpiComm_domain,2, 4);
-
+    std::string outputVecName1 = "Vxc alpha";
+    data_out_vxc.add_data_vector(vxcNodalParentMesh[0], outputVecName1);
+    if (d_numSpins == 2) {
+      std::string outputVecName1 = "Vxc beta";
+      data_out_vxc.add_data_vector(vxcNodalParentMesh[1], outputVecName1);
     }
 
-    if(d_inverseDFTParams.writeToPoints)
-    {
-        std::vector<std::vector<double>> targetPts;
-        // if (d_inverseDFTParams.readPointsFromFile)
-        //{
-        //
-        //}
-        // else
-        //{
-        unsigned int numPointsX = d_inverseDFTParams.numPointsX;
-        unsigned int numPointsY = d_inverseDFTParams.numPointsY;
-        unsigned int numPointsZ = d_inverseDFTParams.numPointsZ;
+    data_out_vxc.build_patches(dealii::MappingQ1<3, 3>(), FEOrder);
+    data_out_vxc.write_vtu_with_pvtu_record("./", vtuFilename, 0,
+                                            d_mpiComm_domain, 2, 4);
+  }
 
-        double startingX = d_inverseDFTParams.startX;
-        double endingX = d_inverseDFTParams.endX;
+  if (d_inverseDFTParams.writeToPoints) {
+    std::vector<std::vector<double>> targetPts;
+    // if (d_inverseDFTParams.readPointsFromFile)
+    //{
+    //
+    //}
+    // else
+    //{
+    unsigned int numPointsX = d_inverseDFTParams.numPointsX;
+    unsigned int numPointsY = d_inverseDFTParams.numPointsY;
+    unsigned int numPointsZ = d_inverseDFTParams.numPointsZ;
 
-        std::vector<double> x_coord(numPointsX, 0.0);
-        x_coord[0] = startingX;
-        x_coord[numPointsX - 1] = endingX;
-        if ((std::abs(startingX - endingX) < 1e-6) && (numPointsX != 1)) {
-            AssertThrow(false, ExcMessage(" x coords are too close to interpolate "));
-        }
-        double dx = (endingX - startingX) / (numPointsX - 1);
+    double startingX = d_inverseDFTParams.startX;
+    double endingX = d_inverseDFTParams.endX;
 
-        AssertThrow((dx > 0.0) || (numPointsX == 1), ExcMessage(" dx is negative"));
-        for (unsigned int iCoord = 1; iCoord < numPointsX - 1; iCoord++) {
-            x_coord[iCoord] = x_coord[iCoord - 1] + dx;
-        }
+    std::vector<double> x_coord(numPointsX, 0.0);
+    x_coord[0] = startingX;
+    x_coord[numPointsX - 1] = endingX;
+    if ((std::abs(startingX - endingX) < 1e-6) && (numPointsX != 1)) {
+      AssertThrow(false, ExcMessage(" x coords are too close to interpolate "));
+    }
+    double dx = (endingX - startingX) / (numPointsX - 1);
 
-        double startingY = d_inverseDFTParams.startY;
-        double endingY = d_inverseDFTParams.endY;
+    AssertThrow((dx > 0.0) || (numPointsX == 1), ExcMessage(" dx is negative"));
+    for (unsigned int iCoord = 1; iCoord < numPointsX - 1; iCoord++) {
+      x_coord[iCoord] = x_coord[iCoord - 1] + dx;
+    }
 
-        std::vector<double> y_coord(numPointsY, 0.0);
-        y_coord[0] = startingY;
-        y_coord[numPointsY - 1] = endingY;
-        if ((std::abs(startingY - endingY) < 1e-6) && (numPointsY != 1)) {
-            AssertThrow(false, ExcMessage(" y coords are too close to interpolate "));
-        }
-        double dy = (endingY - startingY) / (numPointsY - 1);
+    double startingY = d_inverseDFTParams.startY;
+    double endingY = d_inverseDFTParams.endY;
 
-        AssertThrow((dy > 0.0) || (numPointsY == 1), ExcMessage(" dy is negative"));
-        for (unsigned int iCoord = 1; iCoord < numPointsY - 1; iCoord++) {
-            y_coord[iCoord] = y_coord[iCoord - 1] + dy;
-        }
+    std::vector<double> y_coord(numPointsY, 0.0);
+    y_coord[0] = startingY;
+    y_coord[numPointsY - 1] = endingY;
+    if ((std::abs(startingY - endingY) < 1e-6) && (numPointsY != 1)) {
+      AssertThrow(false, ExcMessage(" y coords are too close to interpolate "));
+    }
+    double dy = (endingY - startingY) / (numPointsY - 1);
 
-        double startingZ = d_inverseDFTParams.startZ;
-        double endingZ = d_inverseDFTParams.endZ;
+    AssertThrow((dy > 0.0) || (numPointsY == 1), ExcMessage(" dy is negative"));
+    for (unsigned int iCoord = 1; iCoord < numPointsY - 1; iCoord++) {
+      y_coord[iCoord] = y_coord[iCoord - 1] + dy;
+    }
 
-        std::vector<double> z_coord(numPointsZ, 0.0);
-        z_coord[0] = startingZ;
-        z_coord[numPointsZ - 1] = endingZ;
-        if ((std::abs(startingZ - endingZ) < 1e-6) && (numPointsZ != 1)) {
-            AssertThrow(false, ExcMessage(" z coords are too close to interpolate "));
-        }
-        double dz = (endingZ - startingZ) / (numPointsZ - 1);
+    double startingZ = d_inverseDFTParams.startZ;
+    double endingZ = d_inverseDFTParams.endZ;
 
-        AssertThrow((dz > 0.0) || (numPointsZ == 1), ExcMessage(" dz is negative"));
-        for (unsigned int iCoord = 1; iCoord < numPointsZ - 1; iCoord++) {
-            z_coord[iCoord] = z_coord[iCoord - 1] + dz;
-        }
+    std::vector<double> z_coord(numPointsZ, 0.0);
+    z_coord[0] = startingZ;
+    z_coord[numPointsZ - 1] = endingZ;
+    if ((std::abs(startingZ - endingZ) < 1e-6) && (numPointsZ != 1)) {
+      AssertThrow(false, ExcMessage(" z coords are too close to interpolate "));
+    }
+    double dz = (endingZ - startingZ) / (numPointsZ - 1);
 
-        unsigned int totalNumPoints = numPointsX * numPointsY * numPointsZ;
+    AssertThrow((dz > 0.0) || (numPointsZ == 1), ExcMessage(" dz is negative"));
+    for (unsigned int iCoord = 1; iCoord < numPointsZ - 1; iCoord++) {
+      z_coord[iCoord] = z_coord[iCoord - 1] + dz;
+    }
 
-        // TODO a better domain decomposition would be cubic
-        // but I am doing linear for simplicity
+    unsigned int totalNumPoints = numPointsX * numPointsY * numPointsZ;
 
-        int thisRank, numRank;
-        MPI_Comm_rank(d_mpiComm_domain, &thisRank);
-        MPI_Comm_size(d_mpiComm_domain, &numRank);
+    // TODO a better domain decomposition would be cubic
+    // but I am doing linear for simplicity
 
-        unsigned int numPointsInProc = totalNumPoints / numRank;
-        if (thisRank == numRank - 1) {
-            numPointsInProc = numPointsInProc + totalNumPoints % numRank;
-        }
+    int thisRank, numRank;
+    MPI_Comm_rank(d_mpiComm_domain, &thisRank);
+    MPI_Comm_size(d_mpiComm_domain, &numRank);
 
-        unsigned int startingIndex = (totalNumPoints / numRank) * thisRank;
+    unsigned int numPointsInProc = totalNumPoints / numRank;
+    if (thisRank == numRank - 1) {
+      numPointsInProc = numPointsInProc + totalNumPoints % numRank;
+    }
 
-        targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
+    unsigned int startingIndex = (totalNumPoints / numRank) * thisRank;
 
-        for (unsigned int index = startingIndex;
-             index < startingIndex + numPointsInProc; index++) {
-            unsigned int xIndex = index / (numPointsZ * numPointsY);
-            unsigned int yIndex =
-                    (index - xIndex * numPointsZ * numPointsY) / (numPointsZ);
-            unsigned int zIndex =
-                    (index - xIndex * numPointsZ * numPointsY) % (numPointsZ);
+    targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
 
-            targetPts[index - startingIndex][0] = x_coord[xIndex];
-            targetPts[index - startingIndex][1] = y_coord[yIndex];
-            targetPts[index - startingIndex][2] = z_coord[zIndex];
-        }
-        //}
+    for (unsigned int index = startingIndex;
+         index < startingIndex + numPointsInProc; index++) {
+      unsigned int xIndex = index / (numPointsZ * numPointsY);
+      unsigned int yIndex =
+          (index - xIndex * numPointsZ * numPointsY) / (numPointsZ);
+      unsigned int zIndex =
+          (index - xIndex * numPointsZ * numPointsY) % (numPointsZ);
 
-        unsigned int totalOwnedCellsPsi = d_dftMatrixFreeData->n_physical_cells();
+      targetPts[index - startingIndex][0] = x_coord[xIndex];
+      targetPts[index - startingIndex][1] = y_coord[yIndex];
+      targetPts[index - startingIndex][2] = z_coord[zIndex];
+    }
+    //}
 
-        const dealii::Quadrature<3> &quadratureRulePsi =
-                d_dftMatrixFreeData->get_quadrature(d_dftQuadIndex);
+    unsigned int totalOwnedCellsPsi = d_dftMatrixFreeData->n_physical_cells();
 
-        unsigned int numQuadPointsPerPsiCell = quadratureRulePsi.size();
+    const dealii::Quadrature<3> &quadratureRulePsi =
+        d_dftMatrixFreeData->get_quadrature(d_dftQuadIndex);
 
-        const dealii::FiniteElement<3> &feMesh = d_dofHandlerDFTClass->get_fe();
-        std::vector<unsigned int> numberDofsPerCell;
-        numberDofsPerCell.resize(totalOwnedCellsPsi);
+    unsigned int numQuadPointsPerPsiCell = quadratureRulePsi.size();
 
-        std::vector<std::shared_ptr<const dftfe::utils::Cell<3>>> srcCellsMesh(0);
+    const dealii::FiniteElement<3> &feMesh = d_dofHandlerDFTClass->get_fe();
+    std::vector<unsigned int> numberDofsPerCell;
+    numberDofsPerCell.resize(totalOwnedCellsPsi);
 
-        std::vector<
+    std::vector<std::shared_ptr<const dftfe::utils::Cell<3>>> srcCellsMesh(0);
+
+    std::vector<
         std::shared_ptr<dftfe::InterpolateFromCellToLocalPoints<memorySpace>>>
         interpolateLocalMesh(0);
 
-        dealii::DoFHandler<3>::active_cell_iterator cellPsi = d_dofHandlerDFTClass
-                ->begin_active(),
-                endcPsi =
-                d_dofHandlerDFTClass->end();
+    dealii::DoFHandler<3>::active_cell_iterator cellPsi = d_dofHandlerDFTClass
+                                                              ->begin_active(),
+                                                endcPsi =
+                                                    d_dofHandlerDFTClass->end();
 
-        // iterate through child cells
-        dftfe::size_type iElemIndex = 0;
-        for (; cellPsi != endcPsi; cellPsi++) {
-            if (cellPsi->is_locally_owned()) {
-                numberDofsPerCell[iElemIndex] =
-                        d_dofHandlerDFTClass->get_fe().dofs_per_cell;
-                auto srcCellPtr =
-                        std::make_shared<dftfe::utils::FECell<3>>(cellPsi, feMesh);
-                srcCellsMesh.push_back(srcCellPtr);
+    // iterate through child cells
+    dftfe::size_type iElemIndex = 0;
+    for (; cellPsi != endcPsi; cellPsi++) {
+      if (cellPsi->is_locally_owned()) {
+        numberDofsPerCell[iElemIndex] =
+            d_dofHandlerDFTClass->get_fe().dofs_per_cell;
+        auto srcCellPtr =
+            std::make_shared<dftfe::utils::FECell<3>>(cellPsi, feMesh);
+        srcCellsMesh.push_back(srcCellPtr);
 
-                interpolateLocalMesh.push_back(
-                        std::make_shared<
-                        dftfe::InterpolateFromCellToLocalPoints<memorySpace>>(
-                                srcCellPtr, numberDofsPerCell[iElemIndex],
-                                        d_inverseDFTParams.useMemOptForTransfer));
-                iElemIndex++;
-            }
-        }
-
-        dftfe::InterpolateCellWiseDataToPoints<dftfe::dataTypes::number, memorySpace>
-                d_meshVxctoPoints(srcCellsMesh, interpolateLocalMesh, targetPts,
-                                  numberDofsPerCell, 4, d_mpiComm_domain);
-
-
-	dftfe::linearAlgebra::MultiVector<double, dftfe::utils::MemorySpace::HOST>
-      dummyPotVec;
-
-	dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
-      d_dftMatrixFreeData->get_vector_partitioner(
-          d_dftDensityDoFHandlerIndex),
-      1, dummyPotVec);
-
-        std::vector<dealii::types::global_dof_index> fullFlattenedMapParent;
-        dftfe::vectorTools::computeCellLocalIndexSetMap(
-                dummyPotVec.getMPIPatternP2P(), *d_dftMatrixFreeData, d_dftDensityDoFHandlerIndex,
-                1, fullFlattenedMapParent);
-
-        dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
-        dftfe::utils::MemorySpace::HOST>
-                fullFlattenedMap;
-        fullFlattenedMap.resize(fullFlattenedMapParent.size());
-        fullFlattenedMap.copyFrom(fullFlattenedMapParent);
-
-        dftfe::utils::MemoryStorage<dftfe::dataTypes::number,
-        dftfe::utils::MemorySpace::HOST>
-                outputQuadData;
-        d_meshVxctoPoints.interpolateSrcDataToTargetPoints(
-                d_blasWrapperHost, vxcNodalParentMesh[0], 1, fullFlattenedMap,
-                outputQuadData, true);
-
-        const std::string filename = d_inverseDFTParams.fileNameWriteVxcPostProcess;
-        std::vector<std::shared_ptr<dftfe::dftUtils::CompositeData>> data(0);
-
-        MPI_Barrier(d_mpiComm_domain);
-        for (unsigned int index = startingIndex;
-             index < startingIndex + numPointsInProc; index++) {
-            std::vector<double> nodeVals(0);
-            nodeVals.push_back(index);
-            nodeVals.push_back(targetPts[index - startingIndex][0]);
-            nodeVals.push_back(targetPts[index - startingIndex][1]);
-            nodeVals.push_back(targetPts[index - startingIndex][2]);
-
-            nodeVals.push_back(outputQuadData.data()[index - startingIndex]);
-            data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(nodeVals));
-        }
-
-        std::vector<dftfe::dftUtils::CompositeData *> dataRawPtrs(data.size());
-        for (unsigned int i = 0; i < data.size(); ++i)
-            dataRawPtrs[i] = data[i].get();
-        dftfe::dftUtils::MPIWriteOnFile().writeData(dataRawPtrs, filename,
-                                                    d_mpiComm_domain);
-
+        interpolateLocalMesh.push_back(
+            std::make_shared<
+                dftfe::InterpolateFromCellToLocalPoints<memorySpace>>(
+                srcCellPtr, numberDofsPerCell[iElemIndex],
+                d_inverseDFTParams.useMemOptForTransfer));
+        iElemIndex++;
+      }
     }
+
+    dftfe::InterpolateCellWiseDataToPoints<dftfe::dataTypes::number,
+                                           memorySpace>
+        d_meshVxctoPoints(srcCellsMesh, interpolateLocalMesh, targetPts,
+                          numberDofsPerCell, 4, d_mpiComm_domain);
+
+    dftfe::linearAlgebra::MultiVector<double, dftfe::utils::MemorySpace::HOST>
+        dummyPotVec;
+
+    dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
+        d_dftMatrixFreeData->get_vector_partitioner(
+            d_dftDensityDoFHandlerIndex),
+        1, dummyPotVec);
+
+    std::vector<dealii::types::global_dof_index> fullFlattenedMapParent;
+    dftfe::vectorTools::computeCellLocalIndexSetMap(
+        dummyPotVec.getMPIPatternP2P(), *d_dftMatrixFreeData,
+        d_dftDensityDoFHandlerIndex, 1, fullFlattenedMapParent);
+
+    dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
+                                dftfe::utils::MemorySpace::HOST>
+        fullFlattenedMap;
+    fullFlattenedMap.resize(fullFlattenedMapParent.size());
+    fullFlattenedMap.copyFrom(fullFlattenedMapParent);
+
+    dftfe::utils::MemoryStorage<dftfe::dataTypes::number,
+                                dftfe::utils::MemorySpace::HOST>
+        outputQuadData;
+    d_meshVxctoPoints.interpolateSrcDataToTargetPoints(
+        d_blasWrapperHost, vxcNodalParentMesh[0], 1, fullFlattenedMap,
+        outputQuadData,1,1,0, true);
+
+    const std::string filename = d_inverseDFTParams.fileNameWriteVxcPostProcess;
+    std::vector<std::shared_ptr<dftfe::dftUtils::CompositeData>> data(0);
+
     MPI_Barrier(d_mpiComm_domain);
+    for (unsigned int index = startingIndex;
+         index < startingIndex + numPointsInProc; index++) {
+      std::vector<double> nodeVals(0);
+      nodeVals.push_back(index);
+      nodeVals.push_back(targetPts[index - startingIndex][0]);
+      nodeVals.push_back(targetPts[index - startingIndex][1]);
+      nodeVals.push_back(targetPts[index - startingIndex][2]);
+
+      nodeVals.push_back(outputQuadData.data()[index - startingIndex]);
+      data.push_back(std::make_shared<dftfe::dftUtils::NodalData>(nodeVals));
+    }
+
+    std::vector<dftfe::dftUtils::CompositeData *> dataRawPtrs(data.size());
+    for (unsigned int i = 0; i < data.size(); ++i)
+      dataRawPtrs[i] = data[i].get();
+    dftfe::dftUtils::MPIWriteOnFile().writeData(dataRawPtrs, filename,
+                                                d_mpiComm_domain);
+  }
+  MPI_Barrier(d_mpiComm_domain);
 }
 
+template <unsigned int FEOrder, unsigned int FEOrderElectro,
+          dftfe::utils::MemorySpace memorySpace>
+void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
+    projectVxcToParentMesh(
+        std::vector<dftfe::distributedCPUVec<double>>
+            &vxcInitialGuessParentMesh,
+        std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes) {
 
-    template <unsigned int FEOrder, unsigned int FEOrderElectro,
-            dftfe::utils::MemorySpace memorySpace>
-    void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
-            projectVxcToParentMesh(std::vector<dftfe::distributedCPUVec<double>> &vxcInitialGuessParentMesh,
-                                   std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes) {
+  std::vector<dftfe::utils::MemoryStorage<dftfe::dataTypes::number,
+                                          dftfe::utils::MemorySpace::HOST>>
+      vxcInterpolateToParent;
+  vxcInterpolateToParent.resize(d_numSpins);
+  vxcInitialGuessParentMesh.resize(d_numSpins);
 
-    std::vector<dftfe::utils::MemoryStorage<dftfe::dataTypes::number,
-            dftfe::utils::MemorySpace::HOST>> vxcInterpolateToParent;
-    vxcInterpolateToParent.resize(d_numSpins);
-        vxcInitialGuessParentMesh.resize(d_numSpins);
+  unsigned int totalOwnedCellsPsi = d_dftMatrixFreeData->n_physical_cells();
 
-        unsigned int totalOwnedCellsPsi = d_dftMatrixFreeData->n_physical_cells();
+  const dealii::Quadrature<3> &quadratureRulePsi =
+      d_dftMatrixFreeData->get_quadrature(d_dftQuadIndex);
 
-        const dealii::Quadrature<3> &quadratureRulePsi =
-                d_dftMatrixFreeData->get_quadrature(d_dftQuadIndex);
+  unsigned int numQuadPointsPerPsiCell = quadratureRulePsi.size();
 
-        unsigned int numQuadPointsPerPsiCell = quadratureRulePsi.size();
+  std::vector<
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+      vxcOutputData;
 
-        std::vector <
-        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-                vxcOutputData;
+  vxcOutputData.resize(
+      d_numSpins,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+          totalOwnedCellsPsi * numQuadPointsPerPsiCell));
 
-        vxcOutputData.resize(
-                d_numSpins,
-                dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-                        totalOwnedCellsPsi * numQuadPointsPerPsiCell));
-
-
-	dftfe::linearAlgebra::MultiVector<double, dftfe::utils::MemorySpace::HOST>
+  dftfe::linearAlgebra::MultiVector<double, dftfe::utils::MemorySpace::HOST>
       dummyPotVec;
 
   dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
-      d_matrixFreeDataVxc.get_vector_partitioner(
-          d_dofHandlerVxcIndex),
-      1, dummyPotVec);
+      d_matrixFreeDataVxc.get_vector_partitioner(d_dofHandlerVxcIndex), 1,
+      dummyPotVec);
 
   std::vector<dealii::types::global_dof_index> fullFlattenedMapChild;
   dftfe::vectorTools::computeCellLocalIndexSetMap(
-      dummyPotVec.getMPIPatternP2P(), d_matrixFreeDataVxc,
-      d_dofHandlerVxcIndex, 1, fullFlattenedMapChild);
+      dummyPotVec.getMPIPatternP2P(), d_matrixFreeDataVxc, d_dofHandlerVxcIndex,
+      1, fullFlattenedMapChild);
 
- dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
+  dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
                               dftfe::utils::MemorySpace::HOST>
       fullFlattenedMapChildMemStorage;
- fullFlattenedMapChildMemStorage.resize(fullFlattenedMapChild.size());
- fullFlattenedMapChildMemStorage.copyFrom(fullFlattenedMapChild);
+  fullFlattenedMapChildMemStorage.resize(fullFlattenedMapChild.size());
+  fullFlattenedMapChildMemStorage.copyFrom(fullFlattenedMapChild);
 
+  for (unsigned int spinIndex = 0; spinIndex < d_numSpins; ++spinIndex) {
+    dealii::DoFHandler<3>::active_cell_iterator cellPsi = d_dofHandlerDFTClass
+                                                              ->begin_active(),
+                                                endcPsi =
+                                                    d_dofHandlerDFTClass->end();
 
+    d_inverseDftDoFManagerObjPtr->interpolateMesh2DataToMesh1QuadPoints(
+        d_blasWrapperHost, vxcChildNodes[spinIndex], 1,
+        fullFlattenedMapChildMemStorage, vxcInterpolateToParent[spinIndex], 1,
+        1, 0, true);
 
-        for (unsigned int spinIndex = 0; spinIndex < d_numSpins; ++spinIndex) {
-            dealii::DoFHandler<3>::active_cell_iterator cellPsi = d_dofHandlerDFTClass
-                    ->begin_active(),
-                    endcPsi =
-                    d_dofHandlerDFTClass->end();
+    unsigned int iElemPsi = 0;
+    for (; cellPsi != endcPsi; ++cellPsi)
+      if (cellPsi->is_locally_owned()) {
 
-            d_inverseDftDoFManagerObjPtr->interpolateMesh2DataToMesh1QuadPoints(
-                    d_blasWrapperHost, vxcChildNodes[spinIndex], 1, fullFlattenedMapChildMemStorage,
-                    vxcInterpolateToParent[spinIndex], 1,1,0,
-                    true);
-
-            unsigned int iElemPsi = 0;
-            for (; cellPsi != endcPsi; ++cellPsi)
-                if (cellPsi->is_locally_owned()) {
-
-
-			for (unsigned int iQuad = 0; iQuad < numQuadPointsPerPsiCell;
-           ++iQuad) {
-				vxcOutputData[spinIndex][(
-                            iElemPsi * numQuadPointsPerPsiCell + iQuad)] = d_vxcLDAQuadData[spinIndex][(
-                            iElemPsi * numQuadPointsPerPsiCell + iQuad)] * d_inverseDFTParams.factorForLDAVxc +
-    vxcInterpolateToParent[spinIndex].data()[iElemPsi * numQuadPointsPerPsiCell + iQuad];
-			}
-                    iElemPsi++;
-                }
-
-            dftfe::vectorTools::createDealiiVector<double>(
-                    d_dftMatrixFreeData->get_vector_partitioner(
-                            d_dftDensityDoFHandlerIndex),
-                    1, vxcInitialGuessParentMesh[spinIndex]);
-            vxcInitialGuessParentMesh[spinIndex] = 0.0;
-
-            d_dftBaseClass->l2ProjectionQuadToNodal(
-                    d_basisOperationsHost, *d_constraintDFTClass,
-                    d_dftDensityDoFHandlerIndex, d_dftQuadIndex,
-                    vxcOutputData[spinIndex], vxcInitialGuessParentMesh[spinIndex]);
-
-            vxcInitialGuessParentMesh[spinIndex].update_ghost_values();
-            d_constraintDFTClass->distribute(vxcInitialGuessParentMesh[spinIndex]);
-            vxcInitialGuessParentMesh[spinIndex].update_ghost_values();
+        for (unsigned int iQuad = 0; iQuad < numQuadPointsPerPsiCell; ++iQuad) {
+          vxcOutputData[spinIndex][(iElemPsi * numQuadPointsPerPsiCell +
+                                    iQuad)] =
+              d_vxcLDAQuadData[spinIndex]
+                              [(iElemPsi * numQuadPointsPerPsiCell + iQuad)] *
+                  d_inverseDFTParams.factorForLDAVxc +
+              vxcInterpolateToParent[spinIndex]
+                  .data()[iElemPsi * numQuadPointsPerPsiCell + iQuad];
         }
-    }
+        iElemPsi++;
+      }
+
+    dftfe::vectorTools::createDealiiVector<double>(
+        d_dftMatrixFreeData->get_vector_partitioner(
+            d_dftDensityDoFHandlerIndex),
+        1, vxcInitialGuessParentMesh[spinIndex]);
+    vxcInitialGuessParentMesh[spinIndex] = 0.0;
+
+    d_dftBaseClass->l2ProjectionQuadToNodal(
+        d_basisOperationsHost, *d_constraintDFTClass,
+        d_dftDensityDoFHandlerIndex, d_dftQuadIndex, vxcOutputData[spinIndex],
+        vxcInitialGuessParentMesh[spinIndex]);
+
+    vxcInitialGuessParentMesh[spinIndex].update_ghost_values();
+    d_constraintDFTClass->distribute(vxcInitialGuessParentMesh[spinIndex]);
+    vxcInitialGuessParentMesh[spinIndex].update_ghost_values();
+  }
+}
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -3081,8 +3083,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   setInitialPotL2Proj();
   if (d_inverseDFTParams.readVxcData) {
     readVxcInput();
-  } 
-  
+  }
 
   unsigned int numElectronsWithCharge =
       d_dftBaseClass->getNumElectrons() + d_inverseDFTParams.netCharge;
