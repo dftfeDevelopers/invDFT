@@ -1060,7 +1060,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
           unsigned int interOutputBlockSize =
               std::min(currentBlockSize, d_inverseDFTParams->interBlockSize);
           unsigned int interCurrentBlockSize =
-              std::min(currentBlockSize - d_inverseDFTParams->interBlockSize,
+              std::min(currentBlockSize - interBlockStart,
                        d_inverseDFTParams->interBlockSize);
 
           d_computingTimerStandard.enter_subsection(
@@ -1071,16 +1071,16 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
           d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
               d_BLASWrapperPtr, psiBlockVecMemSpace, interCurrentBlockSize,
               fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace,
-              d_psiChildQuadDataMemorySpace, currentBlockSize,
+              d_psiChildQuadDataMemorySpace, interCurrentBlockSize,
               interOutputBlockSize, interBlockStart,
               d_resizeMemSpaceBlockSizeChildQuad);
 
           d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
               d_BLASWrapperPtr,
               multiVectorAdjointOutputWithAdjointConstraintsMemSpace,
-              currentBlockSize,
+              interCurrentBlockSize,
               fullFlattenedArrayCellLocalProcIndexIdMapAdjointMemSpace,
-              d_adjointChildQuadDataMemorySpace, currentBlockSize,
+              d_adjointChildQuadDataMemorySpace, interCurrentBlockSize,
               interOutputBlockSize, interBlockStart,
               d_resizeMemSpaceBlockSizeChildQuad);
 
