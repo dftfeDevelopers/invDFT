@@ -512,8 +512,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     );
 
     if (d_numSpins == 1) {
-      //  std::vector<double> qpointCoord(3, 0.0);
-      //  std::vector<double> gradVal(3, 0.0);
+        std::vector<double> qpointCoord(3, 0.0);
+        std::vector<double> gradVal(3, 0.0);
 
       d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
                                   numQuadraturePointsPerCellParent);
@@ -526,7 +526,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
           unsigned int qPointId =
               (iCell * numQuadraturePointsPerCellParent) + q_point;
           unsigned int qPointCoordIndex = qPointId * 3;
-          /*
+          
                   qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex +
              0]; qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
                   qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex +
@@ -534,7 +534,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
                   gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
              gradVal);
-          */
+  d_sigmaGradRhoTarget[qPointId] = 4.0*( gradVal[0]*gradVal[0] + gradVal[1]*gradVal[1] + gradVal[2]*gradVal[2] );        
+		  /*
           d_sigmaGradRhoTarget[qPointId] =
               gradRhoValues[0].data()[qPointCoordIndex + 0] *
                   gradRhoValues[0].data()[qPointCoordIndex + 0] +
@@ -542,7 +543,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                   gradRhoValues[0].data()[qPointCoordIndex + 1] +
               gradRhoValues[0].data()[qPointCoordIndex + 2] *
                   gradRhoValues[0].data()[qPointCoordIndex + 2];
-
+*/
           //                if ( d_sigmaGradRhoTarget[qPointId] > 1e8)
           //                  {
           //                    std::cout<<" Large value of d_sigmaGradRhoTarget
@@ -821,9 +822,13 @@ if ( d_inverseDFTParams.readFEDensity)
 
   pcout << " Norm of rhoDiffVec after distribute = " << rhoDiffVec.l2_norm()
         << "\n";
-  /*
+ 
+	DataOutBase::VtkFlags flags;
+    flags.write_higher_order_cells = true;
+
      dealii::DataOut<3> data_out_rho;
 
+     data_out_rho.set_flags(flags);
      data_out_rho.attach_dof_handler(*dofHandlerParent);
 
      std::string outputVecName1 = "rho Gaussian primary";
@@ -835,10 +840,10 @@ if ( d_inverseDFTParams.readFEDensity)
      data_out_rho.add_data_vector(rhoFLVec,outputVecName3);
      data_out_rho.add_data_vector(rhoDiffVec,outputVecName4);
 
-     data_out_rho.build_patches();
+     data_out_rho.build_patches(dealii::MappingQ1<3, 3>(), FEOrder );
      data_out_rho.write_vtu_with_pvtu_record("./", "inputRhoData",
      0,d_mpiComm_domain,2, 4);
-  */
+  
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -2457,6 +2462,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   double xcoordValue = 0.0;
   double ycoordValue = 0.0;
   double zcoordValue = 0.0;
+  double jxwValues = 0.0;
   double fieldValue0 = 0.0;
   double fieldValue1 = 0.0;
 
@@ -2471,7 +2477,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
 
         MPI_Allreduce(
-          MPI_IN_PLACE, &numberOfPointsInEachProc[0], n_mpi_processes, MPI_DOUBLE, MPI_SUM, d_mpiComm_domain);
+          MPI_IN_PLACE, &numberOfPointsInEachProc[0], n_mpi_processes, dftfe::dataTypes::mpi_type_id(
+                        &numberOfPointsInEachProc[0]) , MPI_SUM, d_mpiComm_domain);
 
         unsigned int quadIdStartIndex = 0;
 
@@ -2498,6 +2505,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 			      densityInputFile >> xcoordValue;
 			      densityInputFile >> ycoordValue;
 			      densityInputFile >> zcoordValue;
+			      densityInputFile >> jxwValues;
 			      densityInputFile >> fieldValue0;
 			      densityInputFile >> fieldValue1;
 
@@ -2518,7 +2526,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
          "DFT-FE error:  quad coordinates of density are different "));
       }
 
-				      densityParentQuad[0].data()[q_point - quadIdStartIndex] = fieldValue0 + fieldValue1 ;
+				      densityParentQuad[0].data()[q_point - quadIdStartIndex] = 0.5*fieldValue0 ;
 			      }
 
 

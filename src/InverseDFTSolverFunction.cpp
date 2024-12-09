@@ -1149,18 +1149,19 @@ if ((d_getForceCounter % d_inverseDFTParams->writeVxcFrequency == 0) &&
   computeEnergyMetrics();
   writeVxcDataToFile(pot, d_getForceCounter);
 
-  /*
+  
       const std::string quadDataFilename = d_inverseDFTParams->vxcDataFolder +
      "/" + d_inverseDFTParams->fileNameWriteVxcPostFix +
                                  "_denistyParentQuad_" +
      std::to_string(d_getForceCounter);
-
+/*
       writeParentMeshQuadDataToFile(
                       d_potParentQuadDataSolveEigen,
                       *d_vxcLDAQuadDataPtr,
                       d_quadCoordinatesParentPtr,
                       quadDataFilename);
   */
+  //d_dftClassPtr->outputWfc(quadDataFilename);
 }
 MPI_Allreduce(MPI_IN_PLACE, &loss[0], d_numSpins, MPI_DOUBLE, MPI_SUM,
               d_mpi_comm_domain);
