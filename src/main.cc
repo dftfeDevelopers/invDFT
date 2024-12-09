@@ -187,6 +187,13 @@ int main(int argc, char *argv[]) {
               dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
               dftBasePtr->getMPIInterPool());
       break;
+    case 5008:
+      invBasePtr =
+          new invDFT::InverseDFTEngine<5, 8, dftfe::utils::MemorySpace::HOST>(
+              *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+              dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+              dftBasePtr->getMPIInterPool());
+      break;
     case 6006:
       invBasePtr =
           new invDFT::InverseDFTEngine<6, 6, dftfe::utils::MemorySpace::HOST>(
@@ -341,6 +348,13 @@ int main(int argc, char *argv[]) {
     case 5007:
       invBasePtr =
           new invDFT::InverseDFTEngine<5, 7, dftfe::utils::MemorySpace::DEVICE>(
+              *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
+              dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
+              dftBasePtr->getMPIInterPool());
+      break;
+    case 5008:
+      invBasePtr =
+          new invDFT::InverseDFTEngine<5, 8, dftfe::utils::MemorySpace::DEVICE>(
               *dftBasePtr, dftParams, invParams, dftBasePtr->getMPIParent(),
               dftBasePtr->getMPIDomain(), dftBasePtr->getMPIInterBand(),
               dftBasePtr->getMPIInterPool());
