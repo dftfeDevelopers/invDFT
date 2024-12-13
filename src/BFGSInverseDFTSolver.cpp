@@ -119,7 +119,6 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
 
     template <unsigned int FEOrder, unsigned int FEOrderElectro,
             dftfe::utils::MemorySpace memorySpace>
-    void
     void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::fnormLoss(
             const std::vector<dftfe::distributedCPUVec<double>> &x,
             const std::vector<dftfe::distributedCPUVec<double>> &p,
@@ -144,7 +143,7 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
         std::vector<double> L(d_numComponents);
         iDFTSolverFunction.getForceVector(xnew, g, L);
         fnorms.resize(d_numComponents, 0.0);
-        for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
         {
             fnorms[iComp] = L[iComp];
         }
@@ -152,7 +151,6 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
 
     template <unsigned int FEOrder, unsigned int FEOrderElectro,
             dftfe::utils::MemorySpace memorySpace>
-    void
     void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::fnormGrad(
             const std::vector<dftfe::distributedCPUVec<double>> &x,
             const std::vector<dftfe::distributedCPUVec<double>> &p,
@@ -178,7 +176,7 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
         double constraint;
         iDFTSolverFunction.getForceVector(xnew, g, L);
         fnorms.resize(d_numComponents, 0.0);
-        for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
         {
             std::vector<double> dotProd(1, 0.0);
             iDFTSolverFunction.dotProduct(g[iComp], g[iComp], 1, dotProd);
@@ -317,20 +315,20 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
         const double tolerance,
         InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
             &iDFTSolverFunction) {
-    for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+    for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
     {
         if(lambda[iComp].size() < 2)
-            throw DomainError("At least two initial values are need for a secant method.");
+		dftfe::utils::throwException(false, "At least two initial values are need for a secant method.");
     }
 
-    std::vector<double> lambdaOld(d_numberComponents);
-    std::vector<double> lambdaMid(d_numberComponents);
-    std::vector<double> lambdaNew(d_numberComponents);
-    std::vector<double> fOld(d_numberComponents);
-    std::vector<double> fMid(d_numberComponents);
-    std::vector<double> fNew(d_numberComponents);
+    std::vector<double> lambdaOld(d_numComponents);
+    std::vector<double> lambdaMid(d_numComponents);
+    std::vector<double> lambdaNew(d_numComponents);
+    std::vector<double> fOld(d_numComponents);
+    std::vector<double> fMid(d_numComponents);
+    std::vector<double> fNew(d_numComponents);
 
-    for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+    for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
     {
         lambdaOld[iComp] = lambda[iComp][0];
         lambdaNew[iComp] = lambda[iComp][1];
@@ -343,16 +341,16 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
         /* compute the objective at the midpoint */
         this->fnormLoss(d_x, d_p, lambdaMid, fMid, iDFTSolverFunction);
         /* compute the objective at the new endpoint */
-        this->fnormLoss( d_x, d_p, lambdaNew, fNew);
+        this->fnormLoss( d_x, d_p, lambdaNew, fNew,iDFTSolverFunction);
 
-        for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
         {
             pcout << "LineSearch L2: " << i << " for component: " << iComp << std::endl;
             pcout << lambdaOld[iComp] << " " << fOld[iComp] << std::endl;
             pcout << lambdaMid[iComp] << " " << fMid[iComp] << std::endl;
             pcout << lambdaNew[iComp] << " " << fNew[iComp] << std::endl;
         }
-        for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
         {
             lambdaNew[iComp]  = .5*(lambdaNew[iComp] + lambdaOld[iComp]);
             lambdaMid[iComp] = .5*(lambdaNew[iComp] + lambdaOld[iComp]);
@@ -393,19 +391,19 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
         const double tolerance,
         InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
             &iDFTSolverFunction) {
-    for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+    for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
     {
         if(lambda[iComp].size() < 2)
-            throw DomainError("At least two initial values are need for a secant method.");
+		dftfe::utils::throwException(false, "At least two initial values are need for a secant method.");
     }
 
-    std::vector<double> lambdaOld(d_numberComponents);
-    std::vector<double> lambdaMid(d_numberComponents);
-    std::vector<double> lambdaNew(d_numberComponents);
-    std::vector<double> fOld(d_numberComponents);
-    std::vector<double> fMid(d_numberComponents);
-    std::vector<double> fNew(d_numberComponents);
-    for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+    std::vector<double> lambdaOld(d_numComponents);
+    std::vector<double> lambdaMid(d_numComponents);
+    std::vector<double> lambdaNew(d_numComponents);
+    std::vector<double> fOld(d_numComponents);
+    std::vector<double> fMid(d_numComponents);
+    std::vector<double> fNew(d_numComponents);
+    for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
     {
         lambdaOld[iComp] = lambda[iComp][0];
         lambdaNew[iComp] = lambda[iComp][1];
@@ -419,7 +417,7 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
         /* compute the objective at the new endpoint */
         this->fnormGrad(d_x, d_p, lambdaNew, fNew, iDFTSolverFunction);
 
-            for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+            for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
             {
                pcout << "LineSearch L2: " << i << " for component: " << iComp << std::endl;
                pcout << lambdaOld[iComp] << " " << fOld[iComp] << std::endl;
@@ -427,7 +425,7 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
                pcout << lambdaNew[iComp] << " " << fNew[iComp] << std::endl;
             }
 
-        for(unsigned int iComp = 0; iComp < d_numberComponents; ++iComp)
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
         {
             lambdaNew[iComp]  = .5*(lambdaNew[iComp] + lambdaOld[iComp]);
             lambdaMid[iComp] = .5*(lambdaNew[iComp] + lambdaOld[iComp]);

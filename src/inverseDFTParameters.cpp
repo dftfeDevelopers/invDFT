@@ -104,6 +104,11 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("TOL FOR BFGS LINE SEARCH", "1e-6",
                       dealii::Patterns::Double(0.0),
                       "[Standard] tol for the BFGS solver line search");
+ 
+    prm.declare_entry(
+      "BFGS SOLVER TYPE", "CP",
+      dealii::Patterns::Selection("CP|SECANT_FORCE_NORM|SECANT_LOSS"),
+      "[Standard] The BFGS algorithm used to converge to the exact Vxc.");
 
     prm.declare_entry("BFGS HISTORY", "100", dealii::Patterns::Integer(1, 1000),
                       "[Standard] Number of times line search is performed "
@@ -332,6 +337,7 @@ inverseDFTParameters::inverseDFTParameters() {
   inverseBFGSLineSearchTol = 1e-6;
   inverseBFGSHistory = 100;
   inverseMaxBFGSIter = 10000;
+  BFGSSolverType = "CP";
   writeVxcData = true;
   readVxcData = true;
   fileNameReadVxcPostFix = ".";
@@ -408,6 +414,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     inverseBFGSHistory = prm.get_integer("BFGS HISTORY");
     inverseMaxBFGSIter = prm.get_integer("BFGS MAX ITERATIONS");
     interBlockSize = prm.get_integer("BLOCK SIZE OF INTERPOLATE");
+    BFGSSolverType = prm.get("BFGS SOLVER TYPE");
     readVxcData = prm.get_bool("READ VXC DATA");
     fileNameReadVxcPostFix =
         prm.get("POSTFIX TO THE FILENAME FOR READING VXC DATA");

@@ -38,6 +38,7 @@ public:
   bool writeToPoints;
   std::string fileNameReadPoints;
   std::string fileNameWriteVxcPostProcess;
+  std::string BFGSSolverType;
   double startX, startY, startZ;
   double endX, endY, endZ;
   unsigned int numPointsX, numPointsY, numPointsZ;

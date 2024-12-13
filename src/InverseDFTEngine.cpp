@@ -3240,9 +3240,35 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
 
   pcout << " vxc initial guess norm before solve = "
         << d_vxcInitialChildNodes[0].l2_norm() << "\n";
-  BFGSInverseDFTSolverObj.solve(
+ 
+ if (d_inverseDFTParams.BFGSSolverType == "CP")
+ {
+	 BFGSInverseDFTSolverObj.solve(
       inverseDFTSolverFunctionObj,
       BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::LSType::CP);
+ } 
+ else if (d_inverseDFTParams.BFGSSolverType == "SECANT_LOSS")
+ {
+	  BFGSInverseDFTSolverObj.solve(
+      inverseDFTSolverFunctionObj,
+      BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::LSType::SECANT_LOSS);
+ }
+ else if( d_inverseDFTParams.BFGSSolverType == "SECANT_FORCE_NORM")
+ {
+	 BFGSInverseDFTSolverObj.solve(
+      inverseDFTSolverFunctionObj,
+      BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::LSType::SECANT_FORCE_NORM);
+
+ }
+ else
+ {
+	 AssertThrow(false,
+                  dealii::ExcMessage(
+                      "InvDFT Error:BFGSSolverType parameter is invalid"));
+
+
+ }
+
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
