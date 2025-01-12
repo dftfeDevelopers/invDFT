@@ -117,6 +117,73 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
   }
 }
 
+    template <unsigned int FEOrder, unsigned int FEOrderElectro,
+            dftfe::utils::MemorySpace memorySpace>
+    void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::fnormLoss(
+            const std::vector<dftfe::distributedCPUVec<double>> &x,
+            const std::vector<dftfe::distributedCPUVec<double>> &p,
+            const std::vector<double> &alpha, std::vector<double> &fnorms,
+            InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
+            &iDFTSolverFunction)
+    {
+        std::vector<dftfe::distributedCPUVec<double>> xnew(d_numComponents);
+        for (unsigned int iComp = 0; iComp < d_numComponents; ++iComp) {
+            xnew[iComp].reinit(x[iComp], false);
+            // xnew = x + alpha*p
+            xnew[iComp] = x[iComp];
+            vecAdd(p[iComp], xnew[iComp], alpha[iComp], 1.0);
+        }
+
+        std::vector<dftfe::distributedCPUVec<double>> g(d_numComponents);
+        for (unsigned int iComp = 0; iComp < d_numComponents; ++iComp) {
+            g[iComp].reinit(x[iComp], false);
+            g[iComp] = 0.0;
+        }
+
+        std::vector<double> L(d_numComponents);
+        iDFTSolverFunction.getForceVector(xnew, g, L);
+        fnorms.resize(d_numComponents, 0.0);
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+        {
+            fnorms[iComp] = L[iComp];
+        }
+    }
+
+    template <unsigned int FEOrder, unsigned int FEOrderElectro,
+            dftfe::utils::MemorySpace memorySpace>
+    void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::fnormGrad(
+            const std::vector<dftfe::distributedCPUVec<double>> &x,
+            const std::vector<dftfe::distributedCPUVec<double>> &p,
+            const std::vector<double> &alpha, std::vector<double> &fnorms,
+            InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
+            &iDFTSolverFunction)
+    {
+        std::vector<dftfe::distributedCPUVec<double>> xnew(d_numComponents);
+        for (unsigned int iComp = 0; iComp < d_numComponents; ++iComp) {
+            xnew[iComp].reinit(x[iComp], false);
+            // xnew = x + alpha*p
+            xnew[iComp] = x[iComp];
+            vecAdd(p[iComp], xnew[iComp], alpha[iComp], 1.0);
+        }
+
+        std::vector<dftfe::distributedCPUVec<double>> g(d_numComponents);
+        for (unsigned int iComp = 0; iComp < d_numComponents; ++iComp) {
+            g[iComp].reinit(x[iComp], false);
+            g[iComp] = 0.0;
+        }
+
+        std::vector<double> L(d_numComponents);
+        double constraint;
+        iDFTSolverFunction.getForceVector(xnew, g, L);
+        fnorms.resize(d_numComponents, 0.0);
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+        {
+            std::vector<double> dotProd(1, 0.0);
+            iDFTSolverFunction.dotProduct(g[iComp], g[iComp], 1, dotProd);
+            fnorms[iComp] = std::sqrt(dotProd[0]);
+        }
+    }
+
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::fnormCP(
@@ -248,9 +315,71 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
         const double tolerance,
         InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
             &iDFTSolverFunction) {
-  dftfe::utils::throwException(
-      false,
-      "BFGSInverseDFTSolver::solveLineSearchSecantLoss() not implemented yet.");
+    for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+    {
+        if(lambda[iComp].size() < 2)
+		dftfe::utils::throwException(false, "At least two initial values are need for a secant method.");
+    }
+
+    std::vector<double> lambdaOld(d_numComponents);
+    std::vector<double> lambdaMid(d_numComponents);
+    std::vector<double> lambdaNew(d_numComponents);
+    std::vector<double> fOld(d_numComponents);
+    std::vector<double> fMid(d_numComponents);
+    std::vector<double> fNew(d_numComponents);
+
+    for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+    {
+        lambdaOld[iComp] = lambda[iComp][0];
+        lambdaNew[iComp] = lambda[iComp][1];
+        lambdaMid[iComp] = 0.5*(lambdaNew[iComp] + lambdaOld[iComp]);
+        fOld[iComp] = f[iComp][0];
+    }
+
+    for (int i = 0; i < maxIter; i++)
+    {
+        /* compute the objective at the midpoint */
+        this->fnormLoss(d_x, d_p, lambdaMid, fMid, iDFTSolverFunction);
+        /* compute the objective at the new endpoint */
+        this->fnormLoss( d_x, d_p, lambdaNew, fNew,iDFTSolverFunction);
+
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+        {
+            pcout << "LineSearch L2: " << i << " for component: " << iComp << std::endl;
+            pcout << lambdaOld[iComp] << " " << fOld[iComp] << std::endl;
+            pcout << lambdaMid[iComp] << " " << fMid[iComp] << std::endl;
+            pcout << lambdaNew[iComp] << " " << fNew[iComp] << std::endl;
+        }
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+        {
+            lambdaNew[iComp]  = .5*(lambdaNew[iComp] + lambdaOld[iComp]);
+            lambdaMid[iComp] = .5*(lambdaNew[iComp] + lambdaOld[iComp]);
+            const double delLambda   = lambdaNew[iComp] - lambdaOld[iComp];
+            /* compute f'() at the end points using second order one sided differencing */
+            const double delF     = (3.*fNew[iComp] - 4.*fMid[iComp] + 1.*fOld[iComp])/delLambda;
+            const double delFOld = (-3.*fOld[iComp] + 4.*fMid[iComp] -1.*fNew[iComp])/delLambda;
+            /* compute f''() at the midpoint using centered differencing */
+            const double del2F    = (delF- delFOld) / delLambda;
+
+            double lambdaUpdate = 0.0;
+            /* compute the secant (Newton) update -- always go downhill */
+            if (del2F > 0.) lambdaUpdate = lambdaNew[iComp] - delF / del2F;
+            else if (del2F < 0.) lambdaUpdate = lambdaNew[iComp] + delF/ del2F;
+            else break;
+
+            if(lambdaUpdate < 0.0) lambdaUpdate = 0.5*(lambdaNew[iComp] + lambdaOld[iComp]);
+
+            /* update the endpoints and the midpoint of the bracketed secant region */
+            lambdaOld[iComp] = lambdaNew[iComp];
+            lambdaNew[iComp] = lambdaUpdate;
+            fOld[iComp]   = fNew[iComp];
+            lambdaMid[iComp] = 0.5*(lambdaNew[iComp] + lambdaOld[iComp]);
+            lambda[iComp].push_back(lambdaNew[iComp]);
+            f[iComp].push_back(fNew[iComp]);
+            pcout << "Updated lambda for component: " << iComp << ": " << lambdaNew[iComp] << std::endl;
+        }
+
+    }
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -262,9 +391,70 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
         const double tolerance,
         InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
             &iDFTSolverFunction) {
-  dftfe::utils::throwException(
-      false, "BFGSInverseDFTSolver::solveLineSearchSecantForceNorm() not "
-             "implemented yet.");
+    for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+    {
+        if(lambda[iComp].size() < 2)
+		dftfe::utils::throwException(false, "At least two initial values are need for a secant method.");
+    }
+
+    std::vector<double> lambdaOld(d_numComponents);
+    std::vector<double> lambdaMid(d_numComponents);
+    std::vector<double> lambdaNew(d_numComponents);
+    std::vector<double> fOld(d_numComponents);
+    std::vector<double> fMid(d_numComponents);
+    std::vector<double> fNew(d_numComponents);
+    for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+    {
+        lambdaOld[iComp] = lambda[iComp][0];
+        lambdaNew[iComp] = lambda[iComp][1];
+        lambdaMid[iComp] = 0.5*(lambdaNew[iComp] + lambdaOld[iComp]);
+        fOld[iComp] = f[iComp][0];
+    }
+    for (int i = 0; i < maxIter; i++) {
+
+        /* compute the objective at the midpoint */
+        this->fnormGrad(d_x, d_p, lambdaMid, fMid, iDFTSolverFunction);
+        /* compute the objective at the new endpoint */
+        this->fnormGrad(d_x, d_p, lambdaNew, fNew, iDFTSolverFunction);
+
+            for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+            {
+               pcout << "LineSearch L2: " << i << " for component: " << iComp << std::endl;
+               pcout << lambdaOld[iComp] << " " << fOld[iComp] << std::endl;
+               pcout << lambdaMid[iComp] << " " << fMid[iComp] << std::endl;
+               pcout << lambdaNew[iComp] << " " << fNew[iComp] << std::endl;
+            }
+
+        for(unsigned int iComp = 0; iComp < d_numComponents; ++iComp)
+        {
+            lambdaNew[iComp]  = .5*(lambdaNew[iComp] + lambdaOld[iComp]);
+            lambdaMid[iComp] = .5*(lambdaNew[iComp] + lambdaOld[iComp]);
+            const double delLambda   = lambdaNew[iComp] - lambdaOld[iComp];
+            /* compute f'() at the end points using second order one sided differencing */
+            const double delF     = (3.*fNew[iComp] - 4.*fMid[iComp] + 1.*fOld[iComp])/delLambda;
+            const double delFOld = (-3.*fOld[iComp] + 4.*fMid[iComp] -1.*fNew[iComp])/delLambda;
+            /* compute f''() at the midpoint using centered differencing */
+            const double del2F    = (delF- delFOld) / delLambda;
+
+            double lambdaUpdate = 0.0;
+            /* compute the secant (Newton) update -- always go downhill */
+            if (del2F > 0.) lambdaUpdate = lambdaNew[iComp] - delF / del2F;
+            else if (del2F < 0.) lambdaUpdate = lambdaNew[iComp] + delF/ del2F;
+            else break;
+
+            if(lambdaUpdate < 0.0) lambdaUpdate = 0.5*(lambdaNew[iComp] + lambdaOld[iComp]);
+
+            /* update the endpoints and the midpoint of the bracketed secant region */
+            lambdaOld[iComp] = lambdaNew[iComp];
+            lambdaNew[iComp] = lambdaUpdate;
+            fOld[iComp]   = fNew[iComp];
+            lambdaMid[iComp] = 0.5*(lambdaNew[iComp] + lambdaOld[iComp]);
+            lambda[iComp].push_back(lambdaNew[iComp]);
+            f[iComp].push_back(fNew[iComp]);
+            pcout << "Updated lambda for component: " << iComp << ": " << lambdaNew[iComp] << std::endl;
+        }
+    }
+
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -366,7 +556,7 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::solve(
       const unsigned int numLambdas = lambdas[iComp].size();
       pcout << "Line search for component" << iComp << std::endl;
       for (unsigned int i = 0; i < numLambdas - 1; ++i) {
-        std::cout << "Lambda: " << lambdas[iComp][i]
+        pcout << "Lambda: " << lambdas[iComp][i]
                   << " Norm: " << lsNorm[iComp][i] << std::endl;
       }
 
