@@ -1283,6 +1283,18 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
     }
 
     d_computingTimerStandard.enter_subsection("setVEff inverse");
+    d_kohnShamClass->resetExtPotHamFlag();
+    if((d_dftParams->isPseudopotential ||
+         d_dftParams->smearedNuclearCharges))
+    {
+
+            d_kohnShamClass->computeVEffExternalPotCorr( d_dftClassPtr->getPseudoVLoc());
+    }
+    else
+    {
+            d_kohnShamClass->setVEffExternalPotCorrToZero();
+    }
+
     d_kohnShamClass->setVEff(d_potKSQuadData, iSpin);
     d_computingTimerStandard.leave_subsection("setVEff inverse");
 
