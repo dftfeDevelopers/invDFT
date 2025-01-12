@@ -207,7 +207,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
 
   d_adjointTol = d_inverseDFTParams->inverseAdjointInitialTol;
   d_adjointMaxIterations = d_inverseDFTParams->inverseAdjointMaxIterations;
-  d_maxChebyPasses = 100; // This is hard coded
+  d_maxChebyPasses = d_inverseDFTParams->maxChebPasses; // This is hard coded
   d_fractionalOccupancyTol = d_inverseDFTParams->inverseFractionOccTol;
 
   d_degeneracyTol = d_inverseDFTParams->inverseDegeneracyTol;
@@ -723,6 +723,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   std::vector<double> errorInVxc(d_numSpins, 0.0);
   std::vector<double> l1ErrorInDensity(d_numSpins, 0.0);
 
+  double intRhoVEff =0.0;
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
     d_computingTimerStandard.enter_subsection("Create Force Vector");
 #if defined(DFTFE_WITH_DEVICE)
@@ -802,6 +803,11 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
             d_weightQuadDataHost[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
             d_parentCellJxW[iCell * numQuadraturePointsPerCellParent + iQuad];
+         
+	  intRhoVEff += d_potKSQuadData[iSpin]
+            .data()[iCell * numQuadraturePointsPerCellParent + iQuad]*
+            rhoValues[iSpin].data()[iCell * numQuadraturePointsPerCellParent + iQuad]
+            * d_parentCellJxW.data()[iCell * numQuadraturePointsPerCellParent + iQuad];
       }
     }
 
@@ -1172,9 +1178,12 @@ MPI_Allreduce(MPI_IN_PLACE, &lossUnWeighted[0], d_numSpins, MPI_DOUBLE, MPI_SUM,
 MPI_Allreduce(MPI_IN_PLACE, &l1ErrorInDensity[0], d_numSpins, MPI_DOUBLE,
               MPI_SUM, d_mpi_comm_domain);
 
+MPI_Allreduce(MPI_IN_PLACE, &intRhoVEff, 1, MPI_DOUBLE,
+              MPI_SUM, d_mpi_comm_domain);
 for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
   pcout << " iter = " << d_getForceCounter
         << " loss unweighted = " << lossUnWeighted[iSpin] << "\n";
+  pcout << " intRhoVEff = "<<intRhoVEff << "\n";
   pcout << " iter = " << d_getForceCounter
         << " l1 error = " << l1ErrorInDensity[iSpin] << "\n";
   pcout << " iter = " << d_getForceCounter
@@ -1243,6 +1252,9 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
   pcout << " Chebyshev filtering is solved to " << d_tolForChebFiltering
         << " tolerance \n";
 
+    d_potKSQuadData.resize(d_numSpins, dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+            d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
+
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
     d_computingTimerStandard.enter_subsection(
         "interpolate child data to parent quad");
@@ -1252,18 +1264,12 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
         d_resizeMemSpaceVecDuringInterpolation);
     d_computingTimerStandard.leave_subsection(
         "interpolate child data to parent quad");
-    std::vector<
-        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-    potKSQuadData(
-        d_numSpins,
-        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-            d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
 
     for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent;
          ++iCell) {
       for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
            ++iQuad) {
-        potKSQuadData[iSpin]
+        d_potKSQuadData[iSpin]
             .data()[iCell * numQuadraturePointsPerCellParent + iQuad] =
             d_potBaseQuadDataHost[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] +
@@ -1272,11 +1278,12 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
             d_inverseDFTParams->factorForLDAVxc *
                 (*(d_vxcLDAQuadDataPtr))
                     [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad];
+         
       }
     }
 
     d_computingTimerStandard.enter_subsection("setVEff inverse");
-    d_kohnShamClass->setVEff(potKSQuadData, iSpin);
+    d_kohnShamClass->setVEff(d_potKSQuadData, iSpin);
     d_computingTimerStandard.leave_subsection("setVEff inverse");
 
     d_computingTimerStandard.enter_subsection("computeHamiltonianMatrix");

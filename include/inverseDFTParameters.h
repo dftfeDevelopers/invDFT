@@ -65,6 +65,7 @@ public:
   double VxcInnerMeshSize;
   double inverseAdjointInitialTol;
   unsigned int inverseAdjointMaxIterations;
+  unsigned int maxChebPasses;
   double inverseAlpha1ForWeights;
   double inverseAlpha2ForWeights;
   double inverseTauForSmoothening;

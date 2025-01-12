@@ -111,7 +111,7 @@ TARGET_LINK_LIBRARIES(${TARGET_LIB} PUBLIC ${MPI_LIBRARIES})
 
 #-----------------------------Link DFTFE--------------------
 FIND_LIBRARY(DFTFE_LIBRARY
-        NAMES dftfe
+	NAMES dftfe dftfeReal
         HINTS ${DFTFE_INSTALL_PATH}/build/release/real/
         NO_DEFAULT_PATH
 )

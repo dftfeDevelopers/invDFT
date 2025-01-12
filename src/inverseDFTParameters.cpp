@@ -185,6 +185,8 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       "is solved. This tol is adaptively reduced as the "
                       "iterations proceed based on the loss.");
 
+    prm.declare_entry("MAX CHEBYSHEV PASSES","100",dealii::Patterns::Integer(10, 10000),
+		    "[Standard] The maximum number of chebyshev passes allowed in each inverse iteration ");
     prm.declare_entry("MAX ITERATIONS FOR ADJOINT PROBLEM", "5000",
                       dealii::Patterns::Integer(10, 10000),
                       "[Standard] The maximum number of iterations allowed in "
@@ -346,6 +348,7 @@ inverseDFTParameters::inverseDFTParameters() {
   adaptiveFactorForAdjoint = 1000.0;
   adaptiveFactorForChebFiltering = 100.0;
   initialTolForChebFiltering = 1e-6;
+  maxChebPasses = 100;
   rhoTolForConstraints = 1e-6;
   VxcInnerDomain = 6.0;
   VxcInnerMeshSize = 0.0;
@@ -434,6 +437,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     adaptiveFactorForAdjoint = prm.get_double("ADAPTIVE FACTOR FOR ADJOINT");
     adaptiveFactorForChebFiltering =
         prm.get_double("ADAPTIVE FACTOR FOR CHEBYSHEV FILTERING");
+    maxChebPasses = prm.get_integer("MAX CHEBYSHEV PASSES");
     inverseAdjointMaxIterations =
         prm.get_integer("MAX ITERATIONS FOR ADJOINT PROBLEM");
     inverseAdjointInitialTol =
