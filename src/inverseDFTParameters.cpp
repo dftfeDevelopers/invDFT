@@ -104,11 +104,11 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("TOL FOR BFGS LINE SEARCH", "1e-6",
                       dealii::Patterns::Double(0.0),
                       "[Standard] tol for the BFGS solver line search");
- 
+
     prm.declare_entry(
-      "BFGS SOLVER TYPE", "CP",
-      dealii::Patterns::Selection("CP|SECANT_FORCE_NORM|SECANT_LOSS"),
-      "[Standard] The BFGS algorithm used to converge to the exact Vxc.");
+        "BFGS SOLVER TYPE", "CP",
+        dealii::Patterns::Selection("CP|SECANT_FORCE_NORM|SECANT_LOSS"),
+        "[Standard] The BFGS algorithm used to converge to the exact Vxc.");
 
     prm.declare_entry("BFGS HISTORY", "100", dealii::Patterns::Integer(1, 1000),
                       "[Standard] Number of times line search is performed "
@@ -190,8 +190,10 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       "is solved. This tol is adaptively reduced as the "
                       "iterations proceed based on the loss.");
 
-    prm.declare_entry("MAX CHEBYSHEV PASSES","100",dealii::Patterns::Integer(10, 10000),
-		    "[Standard] The maximum number of chebyshev passes allowed in each inverse iteration ");
+    prm.declare_entry("MAX CHEBYSHEV PASSES", "100",
+                      dealii::Patterns::Integer(10, 10000),
+                      "[Standard] The maximum number of chebyshev passes "
+                      "allowed in each inverse iteration ");
     prm.declare_entry("MAX ITERATIONS FOR ADJOINT PROBLEM", "5000",
                       dealii::Patterns::Integer(10, 10000),
                       "[Standard] The maximum number of iterations allowed in "
@@ -239,17 +241,17 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       dealii::Patterns::Double(0.0),
                       "[STANDARD] tol for checking fractional occupancy");
 
-    prm.declare_entry("USE LB94_X IN INITIAL GUESS","true",dealii::Patterns::Bool(),
-		    "[Standard] Flag to determine if LB 94_X is used in initial guess. If set to false, then LDA_X is used.");
-
-     prm.declare_entry("READ FE DENSITY DATA", "false",
+    prm.declare_entry("USE LB94_X IN INITIAL GUESS", "true",
                       dealii::Patterns::Bool(),
-                      "[Standard] Flag to determine if the FE density is read from a file");
+                      "[Standard] Flag to determine if LB 94_X is used in "
+                      "initial guess. If set to false, then LDA_X is used.");
 
+    prm.declare_entry(
+        "READ FE DENSITY DATA", "false", dealii::Patterns::Bool(),
+        "[Standard] Flag to determine if the FE density is read from a file");
 
-     prm.declare_entry(
-        "FE DENSITY FILENAME", ".",
-        dealii::Patterns::Anything(),
+    prm.declare_entry(
+        "FE DENSITY FILENAME", ".", dealii::Patterns::Anything(),
         "[Standard] File name containing the spin polarised FE GS density");
     prm.declare_entry("USE LB94_X IN INITIAL GUESS", "true",
                       dealii::Patterns::Bool(),
@@ -427,8 +429,8 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
         prm.get("POSTFIX TO THE FILENAME FOR WRITING VXC DATA");
     writeVxcFrequency = prm.get_integer("FREQUENCY FOR WRITING VXC");
 
-     readFEDensity = prm.get_bool("READ FE DENSITY DATA");
-     fileNameReadDensity = prm.get("FE DENSITY FILENAME");
+    readFEDensity = prm.get_bool("READ FE DENSITY DATA");
+    fileNameReadDensity = prm.get("FE DENSITY FILENAME");
     factorForLDAVxc = prm.get_double("FACTOR FOR LDA VXC");
     netCharge = prm.get_integer("NET CHARGE");
     useDeltaRhoCorrection = prm.get_bool("USE DELTA RHO CORRECTION");

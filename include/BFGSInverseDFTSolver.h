@@ -46,17 +46,17 @@ public:
       InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
           &iDFTSolverFunction);
 
-    void fnormLoss(const std::vector<dftfe::distributedCPUVec<double>> &x,
+  void fnormLoss(const std::vector<dftfe::distributedCPUVec<double>> &x,
                  const std::vector<dftfe::distributedCPUVec<double>> &p,
                  const std::vector<double> &alpha, std::vector<double> &fnorms,
                  InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
-                 &iDFTSolverFunction);
+                     &iDFTSolverFunction);
 
-    void fnormGrad(const std::vector<dftfe::distributedCPUVec<double>> &x,
+  void fnormGrad(const std::vector<dftfe::distributedCPUVec<double>> &x,
                  const std::vector<dftfe::distributedCPUVec<double>> &p,
                  const std::vector<double> &alpha, std::vector<double> &fnorms,
                  InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>
-                 &iDFTSolverFunction);
+                     &iDFTSolverFunction);
 
   void fnormCP(const std::vector<dftfe::distributedCPUVec<double>> &x,
                const std::vector<dftfe::distributedCPUVec<double>> &p,

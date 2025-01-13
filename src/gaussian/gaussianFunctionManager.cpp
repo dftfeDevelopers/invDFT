@@ -1151,7 +1151,7 @@ gaussianFunctionManager::gaussianFunctionManager(
   //   pcout << " i = " << iBasis << " cutoff = " << d_basisCutoff[iBasis] <<
   //   "\n";
   //   }
- 
+
 } // namespace invDFT
 
 //

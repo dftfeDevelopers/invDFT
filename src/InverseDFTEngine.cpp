@@ -512,8 +512,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     );
 
     if (d_numSpins == 1) {
-        std::vector<double> qpointCoord(3, 0.0);
-        std::vector<double> gradVal(3, 0.0);
+      std::vector<double> qpointCoord(3, 0.0);
+      std::vector<double> gradVal(3, 0.0);
 
       d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
                                   numQuadraturePointsPerCellParent);
@@ -526,16 +526,16 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
           unsigned int qPointId =
               (iCell * numQuadraturePointsPerCellParent) + q_point;
           unsigned int qPointCoordIndex = qPointId * 3;
-          
-                  qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex +
-             0]; qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
-                  qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex +
-             2];
 
-                  gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
-             gradVal);
-  d_sigmaGradRhoTarget[qPointId] = 4.0*( gradVal[0]*gradVal[0] + gradVal[1]*gradVal[1] + gradVal[2]*gradVal[2] );        
-		  /*
+          qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
+          qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
+          qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
+
+          gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0, gradVal);
+          d_sigmaGradRhoTarget[qPointId] =
+              4.0 * (gradVal[0] * gradVal[0] + gradVal[1] * gradVal[1] +
+                     gradVal[2] * gradVal[2]);
+          /*
           d_sigmaGradRhoTarget[qPointId] =
               gradRhoValues[0].data()[qPointCoordIndex + 0] *
                   gradRhoValues[0].data()[qPointCoordIndex + 0] +
@@ -651,11 +651,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                                       rhoGaussianDFT[iSpin].data());
   }
 
-if ( d_inverseDFTParams.readFEDensity)
-{
-	readDensityDataFromFile(rhoValuesFeSpin,
-			  d_quadCoordinatesParent);
-}
+  if (d_inverseDFTParams.readFEDensity) {
+    readDensityDataFromFile(rhoValuesFeSpin, d_quadCoordinatesParent);
+  }
 
   d_rhoTarget.resize(
       d_numSpins,
@@ -822,28 +820,27 @@ if ( d_inverseDFTParams.readFEDensity)
 
   pcout << " Norm of rhoDiffVec after distribute = " << rhoDiffVec.l2_norm()
         << "\n";
- 
-	DataOutBase::VtkFlags flags;
-    flags.write_higher_order_cells = true;
 
-     dealii::DataOut<3> data_out_rho;
+  DataOutBase::VtkFlags flags;
+  flags.write_higher_order_cells = true;
 
-     data_out_rho.set_flags(flags);
-     data_out_rho.attach_dof_handler(*dofHandlerParent);
+  dealii::DataOut<3> data_out_rho;
 
-     std::string outputVecName1 = "rho Gaussian primary";
-     std::string outputVecName2 = "rho Gaussian secondary";
-     std::string outputVecName3 = "rho fe lda";
-     std::string outputVecName4 = "rho diff";
-     data_out_rho.add_data_vector(rhoGPVec,outputVecName1);
-     data_out_rho.add_data_vector(rhoGSVec,outputVecName2);
-     data_out_rho.add_data_vector(rhoFLVec,outputVecName3);
-     data_out_rho.add_data_vector(rhoDiffVec,outputVecName4);
+  data_out_rho.set_flags(flags);
+  data_out_rho.attach_dof_handler(*dofHandlerParent);
 
-     data_out_rho.build_patches(dealii::MappingQ1<3, 3>(), FEOrder );
-     data_out_rho.write_vtu_with_pvtu_record("./", "inputRhoData",
-     0,d_mpiComm_domain,2, 4);
-  
+  std::string outputVecName1 = "rho Gaussian primary";
+  std::string outputVecName2 = "rho Gaussian secondary";
+  std::string outputVecName3 = "rho fe lda";
+  std::string outputVecName4 = "rho diff";
+  data_out_rho.add_data_vector(rhoGPVec, outputVecName1);
+  data_out_rho.add_data_vector(rhoGSVec, outputVecName2);
+  data_out_rho.add_data_vector(rhoFLVec, outputVecName3);
+  data_out_rho.add_data_vector(rhoDiffVec, outputVecName4);
+
+  data_out_rho.build_patches(dealii::MappingQ1<3, 3>(), FEOrder);
+  data_out_rho.write_vtu_with_pvtu_record("./", "inputRhoData", 0,
+                                          d_mpiComm_domain, 2, 4);
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -2436,14 +2433,13 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::setPotBase() {
   setPotBasePoissonNuclear();
 }
 
-
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     readDensityDataFromFile(
-        std::vector<
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>> &densityParentQuad,
-      std::vector<double> & quadCoord) {
+        std::vector<dftfe::utils::MemoryStorage<
+            double, dftfe::utils::MemorySpace::HOST>> &densityParentQuad,
+        std::vector<double> &quadCoord) {
 
   densityParentQuad.resize(d_numSpins);
 
@@ -2453,7 +2449,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       quadratureRuleParent.size();
   unsigned int totalLocallyOwnedCellsParent =
       d_dftMatrixFreeData->n_physical_cells();
-  densityParentQuad.resize(totalLocallyOwnedCellsParent*numQuadraturePointsPerCellParent);
+  densityParentQuad.resize(totalLocallyOwnedCellsParent *
+                           numQuadraturePointsPerCellParent);
 
   const std::string filename = d_inverseDFTParams.fileNameReadDensity;
   std::ifstream densityInputFile(filename);
@@ -2469,29 +2466,28 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   const unsigned int numTotalQuadraturePointsParent =
       totalLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
 
-         std::vector<unsigned int> numberOfPointsInEachProc;
-        numberOfPointsInEachProc.resize(n_mpi_processes);
-        std::fill(numberOfPointsInEachProc.begin(),numberOfPointsInEachProc.end(),0);
+  std::vector<unsigned int> numberOfPointsInEachProc;
+  numberOfPointsInEachProc.resize(n_mpi_processes);
+  std::fill(numberOfPointsInEachProc.begin(), numberOfPointsInEachProc.end(),
+            0);
 
-        numberOfPointsInEachProc[this_mpi_process] = numTotalQuadraturePointsParent;
+  numberOfPointsInEachProc[this_mpi_process] = numTotalQuadraturePointsParent;
 
+  MPI_Allreduce(MPI_IN_PLACE, &numberOfPointsInEachProc[0], n_mpi_processes,
+                dftfe::dataTypes::mpi_type_id(&numberOfPointsInEachProc[0]),
+                MPI_SUM, d_mpiComm_domain);
 
-        MPI_Allreduce(
-          MPI_IN_PLACE, &numberOfPointsInEachProc[0], n_mpi_processes, dftfe::dataTypes::mpi_type_id(
-                        &numberOfPointsInEachProc[0]) , MPI_SUM, d_mpiComm_domain);
+  unsigned int quadIdStartIndex = 0;
 
-        unsigned int quadIdStartIndex = 0;
+  for (unsigned int iProc = 0; iProc < this_mpi_process; iProc++) {
+    quadIdStartIndex += numberOfPointsInEachProc[iProc];
+  }
 
-        for( unsigned int iProc = 0; iProc < this_mpi_process; iProc++)
-        {
-                quadIdStartIndex += numberOfPointsInEachProc[iProc];
-        }
-
-	unsigned int totalQuadPtsAcrossAllProc = 0;// TODO too small for unsigned int ??
-	for( unsigned int iProc = 0; iProc < n_mpi_processes; iProc++)
-        {
-                totalQuadPtsAcrossAllProc += numberOfPointsInEachProc[iProc];
-        }
+  unsigned int totalQuadPtsAcrossAllProc =
+      0; // TODO too small for unsigned int ??
+  for (unsigned int iProc = 0; iProc < n_mpi_processes; iProc++) {
+    totalQuadPtsAcrossAllProc += numberOfPointsInEachProc[iProc];
+  }
 
   const dealii::DoFHandler<3> *dofHandlerParent =
       &d_dftMatrixFreeData->get_dof_handler(d_dftDensityDoFHandlerIndex);
@@ -2499,42 +2495,46 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       dofHandlerParent->get_fe(), quadratureRuleParent,
       dealii::update_JxW_values | dealii::update_quadrature_points);
 
-		      for(unsigned int q_point = 0; q_point <totalQuadPtsAcrossAllProc*numQuadraturePointsPerCellParent; q_point++)
-		      {
-			      densityInputFile >> nodalValue;
-			      densityInputFile >> xcoordValue;
-			      densityInputFile >> ycoordValue;
-			      densityInputFile >> zcoordValue;
-			      densityInputFile >> jxwValues;
-			      densityInputFile >> fieldValue0;
-			      densityInputFile >> fieldValue1;
+  for (unsigned int q_point = 0;
+       q_point < totalQuadPtsAcrossAllProc * numQuadraturePointsPerCellParent;
+       q_point++)
+  {
+    densityInputFile >> nodalValue;
+    densityInputFile >> xcoordValue;
+    densityInputFile >> ycoordValue;
+    densityInputFile >> zcoordValue;
+    densityInputFile >> jxwValues;
+    densityInputFile >> fieldValue0;
+    densityInputFile >> fieldValue1;
 
-			      if ((q_point >= quadIdStartIndex) && ( q_point < quadIdStartIndex + numTotalQuadraturePointsParent))
-			      {
-				      double distBetweenQuad = 0.0;
-      distBetweenQuad += (xcoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 0]) *
-                          (xcoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 0]);
-      distBetweenQuad += (ycoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 1]) *
-                          (ycoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 1]);
-      distBetweenQuad += (zcoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 2]) *
-                          (zcoordValue - quadCoord[(q_point - quadIdStartIndex)*3 + 2]);
+    if ((q_point >= quadIdStartIndex) &&
+        (q_point < quadIdStartIndex + numTotalQuadraturePointsParent)) {
+      double distBetweenQuad = 0.0;
+      distBetweenQuad +=
+          (xcoordValue - quadCoord[(q_point - quadIdStartIndex) * 3 + 0]) *
+          (xcoordValue - quadCoord[(q_point - quadIdStartIndex) * 3 + 0]);
+      distBetweenQuad +=
+          (ycoordValue - quadCoord[(q_point - quadIdStartIndex) * 3 + 1]) *
+          (ycoordValue - quadCoord[(q_point - quadIdStartIndex) * 3 + 1]);
+      distBetweenQuad +=
+          (zcoordValue - quadCoord[(q_point - quadIdStartIndex) * 3 + 2]) *
+          (zcoordValue - quadCoord[(q_point - quadIdStartIndex) * 3 + 2]);
       distBetweenQuad = std::sqrt(distBetweenQuad);
       if (distBetweenQuad > 1e-3) {
         std::cout << " Errorr while reading data quad nodes do not match \n";
 
-	    AssertThrow( distBetweenQuad < 1e-3, ExcMessage(
-         "DFT-FE error:  quad coordinates of density are different "));
+        AssertThrow(
+            distBetweenQuad < 1e-3,
+            ExcMessage(
+                "DFT-FE error:  quad coordinates of density are different "));
       }
 
-				      densityParentQuad[0].data()[q_point - quadIdStartIndex] = 0.5*fieldValue0 ;
-			      }
-
-
-
-		      }
+      densityParentQuad[0].data()[q_point - quadIdStartIndex] =
+          0.5 * fieldValue0;
+    }
+  }
   densityInputFile.close();
 }
-
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -2584,27 +2584,191 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     }
     if (vxcChildNodes[0].in_local_range(nodalValue)) {
       double distBetweenNodes = 0.0;
-      distBetweenNodes += (xcoordValue - dof_coord_child[iNode][0]) *
-                          (xcoordValue - dof_coord_child[iNode][0]);
-      distBetweenNodes += (ycoordValue - dof_coord_child[iNode][1]) *
-                          (ycoordValue - dof_coord_child[iNode][1]);
-      distBetweenNodes += (zcoordValue - dof_coord_child[iNode][2]) *
-                          (zcoordValue - dof_coord_child[iNode][2]);
+      distBetweenNodes += (xcoordValue - dof_coord_child[nodalValue][0]) *
+                          (xcoordValue - dof_coord_child[nodalValue][0]);
+      distBetweenNodes += (ycoordValue - dof_coord_child[nodalValue][1]) *
+                          (ycoordValue - dof_coord_child[nodalValue][1]);
+      distBetweenNodes += (zcoordValue - dof_coord_child[nodalValue][2]) *
+                          (zcoordValue - dof_coord_child[nodalValue][2]);
       distBetweenNodes = std::sqrt(distBetweenNodes);
       if (distBetweenNodes > 1e-3) {
         std::cout << " Errorr while reading data global nodes do not match \n";
 
-	 AssertThrow( distBetweenNodes  < 1e-3, ExcMessage(
-         "DFT-FE error: Vxc nodal coordinates of density are different "));
+        AssertThrow(distBetweenNodes < 1e-3,
+                    ExcMessage("DFT-FE error: Vxc nodal coordinates of density "
+                               "are different "));
       }
 
-      vxcChildNodes[0](iNode) = fieldValue0;
+      vxcChildNodes[0](nodalValue) = fieldValue0;
       if (d_numSpins == 2) {
-        vxcChildNodes[1](iNode) = fieldValue1;
+        vxcChildNodes[1](nodalValue) = fieldValue1;
       }
     }
   }
   vxcInputFile.close();
+}
+
+template <unsigned int FEOrder, unsigned int FEOrderElectro,
+          dftfe::utils::MemorySpace memorySpace>
+void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
+    readVxcDataFromFileWithSearch(
+        std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes) {
+  vxcChildNodes.resize(d_numSpins);
+  dftfe::vectorTools::createDealiiVector<double>(
+      d_matrixFreeDataVxc.get_vector_partitioner(d_dofHandlerVxcIndex), 1,
+      vxcChildNodes[0]);
+  vxcChildNodes[0] = 0.0;
+
+  if (d_numSpins == 2) {
+    vxcChildNodes[1].reinit(vxcChildNodes[0]);
+  }
+
+  std::map<dealii::types::global_dof_index, dealii::Point<3, double>>
+      dof_coord_child;
+  dealii::DoFTools::map_dofs_to_support_points<3, 3>(
+      dealii::MappingQ1<3, 3>(), d_dofHandlerTriaVxc, dof_coord_child);
+  dealii::types::global_dof_index numberDofsChild =
+      d_dofHandlerTriaVxc.n_dofs();
+
+  // Create bounding box and RTree obj
+
+  std::vector<std::vector<double>> coordPointList;
+  std::vector<dftfe::global_size_type> coordIndex;
+  std::vector<double> boundingBox_ll, boundingBox_ur;
+  std::vector<bool> coordInterpolated;
+  boundingBox_ll.resize(3);
+  boundingBox_ll[0] = 1e6;
+  boundingBox_ll[1] = 1e6;
+  boundingBox_ll[2] = 1e6;
+
+  boundingBox_ur[0] = -1e6;
+  boundingBox_ur[1] = -1e6;
+  boundingBox_ur[2] = -1e6;
+
+  for (dealii::types::global_dof_index iNode = 0; iNode < numberDofsChild;
+       iNode++) {
+    if (vxcChildNodes[0].in_local_range(iNode)) {
+      if (boundingBox_ur[0] < dof_coord_child[iNode][0])
+        boundingBox_ur[0] = dof_coord_child[iNode][0];
+      if (boundingBox_ur[1] < dof_coord_child[iNode][1])
+        boundingBox_ur[1] = dof_coord_child[iNode][1];
+      if (boundingBox_ur[2] < dof_coord_child[iNode][2])
+        boundingBox_ur[2] = dof_coord_child[iNode][2];
+
+      if (boundingBox_ll[0] > dof_coord_child[iNode][0])
+        boundingBox_ll[0] = dof_coord_child[iNode][0];
+      if (boundingBox_ll[1] > dof_coord_child[iNode][1])
+        boundingBox_ll[1] = dof_coord_child[iNode][1];
+      if (boundingBox_ll[2] > dof_coord_child[iNode][2])
+        boundingBox_ll[2] = dof_coord_child[iNode][2];
+
+      std::vector<double> coordLoc;
+      coordLoc.resize(3);
+      coordLoc[0] = dof_coord_child[iNode][0];
+      coordLoc[1] = dof_coord_child[iNode][1];
+      coordLoc[2] = dof_coord_child[iNode][2];
+
+      coordPointList.push_back(coordLoc);
+      coordIndex.push_back(iNode);
+      coordInterpolated.push_back(false);
+    }
+  }
+
+  RTreePoint<3, 8> rTreePoint(coordPointList);
+
+  std::vector<coordinateValues> inputDataFromFile;
+  inputDataFromFile.resize(numberDofsChild);
+
+  const std::string filename = d_inverseDFTParams.vxcDataFolder + "/" +
+                               d_inverseDFTParams.fileNameReadVxcPostFix;
+  std::ifstream vxcInputFile(filename);
+
+  double nodalValue = 0.0;
+  double xcoordValue = 0.0;
+  double ycoordValue = 0.0;
+  double zcoordValue = 0.0;
+  double fieldValue0 = 0.0;
+  double fieldValue1 = 0.0;
+
+  for (dealii::types::global_dof_index iNode = 0; iNode < numberDofsChild;
+       iNode++) {
+    vxcInputFile >> nodalValue;
+    vxcInputFile >> xcoordValue;
+    vxcInputFile >> ycoordValue;
+    vxcInputFile >> zcoordValue;
+    vxcInputFile >> fieldValue0;
+    if (d_numSpins == 2) {
+      vxcInputFile >> fieldValue1;
+    }
+
+    bool isInputPointInsideBoundingBox = true;
+
+    if (xcoordValue < boundingBox_ll[0])
+      isInputPointInsideBoundingBox = false;
+    if (ycoordValue < boundingBox_ll[1])
+      isInputPointInsideBoundingBox = false;
+    if (zcoordValue < boundingBox_ll[2])
+      isInputPointInsideBoundingBox = false;
+
+    if (xcoordValue > boundingBox_ur[0])
+      isInputPointInsideBoundingBox = false;
+    if (ycoordValue > boundingBox_ur[1])
+      isInputPointInsideBoundingBox = false;
+    if (zcoordValue > boundingBox_ur[2])
+      isInputPointInsideBoundingBox = false;
+
+    if (isInputPointInsideBoundingBox) {
+      // find index of point closet to input point
+
+      std::vector<double> inputPointCoord;
+      inputPointCoord.resize(3);
+      inputPointCoord[0] = xcoordValue;
+      inputPointCoord[1] = ycoordValue;
+      inputPointCoord[2] = zcoordValue;
+
+      std::vector<unsigned int> closestPointIndices =
+          rTreePoint.getPointIdsNearInputPoint(inputPointCoord, 1);
+      if (closestPointIndices.size() > 1) {
+        unsigned int closestLocalPointId = closestPointIndices[0];
+        double distBetweenNodes = 0.0;
+
+        unsigned int closestGlobalPointId =
+            coordIndex[closestLocalPointId] distBetweenNodes +=
+            (xcoordValue - dof_coord_child[closestGlobalPointId][0]) *
+            (xcoordValue - dof_coord_child[closestGlobalPointId][0]);
+        distBetweenNodes +=
+            (ycoordValue - dof_coord_child[closestGlobalPointId][1]) *
+            (ycoordValue - dof_coord_child[closestGlobalPointId][1]);
+        distBetweenNodes +=
+            (zcoordValue - dof_coord_child[closestGlobalPointId][2]) *
+            (zcoordValue - dof_coord_child[closestGlobalPointId][2]);
+
+        if (distBetweenNodes < 1e-3) {
+          AssertThrow(!coordInterpolated[closestLocalPointId],
+                      ExcMessage("invDFT error: Two input coordinates are "
+                                 "nearest to the same node "));
+
+          coordInterpolated[closestLocalPointId] = true;
+
+          vxcChildNodes[0](closestGlobalPointId) = fieldValue0;
+          if (d_numSpins == 2) {
+            vxcChildNodes[1](closestGlobalPointId) = fieldValue1;
+          }
+        }
+      }
+    }
+  }
+  vxcInputFile.close();
+
+  bool allPointsInterpolated = true;
+  for (unsigned int iNode = 0; iNode < coordInterpolated.size(); iNode++) {
+    if (coordInterpolated[iNode] == false)
+      allPointsInterpolated = false;
+  }
+
+  AssertThrow(allPointsInterpolated,
+              ExcMessage("invDFT error: All Vxc nodal points were not found in "
+                         "the input file "));
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -2889,7 +3053,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
         outputQuadData;
     d_meshVxctoPoints.interpolateSrcDataToTargetPoints(
         d_blasWrapperHost, vxcNodalParentMesh[0], 1, fullFlattenedMap,
-        outputQuadData,1,1,0, true);
+        outputQuadData, 1, 1, 0, true);
 
     const std::string filename = d_inverseDFTParams.fileNameWriteVxcPostProcess;
     std::vector<std::shared_ptr<dftfe::dftUtils::CompositeData>> data(0);
@@ -3240,35 +3404,26 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
 
   pcout << " vxc initial guess norm before solve = "
         << d_vxcInitialChildNodes[0].l2_norm() << "\n";
- 
- if (d_inverseDFTParams.BFGSSolverType == "CP")
- {
-	 BFGSInverseDFTSolverObj.solve(
-      inverseDFTSolverFunctionObj,
-      BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::LSType::CP);
- } 
- else if (d_inverseDFTParams.BFGSSolverType == "SECANT_LOSS")
- {
-	  BFGSInverseDFTSolverObj.solve(
-      inverseDFTSolverFunctionObj,
-      BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::LSType::SECANT_LOSS);
- }
- else if( d_inverseDFTParams.BFGSSolverType == "SECANT_FORCE_NORM")
- {
-	 BFGSInverseDFTSolverObj.solve(
-      inverseDFTSolverFunctionObj,
-      BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::LSType::SECANT_FORCE_NORM);
 
- }
- else
- {
-	 AssertThrow(false,
-                  dealii::ExcMessage(
-                      "InvDFT Error:BFGSSolverType parameter is invalid"));
+  if (d_inverseDFTParams.BFGSSolverType == "CP") {
+    BFGSInverseDFTSolverObj.solve(
+        inverseDFTSolverFunctionObj,
+        BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::LSType::CP);
+  } else if (d_inverseDFTParams.BFGSSolverType == "SECANT_LOSS") {
+    BFGSInverseDFTSolverObj.solve(
+        inverseDFTSolverFunctionObj,
+        BFGSInverseDFTSolver<FEOrder, FEOrderElectro,
+                             memorySpace>::LSType::SECANT_LOSS);
+  } else if (d_inverseDFTParams.BFGSSolverType == "SECANT_FORCE_NORM") {
+    BFGSInverseDFTSolverObj.solve(
+        inverseDFTSolverFunctionObj,
+        BFGSInverseDFTSolver<FEOrder, FEOrderElectro,
+                             memorySpace>::LSType::SECANT_FORCE_NORM);
 
-
- }
-
+  } else {
+    AssertThrow(false, dealii::ExcMessage(
+                           "InvDFT Error:BFGSSolverType parameter is invalid"));
+  }
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
