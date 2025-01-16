@@ -27,6 +27,8 @@
 #include <densityCalculator.h>
 #include <gaussianFunctionManager.h>
 #include <xc.h>
+#include <RTreePoint.h>
+
 namespace invDFT {
 namespace {
 double realPart(const double x) { return x; }
@@ -2558,8 +2560,6 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   dealii::types::global_dof_index numberDofsChild =
       d_dofHandlerTriaVxc.n_dofs();
 
-  std::vector<coordinateValues> inputDataFromFile;
-  inputDataFromFile.resize(numberDofsChild);
 
   const std::string filename = d_inverseDFTParams.vxcDataFolder + "/" +
                                d_inverseDFTParams.fileNameReadVxcPostFix;
@@ -2584,12 +2584,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     }
     if (vxcChildNodes[0].in_local_range(nodalValue)) {
       double distBetweenNodes = 0.0;
-      distBetweenNodes += (xcoordValue - dof_coord_child[nodalValue][0]) *
-                          (xcoordValue - dof_coord_child[nodalValue][0]);
-      distBetweenNodes += (ycoordValue - dof_coord_child[nodalValue][1]) *
-                          (ycoordValue - dof_coord_child[nodalValue][1]);
-      distBetweenNodes += (zcoordValue - dof_coord_child[nodalValue][2]) *
-                          (zcoordValue - dof_coord_child[nodalValue][2]);
+      distBetweenNodes += (xcoordValue - dof_coord_child[iNode][0]) *
+                          (xcoordValue - dof_coord_child[iNode][0]);
+      distBetweenNodes += (ycoordValue - dof_coord_child[iNode][1]) *
+                          (ycoordValue - dof_coord_child[iNode][1]);
+      distBetweenNodes += (zcoordValue - dof_coord_child[iNode][2]) *
+                          (zcoordValue - dof_coord_child[iNode][2]);
       distBetweenNodes = std::sqrt(distBetweenNodes);
       if (distBetweenNodes > 1e-3) {
         std::cout << " Errorr while reading data global nodes do not match \n";
@@ -2599,9 +2599,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                                "are different "));
       }
 
-      vxcChildNodes[0](nodalValue) = fieldValue0;
+      vxcChildNodes[0](iNode) = fieldValue0;
       if (d_numSpins == 2) {
-        vxcChildNodes[1](nodalValue) = fieldValue1;
+        vxcChildNodes[1](iNode) = fieldValue1;
       }
     }
   }
@@ -2641,6 +2641,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   boundingBox_ll[1] = 1e6;
   boundingBox_ll[2] = 1e6;
 
+  boundingBox_ur.resize(3);
   boundingBox_ur[0] = -1e6;
   boundingBox_ur[1] = -1e6;
   boundingBox_ur[2] = -1e6;
@@ -2674,10 +2675,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     }
   }
 
-  RTreePoint<3, 8> rTreePoint(coordPointList);
+  dftfe::utils::RTreePoint<3, 8> rTreePoint(coordPointList);
 
-  std::vector<coordinateValues> inputDataFromFile;
-  inputDataFromFile.resize(numberDofsChild);
 
   const std::string filename = d_inverseDFTParams.vxcDataFolder + "/" +
                                d_inverseDFTParams.fileNameReadVxcPostFix;
@@ -2703,18 +2702,18 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
     bool isInputPointInsideBoundingBox = true;
 
-    if (xcoordValue < boundingBox_ll[0])
+    if (xcoordValue < boundingBox_ll[0]- 1e-2)
       isInputPointInsideBoundingBox = false;
-    if (ycoordValue < boundingBox_ll[1])
+    if (ycoordValue < boundingBox_ll[1]- 1e-2)
       isInputPointInsideBoundingBox = false;
-    if (zcoordValue < boundingBox_ll[2])
+    if (zcoordValue < boundingBox_ll[2]- 1e-2)
       isInputPointInsideBoundingBox = false;
 
-    if (xcoordValue > boundingBox_ur[0])
+    if (xcoordValue > boundingBox_ur[0] + 1e-2)
       isInputPointInsideBoundingBox = false;
-    if (ycoordValue > boundingBox_ur[1])
+    if (ycoordValue > boundingBox_ur[1]+ 1e-2)
       isInputPointInsideBoundingBox = false;
-    if (zcoordValue > boundingBox_ur[2])
+    if (zcoordValue > boundingBox_ur[2]+ 1e-2)
       isInputPointInsideBoundingBox = false;
 
     if (isInputPointInsideBoundingBox) {
@@ -2728,12 +2727,13 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
       std::vector<unsigned int> closestPointIndices =
           rTreePoint.getPointIdsNearInputPoint(inputPointCoord, 1);
-      if (closestPointIndices.size() > 1) {
+      if (closestPointIndices.size() >= 1) {
         unsigned int closestLocalPointId = closestPointIndices[0];
         double distBetweenNodes = 0.0;
 
         unsigned int closestGlobalPointId =
-            coordIndex[closestLocalPointId] distBetweenNodes +=
+            coordIndex[closestLocalPointId];
+       	distBetweenNodes +=
             (xcoordValue - dof_coord_child[closestGlobalPointId][0]) *
             (xcoordValue - dof_coord_child[closestGlobalPointId][0]);
         distBetweenNodes +=
@@ -2743,7 +2743,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             (zcoordValue - dof_coord_child[closestGlobalPointId][2]) *
             (zcoordValue - dof_coord_child[closestGlobalPointId][2]);
 
-        if (distBetweenNodes < 1e-3) {
+	distBetweenNodes = std::sqrt(distBetweenNodes);
+        if (distBetweenNodes < 1e-2) {
           AssertThrow(!coordInterpolated[closestLocalPointId],
                       ExcMessage("invDFT error: Two input coordinates are "
                                  "nearest to the same node "));
@@ -2784,8 +2785,17 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
   unsigned int locallyOwnedDofs = d_dofHandlerDFTClass->n_locally_owned_dofs();
 
   d_vxcInitialChildNodes.resize(d_numSpins);
+
+  MPI_Barrier(d_mpiComm_domain);
+  double readVxcStart = MPI_Wtime();
   readVxcDataFromFile(d_vxcInitialChildNodes);
 
+  //readVxcDataFromFileWithSearch(d_vxcInitialChildNodes);
+  
+  MPI_Barrier(d_mpiComm_domain);
+  double readVxcEnd = MPI_Wtime();
+
+  pcout<<" Time takne for reading data from file  = "<<readVxcEnd - readVxcStart<<"\n";
   d_targetPotValuesParentQuadData.resize(d_numSpins);
 
   unsigned int totalOwnedCellsPsi = d_dftMatrixFreeData->n_physical_cells();

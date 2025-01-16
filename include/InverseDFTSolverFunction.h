@@ -22,9 +22,9 @@
 #define DFTFE_INVERSEDFTSOLVERFUNCTION_H
 
 #include "inverseDFTParameters.h"
+#include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include <MultiVectorAdjointLinearSolverProblem.h>
 #include <MultiVectorMinResSolver.h>
-#include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include <constraintMatrixInfo.h>
 #include <dft.h>
 #include <headers.h>
