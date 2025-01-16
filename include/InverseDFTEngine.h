@@ -58,6 +58,11 @@ public:
           &densityParentQuad,
       std::vector<double> &quadCoord);
 
+    void readDensityDataFromFileWithSearch(
+            std::vector<dftfe::utils::MemoryStorage<
+                    double, dftfe::utils::MemorySpace::HOST>> &densityParentQuad,
+            std::vector<double> &quadCoord);
+
 private:
   //
   // TODO

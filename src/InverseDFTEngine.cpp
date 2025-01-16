@@ -654,7 +654,18 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   }
 
   if (d_inverseDFTParams.readFEDensity) {
+
+      MPI_Barrier(d_mpiComm_domain);
+      double readDensityStart = MPI_Wtime();
+
     readDensityDataFromFile(rhoValuesFeSpin, d_quadCoordinatesParent);
+
+     //readDensityDataFromFileWithSearch(rhoValuesFeSpin, d_quadCoordinatesParent);
+
+      MPI_Barrier(d_mpiComm_domain);
+      double readDensityEnd = MPI_Wtime();
+
+      pcout<<" Time taken for reading density data from file  = "<<readDensityEnd - readDensityStart<<"\n";
   }
 
   d_rhoTarget.resize(
@@ -2498,7 +2509,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       dealii::update_JxW_values | dealii::update_quadrature_points);
 
   for (unsigned int q_point = 0;
-       q_point < totalQuadPtsAcrossAllProc * numQuadraturePointsPerCellParent;
+       q_point < totalQuadPtsAcrossAllProc ;
        q_point++)
   {
     densityInputFile >> nodalValue;
@@ -2537,6 +2548,171 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   }
   densityInputFile.close();
 }
+
+    template <unsigned int FEOrder, unsigned int FEOrderElectro,
+            dftfe::utils::MemorySpace memorySpace>
+    void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
+    readDensityDataFromFileWithSearch(
+            std::vector<dftfe::utils::MemoryStorage<
+                    double, dftfe::utils::MemorySpace::HOST>> &densityParentQuad,
+            std::vector<double> &quadCoord) {
+
+        densityParentQuad.resize(d_numSpins);
+
+        const dealii::Quadrature<3> &quadratureRuleParent =
+                d_dftMatrixFreeData->get_quadrature(d_dftQuadIndex);
+        const unsigned int numQuadraturePointsPerCellParent =
+                quadratureRuleParent.size();
+        unsigned int totalLocallyOwnedCellsParent =
+                d_dftMatrixFreeData->n_physical_cells();
+        densityParentQuad.resize(totalLocallyOwnedCellsParent *
+                                 numQuadraturePointsPerCellParent);
+
+        const std::string filename = d_inverseDFTParams.fileNameReadDensity;
+        std::ifstream densityInputFile(filename);
+
+        double nodalValue = 0.0;
+        double xcoordValue = 0.0;
+        double ycoordValue = 0.0;
+        double zcoordValue = 0.0;
+        double jxwValues = 0.0;
+        double fieldValue0 = 0.0;
+        double fieldValue1 = 0.0;
+
+        std::vector<std::vector<double>> quadPointCoordList;
+        std::vector<double> boundingBox_ll, boundingBox_ur;
+        std::vector<bool> quadPointInterpolated;
+        boundingBox_ll.resize(3);
+        boundingBox_ll[0] = 1e6;
+        boundingBox_ll[1] = 1e6;
+        boundingBox_ll[2] = 1e6;
+
+        boundingBox_ur.resize(3);
+        boundingBox_ur[0] = -1e6;
+        boundingBox_ur[1] = -1e6;
+        boundingBox_ur[2] = -1e6;
+
+        const unsigned int numTotalQuadraturePointsParent =
+                totalLocallyOwnedCellsParent * numQuadraturePointsPerCellParent;
+
+        std::vector<dealii::types::global_dof_index> numberOfPointsInEachProc;
+        numberOfPointsInEachProc.resize(n_mpi_processes);
+        std::fill(numberOfPointsInEachProc.begin(), numberOfPointsInEachProc.end(),
+                  0);
+
+        numberOfPointsInEachProc[this_mpi_process] = numTotalQuadraturePointsParent;
+
+        MPI_Allreduce(MPI_IN_PLACE, &numberOfPointsInEachProc[0], n_mpi_processes,
+                      dftfe::dataTypes::mpi_type_id(&numberOfPointsInEachProc[0]),
+                      MPI_SUM, d_mpiComm_domain);
+
+        dealii::types::global_dof_index totalQuadPtsAcrossAllProc =
+                0; // TODO too small for unsigned int ??
+        for (unsigned int iProc = 0; iProc < n_mpi_processes; iProc++) {
+            totalQuadPtsAcrossAllProc += numberOfPointsInEachProc[iProc];
+        }
+
+
+        quadPointCoordList.resize(numTotalQuadraturePointsParent, std::vector<double>(3,0.0));
+
+        quadPointInterpolated.resize(numTotalQuadraturePointsParent);
+        for (unsigned int iQuad = 0 ; iQuad< numTotalQuadraturePointsParent; iQuad++)
+        {
+            quadPointCoordList[iQuad][0] = quadCoord[3*iQuad + 0];
+            quadPointCoordList[iQuad][1] = quadCoord[3*iQuad + 1];
+            quadPointCoordList[iQuad][2] = quadCoord[3*iQuad + 2];
+
+            quadPointInterpolated[iQuad] = false;
+        }
+
+        dftfe::utils::RTreePoint<3, 8> rTreePoint(quadPointCoordList);
+
+
+        const dealii::DoFHandler<3> *dofHandlerParent =
+                &d_dftMatrixFreeData->get_dof_handler(d_dftDensityDoFHandlerIndex);
+        dealii::FEValues<3> fe_valuesParent(
+                dofHandlerParent->get_fe(), quadratureRuleParent,
+                dealii::update_JxW_values | dealii::update_quadrature_points);
+
+        for (dealii::types::global_dof_index q_point = 0;
+             q_point < totalQuadPtsAcrossAllProc ;
+             q_point++)
+        {
+            densityInputFile >> nodalValue;
+            densityInputFile >> xcoordValue;
+            densityInputFile >> ycoordValue;
+            densityInputFile >> zcoordValue;
+            densityInputFile >> jxwValues;
+            densityInputFile >> fieldValue0;
+            densityInputFile >> fieldValue1;
+
+            bool isInputPointInsideBoundingBox = true;
+
+            if (xcoordValue < boundingBox_ll[0]- 1e-2)
+                isInputPointInsideBoundingBox = false;
+            if (ycoordValue < boundingBox_ll[1]- 1e-2)
+                isInputPointInsideBoundingBox = false;
+            if (zcoordValue < boundingBox_ll[2]- 1e-2)
+                isInputPointInsideBoundingBox = false;
+
+            if (xcoordValue > boundingBox_ur[0] + 1e-2)
+                isInputPointInsideBoundingBox = false;
+            if (ycoordValue > boundingBox_ur[1]+ 1e-2)
+                isInputPointInsideBoundingBox = false;
+            if (zcoordValue > boundingBox_ur[2]+ 1e-2)
+                isInputPointInsideBoundingBox = false;
+
+            if (isInputPointInsideBoundingBox) {
+                std::vector<double> inputPointCoord;
+                inputPointCoord.resize(3);
+                inputPointCoord[0] = xcoordValue;
+                inputPointCoord[1] = ycoordValue;
+                inputPointCoord[2] = zcoordValue;
+
+                std::vector<unsigned int> closestPointIndices =
+                        rTreePoint.getPointIdsNearInputPoint(inputPointCoord, 1);
+                if (closestPointIndices.size() >= 1) {
+                    unsigned int closestLocalPointId = closestPointIndices[0];
+                    double distBetweenNodes = 0.0;
+
+                    distBetweenNodes +=
+                            (xcoordValue - quadPointCoordList[closestLocalPointId][0]) *
+                            (xcoordValue - quadPointCoordList[closestLocalPointId][0]);
+                    distBetweenNodes +=
+                            (ycoordValue - quadPointCoordList[closestLocalPointId][1]) *
+                            (ycoordValue - quadPointCoordList[closestLocalPointId][1]);
+                    distBetweenNodes +=
+                            (zcoordValue - quadPointCoordList[closestLocalPointId][2]) *
+                            (zcoordValue - quadPointCoordList[closestLocalPointId][2]);
+
+                    distBetweenNodes = std::sqrt(distBetweenNodes);
+
+                    if (distBetweenNodes < 1e-2) {
+                        AssertThrow(!quadPointInterpolated[closestLocalPointId],
+                                    ExcMessage("invDFT error: Two input coordinates are "
+                                               "nearest to the same quad "));
+
+                        quadPointInterpolated[closestLocalPointId] = true;
+
+                        densityParentQuad[0].data()[closestLocalPointId] =
+                                0.5 * fieldValue0;
+                    }
+                }
+
+            }
+        }
+        densityInputFile.close();
+
+        bool allPointsInterpolated = true;
+        for (unsigned int iNode = 0; iNode < quadPointInterpolated.size(); iNode++) {
+            if (quadPointInterpolated[iNode] == false)
+                allPointsInterpolated = false;
+        }
+
+        AssertThrow(allPointsInterpolated,
+                    ExcMessage("invDFT error: All quad points were not found in "
+                               "the input file "));
+    }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -2788,9 +2964,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::readVxcInput() {
 
   MPI_Barrier(d_mpiComm_domain);
   double readVxcStart = MPI_Wtime();
-  readVxcDataFromFile(d_vxcInitialChildNodes);
+  //readVxcDataFromFile(d_vxcInitialChildNodes);
 
-  //readVxcDataFromFileWithSearch(d_vxcInitialChildNodes);
+  readVxcDataFromFileWithSearch(d_vxcInitialChildNodes);
   
   MPI_Barrier(d_mpiComm_domain);
   double readVxcEnd = MPI_Wtime();
