@@ -658,9 +658,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       MPI_Barrier(d_mpiComm_domain);
       double readDensityStart = MPI_Wtime();
 
-    readDensityDataFromFile(rhoValuesFeSpin, d_quadCoordinatesParent);
+    //readDensityDataFromFile(rhoValuesFeSpin, d_quadCoordinatesParent);
 
-     //readDensityDataFromFileWithSearch(rhoValuesFeSpin, d_quadCoordinatesParent);
+     readDensityDataFromFileWithSearch(rhoValuesFeSpin, d_quadCoordinatesParent);
 
       MPI_Barrier(d_mpiComm_domain);
       double readDensityEnd = MPI_Wtime();
@@ -854,6 +854,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   data_out_rho.build_patches(dealii::MappingQ1<3, 3>(), FEOrder);
   data_out_rho.write_vtu_with_pvtu_record("./", "inputRhoData", 0,
                                           d_mpiComm_domain, 2, 4);
+
 }
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
@@ -2623,7 +2624,22 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             quadPointCoordList[iQuad][2] = quadCoord[3*iQuad + 2];
 
             quadPointInterpolated[iQuad] = false;
-        }
+          
+	    if ( boundingBox_ll[0] > quadCoord[3*iQuad + 0])
+		    boundingBox_ll[0] = quadCoord[3*iQuad + 0];
+	    if ( boundingBox_ll[1] > quadCoord[3*iQuad + 1])
+                    boundingBox_ll[1] = quadCoord[3*iQuad + 1];
+	    if ( boundingBox_ll[2] > quadCoord[3*iQuad + 2])
+                    boundingBox_ll[2] = quadCoord[3*iQuad + 2];
+
+	    if( boundingBox_ur[0] < quadCoord[3*iQuad + 0])
+		    boundingBox_ur[0] = quadCoord[3*iQuad + 0];
+	    if( boundingBox_ur[1] < quadCoord[3*iQuad + 1])
+                    boundingBox_ur[1] = quadCoord[3*iQuad + 1];
+	    if( boundingBox_ur[2] < quadCoord[3*iQuad + 2])
+                    boundingBox_ur[2] = quadCoord[3*iQuad + 2];
+	
+	}
 
         dftfe::utils::RTreePoint<3, 8> rTreePoint(quadPointCoordList);
 
@@ -2648,18 +2664,18 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
             bool isInputPointInsideBoundingBox = true;
 
-            if (xcoordValue < boundingBox_ll[0]- 1e-2)
+            if (xcoordValue < boundingBox_ll[0]- 4e-3)
                 isInputPointInsideBoundingBox = false;
-            if (ycoordValue < boundingBox_ll[1]- 1e-2)
+            if (ycoordValue < boundingBox_ll[1]- 4e-3)
                 isInputPointInsideBoundingBox = false;
-            if (zcoordValue < boundingBox_ll[2]- 1e-2)
+            if (zcoordValue < boundingBox_ll[2]- 4e-3)
                 isInputPointInsideBoundingBox = false;
 
-            if (xcoordValue > boundingBox_ur[0] + 1e-2)
+            if (xcoordValue > boundingBox_ur[0] + 4e-3)
                 isInputPointInsideBoundingBox = false;
-            if (ycoordValue > boundingBox_ur[1]+ 1e-2)
+            if (ycoordValue > boundingBox_ur[1]+ 4e-3)
                 isInputPointInsideBoundingBox = false;
-            if (zcoordValue > boundingBox_ur[2]+ 1e-2)
+            if (zcoordValue > boundingBox_ur[2]+ 4e-3)
                 isInputPointInsideBoundingBox = false;
 
             if (isInputPointInsideBoundingBox) {
@@ -2687,7 +2703,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
                     distBetweenNodes = std::sqrt(distBetweenNodes);
 
-                    if (distBetweenNodes < 1e-2) {
+                    if (distBetweenNodes < 1e-3) {
                         AssertThrow(!quadPointInterpolated[closestLocalPointId],
                                     ExcMessage("invDFT error: Two input coordinates are "
                                                "nearest to the same quad "));
