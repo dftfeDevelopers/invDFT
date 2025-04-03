@@ -26,7 +26,7 @@ void declare_parameters(dealii::ParameterHandler &prm) {
   prm.declare_entry(
       "SOLVER MODE", "INVERSE",
       dealii::Patterns::Selection("INVERSE|POST_PROCESS|FUNCTIONAL_TEST"),
-      "[Standard] invDFT SOLVER MODE: If GS: performs inverse DFT calculation. "
+      "[Standard] invDFT SOLVER MODE: If INVERSE: performs inverse DFT calculation. "
       "If POST_PROCESS: interpolates the Vxc from an input file to a set of "
       "points. If FUNCTIONAL_TEST: run a functional test on the adjoint solve");
 
@@ -42,7 +42,7 @@ void declare_parameters(dealii::ParameterHandler &prm) {
 
     prm.declare_entry("READS POINTS FROM FILE", "false",
                       dealii::Patterns::Bool(),
-                      "[Standard] if the the points to which the Vxc has to be "
+                      "[Standard] if the points to which the Vxc has to be "
                       "interpolated should be read from file");
 
     prm.declare_entry(
@@ -99,7 +99,7 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("Solve Additional States During Cheb Filtering", "0",
                       dealii::Patterns::Integer(0, 20),
                       "[Standard] Additional states on top of HOMO level that "
-                      "is soled to Cheb tol during chebyshev filtering");
+                      "is solved to Cheb tol during chebyshev filtering");
 
     prm.declare_entry("TOL FOR BFGS LINE SEARCH", "1e-6",
                       dealii::Patterns::Double(0.0),
@@ -209,7 +209,7 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       dealii::Patterns::Double(0.0),
                       "[Standard] The parameter used for weight assigned to "
                       "loss. The weight at a point is assigned based on  "
-                      "\frac{1}{\rho^{\alpha} + \tau} + \rho^{\alpha2}");
+                      "\frac{1}{\rho^{\alpha1} + \tau} + \rho^{\alpha2}");
 
     prm.declare_entry(
         "FACTOR FOR LDA VXC", "0.0", dealii::Patterns::Double(0.0),
@@ -301,7 +301,7 @@ void declare_parameters(dealii::ParameterHandler &prm) {
         dealii::Patterns::Anything(),
         "[Standard] File name containing the density matrix obtained from the "
         "gaussian code. This density is used for computing the delta rho "
-        "correction. In case of spin un polarised, pthis file is not used ");
+        "correction. In case of spin un polarised, this file is not used ");
 
     prm.declare_entry(
         "GAUSSIAN ATOMIC COORD FILE", ".", dealii::Patterns::Anything(),

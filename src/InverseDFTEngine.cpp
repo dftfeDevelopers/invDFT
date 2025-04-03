@@ -472,6 +472,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                                           rhoGaussianPrimary[iSpin].data());
   }
 
+  
   if (d_inverseDFTParams.useLb94InInitialguess) {
     const dftfe::utils::MemoryStorage<dftfe::dataTypes::number, memorySpace>
         &eigenVectorsMemSpace = d_dftBaseClass->getEigenVectors();
@@ -481,7 +482,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     const double fermiEnergy = d_dftBaseClass->getFermiEnergy();
 
     auto dftBasisOp = d_dftBaseClass->getBasisOperationsMemSpace();
-
+/*
     std::vector<
         dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
         rhoValues, gradRhoValues;
@@ -497,10 +498,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             totalLocallyOwnedCellsParent));
 
     dftfe::computeRhoFromPSI<dftfe::dataTypes::number>(
-        &eigenVectorsMemSpace, &eigenVectorsMemSpace, d_numEigenValues,
-        d_numEigenValues, eigenValuesHost, fermiEnergy,
-        fermiEnergy, // fermi energy up
-        fermiEnergy, // fermi energy down
+        &eigenVectorsMemSpace, d_numEigenValues,fractionalOcc,
         dftBasisOp,
         // d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
         d_blasWrapperMemSpace, d_dftBaseClass->getDensityDofHandlerIndex(),
@@ -512,7 +510,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         d_mpiComm_interpool, d_mpiComm_bandgroup, d_dftParams,
         false // spectrum splitting
     );
-
+*/
     if (d_numSpins == 1) {
       std::vector<double> qpointCoord(3, 0.0);
       std::vector<double> gradVal(3, 0.0);

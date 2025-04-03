@@ -606,8 +606,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
         double deriFermi = dftfe::dftUtils::getPartialOccupancyDer(
             eigenValuesHost[iKPoint][d_numEigenValues * iSpin + iWave],
             fermiEnergy, dftfe::C_kb, d_dftParams->TVal);
-        pcout << " derivative of iSpin = " << iSpin << " kPoint = " << iKPoint
-              << " iWave = " << iWave << " : " << deriFermi << "\n";
+        //pcout << " derivative of iSpin = " << iSpin << " kPoint = " << iKPoint
+        //      << " iWave = " << iWave << " : " << deriFermi << "\n";
       }
     }
 #if defined(DFTFE_WITH_DEVICE)
@@ -654,11 +654,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   d_computingTimerStandard.enter_subsection("Calculating Density");
 
   auto dftBasisOp = d_dftClassPtr->getBasisOperationsMemSpace();
-  dftfe::computeRhoFromPSI<dftfe::dataTypes::number>(
-      &eigenVectorsMemSpace, &eigenVectorsMemSpace, d_numEigenValues,
-      d_numEigenValues, eigenValuesHost, fermiEnergy,
-      fermiEnergy, // fermi energy up
-      fermiEnergy, // fermi energy down
+  dftfe::computeRhoFromPSI<dftfe::dataTypes::number, memorySpace>(
+      &eigenVectorsMemSpace, d_numEigenValues, d_fractionalOccupancy,
       dftBasisOp,
       // d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
       d_BLASWrapperPtr, d_dftClassPtr->getDensityDofHandlerIndex(),
@@ -666,8 +663,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
       // d_matrixFreePsiVectorComponent,            // matrixFreeDofhandlerIndex
       // d_matrixFreeQuadratureComponentAdjointRhs, // quadratureIndex
       d_kpointWeights, rhoValues, gradRhoValues, true, d_mpi_comm_parent,
-      d_mpi_comm_interpool, d_mpi_comm_interband, *d_dftParams,
-      false // spectrum splitting
+      d_mpi_comm_interpool, d_mpi_comm_interband, *d_dftParams
   );
 
 #if defined(DFTFE_WITH_DEVICE)
@@ -1316,7 +1312,6 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
               iSpin, iKpoint, *d_kohnShamClass, *d_elpaScala,
               *d_subspaceIterationSolverHost, residualNorms[iSpin][iKpoint],
               true,  // compute residual
-              false, // spectrum splitting
               false, // mixed precision
               false  // is first SCF
           );
@@ -1328,8 +1323,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
               iSpin, iKpoint, *d_kohnShamClass, *d_elpaScala,
               *d_subspaceIterationSolverDevice, residualNorms[iSpin][iKpoint],
               true,  // compute residual
-              false, // spectrum splitting
-              false, // mixed precision
+              0, // numberRayleighRitzAvoidancePasses
+	      false, // mixed precision
               false  // is first SCF
           );
         }

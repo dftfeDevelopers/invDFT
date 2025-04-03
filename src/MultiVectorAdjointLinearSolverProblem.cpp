@@ -846,9 +846,10 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::updateInputPsi(
 
   for (unsigned int i = 0; i < blockSize; i++) {
     effectiveOrbitalOccupancyHost_4x[i] = 4.0 * effectiveOrbitalOccupancy[i];
-
+/*
     pcout << " orb occ [" << i << "] = " << effectiveOrbitalOccupancy[i]
           << "\n";
+	  */
   }
 
   d_4xeffectiveOrbitalOccupancyMemSpace.resize(blockSize);
@@ -970,14 +971,14 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::computeMuMatrix(
   }
   MPI_Allreduce(MPI_IN_PLACE, &d_MuMatrixHost[0], d_blockSize * d_blockSize,
                 MPI_DOUBLE, MPI_SUM, mpi_communicator);
-
+/*
   for (unsigned int iVecList = 0; iVecList < numVec; iVecList++) {
     unsigned int iVec = d_vectorList[2 * iVecList];
     unsigned int degenerateVecId = d_vectorList[2 * iVecList + 1];
     pcout << " Mu[" << iVec << "][" << degenerateVecId << "]"
           << d_MuMatrixHost[iVec * d_blockSize + degenerateVecId] << "\n";
   }
-
+*/
   d_MuMatrixMemSpace.copyFrom(d_MuMatrixHost);
 }
 
@@ -1053,11 +1054,13 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::distributeX() {
     if (vec1 == vec2) {
       correction += DFi_epsi * etaVal;
     }
-
+/*
     pcout << " iVec = " << vec1 << " jVec = " << vec2
           << " dotProd = " << dotProductHost[i] << " corr = " << correction
           << "\n";
-    dotProductHost[i] = -1.0 * dotProductHost[i] + correction;
+    */
+
+	  dotProductHost[i] = -1.0 * dotProductHost[i] + correction;
     // dotProductHost[i] = -1.0 * dotProductHost[i];
   }
 
@@ -1085,12 +1088,14 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::distributeX() {
 
   multiVectorDotProdQuadWise(*d_blockedXPtr, *d_psiMemSpace, dotProductHost);
 
+  /*
   for (unsigned int i = 0; i < numDegenerateVec; i++) {
     unsigned int vec1 = d_vectorList[2 * i];
     unsigned int vec2 = d_vectorList[2 * i + 1];
     pcout << " iVec = " << vec1 << " jVec = " << vec2
           << " dotProd = " << dotProductHost[i] << "\n";
   }
+  */
   /*
    *  End testing purpose
    */
