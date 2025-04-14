@@ -2701,7 +2701,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
                     distBetweenNodes = std::sqrt(distBetweenNodes);
 
-                    if (distBetweenNodes < 1e-3) {
+                    if (distBetweenNodes < 1e-4) {
                         AssertThrow(!quadPointInterpolated[closestLocalPointId],
                                     ExcMessage("invDFT error: Two input coordinates are "
                                                "nearest to the same quad "));

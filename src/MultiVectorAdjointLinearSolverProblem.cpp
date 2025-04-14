@@ -1347,7 +1347,7 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::vmult(
     unsigned int blockSize) {
   Ax.setValue(0.0);
 
-  d_ksOperatorPtr->HX(x,
+  d_ksOperatorPtr->HXWithLowdinOrthonormalisedInput(x,
                       1.0, // scalarHX,
                       0.0, // scalarY,
                       0.0, // scalarX
