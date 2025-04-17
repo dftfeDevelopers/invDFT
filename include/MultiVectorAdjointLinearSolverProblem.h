@@ -22,7 +22,7 @@
 
 #include "BLASWrapper.h"
 #include "FEBasisOperations.h"
-#include "KohnShamHamiltonianOperator.h"
+#include "KohnShamDFTBaseOperator.h"
 #include "MultiVectorLinearSolverProblem.h"
 #include "headers.h"
 namespace invDFT {
@@ -92,7 +92,7 @@ public:
               std::shared_ptr<dftfe::basis::FEBasisOperations<
                   dftfe::dataTypes::number, double, memorySpace>>
                   basisOperationsPtr,
-              dftfe::KohnShamHamiltonianOperator<memorySpace> &ksHamiltonianObj,
+              dftfe::KohnShamDFTBaseOperator<memorySpace> &ksHamiltonianObj,
               const dealii::AffineConstraints<double> &constraintMatrix,
               const double TVal, const unsigned int matrixFreeVectorComponent,
               const unsigned int matrixFreeQuadratureComponentRhs,
@@ -166,7 +166,7 @@ private:
   unsigned int d_locallyOwnedSize, d_numberDofsPerElement, d_numCells,
       d_numQuadsPerCell;
 
-  dftfe::KohnShamHamiltonianOperator<memorySpace> *d_ksOperatorPtr;
+  dftfe::KohnShamDFTBaseOperator<memorySpace> *d_ksOperatorPtr;
   dftfe::utils::MemoryStorage<dftfe::global_size_type, memorySpace>
       d_mapNodeIdToProcId;
   dftfe::utils::MemoryStorage<dftfe::global_size_type, memorySpace>

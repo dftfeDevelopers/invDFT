@@ -3496,8 +3496,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
     }
   }
 
-  dftfe::KohnShamHamiltonianOperator<memorySpace> *kohnShamClassPtr =
-      d_dftBaseClass->getOperatorClass();
+  dftfe::KohnShamDFTBaseOperator<memorySpace> *kohnShamClassPtr =
+      d_dftBaseClass->getKohnShamDFTBaseOperatorClass();
 
   if (d_inverseDFTParams.solvermode == "FUNCTIONAL_TEST") {
     testAdjoint();
@@ -3637,8 +3637,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::testAdjoint() {
   dftfe::MultiVectorMinResSolver multiVectorLinearMINRESSolver(
       d_mpiComm_parent, d_mpiComm_domain);
 
-  dftfe::KohnShamHamiltonianOperator<memorySpace> *kohnShamClassPtr =
-      d_dftBaseClass->getOperatorClass();
+  dftfe::KohnShamDFTBaseOperator<memorySpace> *kohnShamClassPtr =
+      d_dftBaseClass->getKohnShamDFTBaseOperatorClass();
 
   double TVal = d_dftParams.TVal;
   pcout << " Entering reinit\n";

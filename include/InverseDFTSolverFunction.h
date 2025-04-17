@@ -88,7 +88,7 @@ public:
       std::shared_ptr<dftfe::basis::FEBasisOperations<
           dftfe::dataTypes::number, double, dftfe::utils::MemorySpace::HOST>>
           &basisOperationsChildPtr,
-      dftfe::KohnShamHamiltonianOperator<memorySpace> &kohnShamClass,
+      dftfe::KohnShamDFTBaseOperator<memorySpace> &kohnShamClass,
       const std::shared_ptr<
           dftfe::TransferDataBetweenMeshesIncompatiblePartitioning<memorySpace>>
           &inverseDFTDoFManagerObjPtr,
@@ -233,7 +233,7 @@ private:
   const dealii::AffineConstraints<double> *d_constraintMatrixPot;
   dftfe::dftUtils::constraintMatrixInfo<memorySpace>
       d_constraintsMatrixDataInfoPot;
-  dftfe::KohnShamHamiltonianOperator<memorySpace> *d_kohnShamClass;
+  dftfe::KohnShamDFTBaseOperator<memorySpace> *d_kohnShamClass;
 
   std::shared_ptr<
       dftfe::TransferDataBetweenMeshesIncompatiblePartitioning<memorySpace>>

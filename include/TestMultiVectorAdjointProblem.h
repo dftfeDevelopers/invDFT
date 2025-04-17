@@ -29,7 +29,7 @@ void testMultiVectorAdjointProblem(
     std::shared_ptr<
         dftfe::linearAlgebra::BLASWrapper<dftfe::utils::MemorySpace::HOST>>
         BLASWrapperPtr,
-    KohnShamHamiltonianOperator<memorySpace> &kohmShamObj,
+    KohnShamDFTBaseOperator<memorySpace> &kohmShamObj,
     const dealii::AffineConstraints<double> &constraintMatrixPsi,
     std::vector<const dealii::AffineConstraints<double> *> &constraintMatrixVec,
     const dealii::AffineConstraints<double> &constraintMatrixAdjoint,

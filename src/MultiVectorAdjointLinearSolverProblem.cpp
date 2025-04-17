@@ -473,7 +473,7 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::reinit(
     std::shared_ptr<dftfe::basis::FEBasisOperations<dftfe::dataTypes::number,
                                                     double, memorySpace>>
         basisOperationsPtr,
-    dftfe::KohnShamHamiltonianOperator<memorySpace> &ksHamiltonianObj,
+    dftfe::KohnShamDFTBaseOperator<memorySpace> &ksHamiltonianObj,
     const dealii::AffineConstraints<double> &constraintMatrix,
     const double TVal, const unsigned int matrixFreeVectorComponent,
     const unsigned int matrixFreeQuadratureComponentRhs,

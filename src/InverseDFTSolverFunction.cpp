@@ -143,7 +143,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     std::shared_ptr<dftfe::basis::FEBasisOperations<
         dftfe::dataTypes::number, double, dftfe::utils::MemorySpace::HOST>>
         &basisOperationsChildPtr,
-    dftfe::KohnShamHamiltonianOperator<memorySpace> &kohnShamClass,
+    dftfe::KohnShamDFTBaseOperator<memorySpace> &kohnShamClass,
     const std::shared_ptr<
         dftfe::TransferDataBetweenMeshesIncompatiblePartitioning<memorySpace>>
         &inverseDFTDoFManagerObjPtr,
