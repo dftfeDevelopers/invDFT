@@ -37,7 +37,24 @@ namespace invDFT {
  * @brief Class implementing the inverse DFT problem
  *
  */
-template <unsigned int FEOrder, unsigned int FEOrderElectro,
+
+	  template <unsigned int FEOrder>
+  constexpr unsigned int
+  C_num1DQuad()
+  {
+    return FEOrder + 1;
+  }
+
+	template <unsigned int FEOrder, unsigned int FEOrderElectro>
+  constexpr unsigned int
+  C_rhoNodalPolyOrder()
+  {
+    return ((FEOrder + 2) > FEOrderElectro ? (FEOrder + 2) : FEOrderElectro);
+  }
+
+	
+	
+	template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 class InverseDFTSolverFunction {
 public:
@@ -66,7 +83,7 @@ public:
           dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
           &vxcLDAQuadData,
       const std::vector<double> &quadCoordinatesParent,
-      dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> &dftClass,
+      dftfe::dftClass< memorySpace> &dftClass,
       const dealii::AffineConstraints<double>
           &constraintMatrixHomogeneousPsi, // assumes that the constraint matrix
                                            // has homogenous BC
@@ -171,6 +188,23 @@ public:
       std::string functional, xc_func_type funcXMGGA, xc_func_type funcCMGGA);
 
 private:
+  
+      void
+    interpolateElectroNodalDataToQuadratureDataGeneral(
+      const std::shared_ptr<
+        dftfe::basis::
+          FEBasisOperations<double, double, dftfe::utils::MemorySpace::HOST>>
+        &                              basisOperationsPtr,
+      const unsigned int               dofHandlerId,
+      const unsigned int               quadratureId,
+      const dftfe::distributedCPUVec<double> &nodalField,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+        &quadratureValueData,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+        &        quadratureGradValueData,
+      const bool isEvaluateGradData = false);
+  
+  
   void preComputeChildShapeFunction();
   void preComputeParentJxW();
   const dealii::MatrixFree<3, double> *d_matrixFreeDataParent;
@@ -205,15 +239,15 @@ private:
       d_multiVectorAdjointProblem;
   dftfe::MultiVectorMinResSolver d_multiVectorLinearMINRESSolver;
 
-  dftfe::utils::MemoryStorage<dealii::types::global_dof_index, memorySpace>
+  dftfe::utils::MemoryStorage<dftfe::uInt, memorySpace>
       fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace,
       fullFlattenedArrayCellLocalProcIndexIdMapAdjointMemSpace;
 
-  dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
+  dftfe::utils::MemoryStorage<dftfe::uInt,
                               dftfe::utils::MemorySpace::HOST>
       d_fullFlattenedMapChild;
 
-  std::vector<dealii::types::global_dof_index>
+  std::vector<dftfe::uInt>
       fullFlattenedArrayCellLocalProcIndexIdMapPsiHost,
       fullFlattenedArrayCellLocalProcIndexIdMapAdjointHost;
 
@@ -300,7 +334,7 @@ private:
   bool d_resizeMemSpaceVecDuringInterpolation;
   bool d_resizeMemSpaceBlockSizeChildQuad;
 
-  dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> *d_dftClassPtr;
+  dftfe::dftClass<memorySpace> *d_dftClassPtr;
 
   std::shared_ptr<
       dftfe::linearAlgebra::BLASWrapper<dftfe::utils::MemorySpace::HOST>>
@@ -322,7 +356,7 @@ private:
 
   unsigned int d_numCellBlockSizeParent, d_numCellBlockSizeChild;
 
-  dftfe::utils::MemoryStorage<dftfe::global_size_type,
+  dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
                               dftfe::utils::MemorySpace::HOST>
       d_mapQuadIdsToProcId;
 

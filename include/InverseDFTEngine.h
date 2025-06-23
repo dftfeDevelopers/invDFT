@@ -124,6 +124,20 @@ private:
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
           &hartreeQuadData);
 
+    void
+    interpolateElectroNodalDataToQuadratureDataGeneral(
+      const std::shared_ptr<
+        dftfe::basis::
+          FEBasisOperations<double, double, dftfe::utils::MemorySpace::HOST>>
+        &                              basisOperationsPtr,
+      const unsigned int               dofHandlerId,
+      const unsigned int               quadratureId,
+      const dftfe::distributedCPUVec<double> &nodalField,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+        &quadratureValueData,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+        &        quadratureGradValueData,
+      const bool isEvaluateGradData = false);
   //
   // TODO
   // 1. Solve the electrostatic potential on parent mesh using rhoTarget_total
@@ -190,7 +204,7 @@ private:
   unsigned int d_adjointMFAdjointConstraints, d_adjointMFPsiConstraints;
   dealii::AffineConstraints<double> d_constraintMatrixAdjoint;
 
-  dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> *d_dftBaseClass;
+  dftfe::dftClass< memorySpace> *d_dftBaseClass;
   const dealii::MatrixFree<3, double> *d_dftMatrixFreeData;
   unsigned int d_dftDensityDoFHandlerIndex, d_dftQuadIndex;
 

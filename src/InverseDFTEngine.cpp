@@ -154,7 +154,7 @@ InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::InverseDFTEngine(
   d_rhoTargetTolForConstraints = d_inverseDFTParams.rhoTolForConstraints;
 
   d_dftBaseClass =
-      ((dftfe::dftClass<FEOrder, FEOrderElectro, memorySpace> *)&dft);
+      ((dftfe::dftClass< memorySpace> *)&dft);
 
   d_dftMatrixFreeData = &(d_dftBaseClass->getMatrixFreeData());
 
@@ -377,6 +377,111 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
         << " constraints = " << constraintsEnd - meshMoveEnd
         << " map gen = " << createMapEnd - constraintsEnd << "\n";
 }
+
+  //
+  // interpolate nodal data to quadrature values using FEEvaluation
+  //
+  template <unsigned int              FEOrder,
+            unsigned int              FEOrderElectro,
+            dftfe::utils::MemorySpace memorySpace>
+  void
+  InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
+    interpolateElectroNodalDataToQuadratureDataGeneral(
+      const std::shared_ptr<
+        dftfe::basis::
+          FEBasisOperations<double, double, dftfe::utils::MemorySpace::HOST>>
+        &                              basisOperationsPtr,
+      const unsigned int               dofHandlerId,
+      const unsigned int               quadratureId,
+      const dftfe::distributedCPUVec<double> &nodalField,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+        &quadratureValueData,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+        &        quadratureGradValueData,
+      const bool isEvaluateGradData)
+  {
+    basisOperationsPtr->reinit(0, 0, quadratureId, false);
+    const unsigned int nQuadsPerCell = basisOperationsPtr->nQuadsPerCell();
+    const unsigned int nCells        = basisOperationsPtr->nCells();
+    quadratureValueData.clear();
+    quadratureValueData.resize(nQuadsPerCell * nCells);
+    nodalField.update_ghost_values();
+    if (isEvaluateGradData)
+      {
+        quadratureGradValueData.clear();
+        quadratureGradValueData.resize(3 * nQuadsPerCell * nCells);
+      }
+    dealii::FEEvaluation<
+      3,
+      FEOrderElectro,
+      C_num1DQuad<C_rhoNodalPolyOrder<FEOrder, FEOrderElectro>()>(),
+      1,
+      double>
+      feEvalObj(basisOperationsPtr->matrixFreeData(),
+                dofHandlerId,
+                quadratureId);
+
+    // AssertThrow(nodalField.partitioners_are_globally_compatible(*matrixFreeData.get_vector_partitioner(dofHandlerId)),
+    //        dealii::ExcMessage("DFT-FE Error: mismatch in
+    //        partitioner/dofHandler."));
+
+    AssertThrow(
+      basisOperationsPtr->matrixFreeData()
+          .get_quadrature(quadratureId)
+          .size() == nQuadsPerCell,
+      dealii::ExcMessage(
+        "DFT-FE Error: mismatch in quadrature rule usage in interpolateNodalDataToQuadratureData."));
+
+    dealii::DoFHandler<3>::active_cell_iterator subCellPtr;
+    for (unsigned int cell = 0;
+         cell < basisOperationsPtr->matrixFreeData().n_cell_batches();
+         ++cell)
+      {
+        feEvalObj.reinit(cell);
+        feEvalObj.read_dof_values_plain(nodalField);
+
+        auto evalFlags = dealii::EvaluationFlags::values;
+        if (isEvaluateGradData)
+          evalFlags = evalFlags | dealii::EvaluationFlags::gradients;
+        feEvalObj.evaluate(evalFlags);
+
+        for (unsigned int iSubCell = 0;
+             iSubCell < basisOperationsPtr->matrixFreeData()
+                          .n_active_entries_per_cell_batch(cell);
+             ++iSubCell)
+          {
+            subCellPtr = basisOperationsPtr->matrixFreeData().get_cell_iterator(
+              cell, iSubCell, dofHandlerId);
+            dealii::CellId subCellId = subCellPtr->id();
+            unsigned int   cellIndex = basisOperationsPtr->cellIndex(subCellId);
+
+            double *tempVec =
+              quadratureValueData.data() + cellIndex * nQuadsPerCell;
+
+            for (unsigned int q_point = 0; q_point < nQuadsPerCell; ++q_point)
+              {
+                tempVec[q_point] = feEvalObj.get_value(q_point)[iSubCell];
+              }
+            if (isEvaluateGradData)
+              {
+                double *tempVec2 = quadratureGradValueData.data() +
+                                   3 * cellIndex * nQuadsPerCell;
+
+                for (unsigned int q_point = 0; q_point < nQuadsPerCell;
+                     ++q_point)
+                  {
+                    const dealii::Tensor<1, 3, dealii::VectorizedArray<double>>
+                      &gradVals               = feEvalObj.get_gradient(q_point);
+                    tempVec2[3 * q_point + 0] = gradVals[0][iSubCell];
+                    tempVec2[3 * q_point + 1] = gradVals[1][iSubCell];
+                    tempVec2[3 * q_point + 2] = gradVals[2][iSubCell];
+                  }
+              }
+          }
+      }
+  }
+
+
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
@@ -666,6 +771,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       pcout<<" Time taken for reading density data from file  = "<<readDensityEnd - readDensityStart<<"\n";
   }
 
+  double diffInGaussianDensityL2Norm = 0.0, diffInGaussianDensityL1Norm = 0.0;
   d_rhoTarget.resize(
       d_numSpins,
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
@@ -684,7 +790,17 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index] -
                                         rhoGaussianDFT[iSpin][index] +
                                         rhoValuesFeSpin[iSpin][index];
-          }
+	  
+	    diffInGaussianDensityL2Norm += (rhoGaussianPrimary[iSpin][index] -
+                                        rhoGaussianDFT[iSpin][index] )*
+                  (rhoGaussianPrimary[iSpin][index] -
+                                        rhoGaussianDFT[iSpin][index])*
+                  quadJxWValues[(iElem * numQuadraturePointsPerCellParent) + iQuad];
+
+          diffInGaussianDensityL1Norm += std::abs((rhoGaussianPrimary[iSpin][index] -
+                                        rhoGaussianDFT[iSpin][index]))*
+                  quadJxWValues[(iElem * numQuadraturePointsPerCellParent) + iQuad] ;
+	  }
           iElem++;
         }
     } else {
@@ -708,7 +824,18 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
           d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index] -
                                       rhoGaussianDFT[iSpin][index] +
                                       rhoValuesFeSpin[iSpin][index];
-        }
+
+	  diffInGaussianDensityL2Norm += (rhoGaussianPrimary[iSpin][index] -
+                                        rhoGaussianDFT[iSpin][index] )*
+                  (rhoGaussianPrimary[iSpin][index] -
+                                        rhoGaussianDFT[iSpin][index])*
+		  quadJxWValues[(iElem * numQuadraturePointsPerCellParent) + iQuad];
+        
+	  diffInGaussianDensityL1Norm += std::abs((rhoGaussianPrimary[iSpin][index] -
+                                        rhoGaussianDFT[iSpin][index] ))*
+                  quadJxWValues[(iElem * numQuadraturePointsPerCellParent) + iQuad] ;
+
+	}
         iElem++;
       }
   }
@@ -756,6 +883,14 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                 d_mpiComm_domain);
   pcout << " Sum of all rho target = " << rhoSumGaussian << "\n";
 
+
+  MPI_Allreduce(MPI_IN_PLACE, &diffInGaussianDensityL2Norm, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpiComm_domain);
+  pcout << " Diff in gaussian density L2 norm  = " << diffInGaussianDensityL2Norm  << "\n";
+  
+  MPI_Allreduce(MPI_IN_PLACE, &diffInGaussianDensityL1Norm, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpiComm_domain);
+  pcout << " Diff in gaussian density L1 norm  = " << diffInGaussianDensityL1Norm  << "\n";
   dftfe::distributedCPUVec<double> rhoGPVec, rhoGSVec, rhoFLVec, rhoDiffVec;
 
   dftfe::vectorTools::createDealiiVector<double>(
@@ -1166,7 +1301,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
     pcout << " norm of exactVxcTestParent distribute = "
           << exactVxcTestParent.l2_norm() << "\n";
 
-    dftfe::utils::MemoryStorage<dftfe::global_size_type,
+    dftfe::utils::MemoryStorage<dftfe::uInt,
                                 dftfe::utils::MemorySpace::HOST>
         fullFlattenedArrayCellLocalProcIndexIdMapVxcInitialParent;
 
@@ -1850,7 +1985,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   numCellsTempSize = std::min(numCellsTempSize, nLocalCellsElectro);
   basisOpeElectroHost->reinit(1, numCellsTempSize, quadratureElectroAxId);
 
-  dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(
+  dftfe::poissonSolverProblem< FEOrderElectro> poissonSolverObj(
       d_mpiComm_domain);
   poissonSolverObj.reinit(basisOpeElectroHost, vHartreeElectroNodal,
                           d_constraintMatrixElectroHartree,
@@ -1914,7 +2049,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       quadratureGradValueData;
   hartreeQuadData.resize(numQuadPointsElectroPerCell * nLocalCellsElectro);
 
-  d_dftBaseClass->interpolateElectroNodalDataToQuadratureDataGeneral(
+  interpolateElectroNodalDataToQuadratureDataGeneral(
       basisOpeElectroHost, dofHandlerElectroIndex, quadratureElectroRhsId,
       vHartreeElectroNodal, hartreeQuadData, quadratureGradValueData,
       false // isEvaluateGradData
@@ -2166,7 +2301,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
 
   pcout << " solving possion in the pot base \n";
 
-  dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(
+  dftfe::poissonSolverProblem<FEOrderElectro> poissonSolverObj(
       d_mpiComm_domain);
   poissonSolverObj.reinit(basisOpeElectroHost, vHartreeElectroNodal,
                           d_constraintMatrixElectroHartree,
@@ -2214,7 +2349,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
   cellElectro = d_dofHandlerElectroDFTClass->begin_active();
   endElectro = d_dofHandlerElectroDFTClass->end();
 
-  d_dftBaseClass->interpolateElectroNodalDataToQuadratureDataGeneral(
+  interpolateElectroNodalDataToQuadratureDataGeneral(
       basisOpeElectroHost, dofHandlerElectroIndex, quadratureElectroRhsId,
       vHartreeElectroNodal, quadratureValueData, quadratureGradValueData,
       false // isEvaluateGradData
@@ -2347,7 +2482,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
       cellElectro = d_dofHandlerElectroDFTClass->begin_active(),
       endElectro = d_dofHandlerElectroDFTClass->end();
 
-  d_dftBaseClass->interpolateElectroNodalDataToQuadratureDataGeneral(
+  interpolateElectroNodalDataToQuadratureDataGeneral(
       d_basisOperationsElectroHost, d_dftElectroDoFHandlerIndex,
       d_dftElectroRhsQuadIndex, vTotalElectroNodal, quadratureValueData,
       quadratureGradValueData,
@@ -2393,7 +2528,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             double, dftfe::utils::MemorySpace::HOST> &rhoValues,
         const MPI_Comm &mpiComm_parent, const MPI_Comm &mpiComm_domain) {
   // create the poisson solver problem
-  dftfe::poissonSolverProblem<FEOrder, FEOrderElectro> poissonSolverObj(
+  dftfe::poissonSolverProblem<FEOrderElectro> poissonSolverObj(
       mpiComm_domain);
 
   // create the dealii solver
@@ -2823,7 +2958,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
   // Create bounding box and RTree obj
 
   std::vector<std::vector<double>> coordPointList;
-  std::vector<dftfe::global_size_type> coordIndex;
+  std::vector<dealii::types::global_dof_index> coordIndex;
   std::vector<double> boundingBox_ll, boundingBox_ur;
   std::vector<bool> coordInterpolated;
   boundingBox_ll.resize(3);
@@ -3206,7 +3341,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
                                                     d_dofHandlerDFTClass->end();
 
     // iterate through child cells
-    dftfe::size_type iElemIndex = 0;
+    dftfe::uInt iElemIndex = 0;
     for (; cellPsi != endcPsi; cellPsi++) {
       if (cellPsi->is_locally_owned()) {
         numberDofsPerCell[iElemIndex] =
@@ -3237,12 +3372,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
             d_dftDensityDoFHandlerIndex),
         1, dummyPotVec);
 
-    std::vector<dealii::types::global_dof_index> fullFlattenedMapParent;
+    std::vector<dftfe::uInt> fullFlattenedMapParent;
     dftfe::vectorTools::computeCellLocalIndexSetMap(
         dummyPotVec.getMPIPatternP2P(), *d_dftMatrixFreeData,
         d_dftDensityDoFHandlerIndex, 1, fullFlattenedMapParent);
 
-    dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
+    dftfe::utils::MemoryStorage<dftfe::uInt,
                                 dftfe::utils::MemorySpace::HOST>
         fullFlattenedMap;
     fullFlattenedMap.resize(fullFlattenedMapParent.size());
@@ -3317,12 +3452,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       d_matrixFreeDataVxc.get_vector_partitioner(d_dofHandlerVxcIndex), 1,
       dummyPotVec);
 
-  std::vector<dealii::types::global_dof_index> fullFlattenedMapChild;
+  std::vector<dftfe::uInt> fullFlattenedMapChild;
   dftfe::vectorTools::computeCellLocalIndexSetMap(
       dummyPotVec.getMPIPatternP2P(), d_matrixFreeDataVxc, d_dofHandlerVxcIndex,
       1, fullFlattenedMapChild);
 
-  dftfe::utils::MemoryStorage<dealii::types::global_dof_index,
+  dftfe::utils::MemoryStorage<dftfe::uInt,
                               dftfe::utils::MemorySpace::HOST>
       fullFlattenedMapChildMemStorage;
   fullFlattenedMapChildMemStorage.resize(fullFlattenedMapChild.size());

@@ -5,7 +5,6 @@
 #include "MultiVectorAdjointLinearSolverProblem.h"
 
 #include <DeviceAPICalls.h>
-#include <DeviceBlasWrapper.h>
 #include <DeviceDataTypeOverloads.h>
 #include <DeviceKernelLauncherConstants.h>
 #include <deviceKernelsGeneric.h>
@@ -16,32 +15,32 @@ namespace {
 
 #ifdef DFTFE_WITH_DEVICE
 template <typename ValueType1, typename ValueType2>
-__global__ void rMatrixDeviceKernel(const dftfe::size_type numLocalCells,
-                                    const dftfe::size_type numDofsPerElem,
-                                    const dftfe::size_type numQuadPoints,
+__global__ void rMatrixDeviceKernel(const dftfe::uInt numLocalCells,
+                                    const dftfe::uInt numDofsPerElem,
+                                    const dftfe::uInt numQuadPoints,
                                     const ValueType1 *shapeFunc,
                                     const ValueType1 *shapeFuncTranspose,
                                     const ValueType2 *inputJxW,
                                     ValueType2 *rMatrix) {
-  const dftfe::size_type globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::size_type numberEntries =
+  const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
+  const dftfe::uInt numberEntries =
       numLocalCells * numDofsPerElem * numDofsPerElem;
 
-  for (dftfe::size_type index = globalThreadId; index < numberEntries;
+  for (dftfe::uInt index = globalThreadId; index < numberEntries;
        index += blockDim.x * gridDim.x) {
-    dftfe::size_type iElem = index / (numDofsPerElem * numDofsPerElem);
-    dftfe::size_type nodeIndex = index % (numDofsPerElem * numDofsPerElem);
-    dftfe::size_type iNode = nodeIndex / (numDofsPerElem);
-    dftfe::size_type jNode = nodeIndex % (numDofsPerElem);
+    dftfe::uInt iElem = index / (numDofsPerElem * numDofsPerElem);
+    dftfe::uInt nodeIndex = index % (numDofsPerElem * numDofsPerElem);
+    dftfe::uInt iNode = nodeIndex / (numDofsPerElem);
+    dftfe::uInt jNode = nodeIndex % (numDofsPerElem);
 
-    dftfe::size_type elemRIndex = iElem * numDofsPerElem * numDofsPerElem;
-    dftfe::size_type nodeRIndex = iNode * numDofsPerElem + jNode;
+    dftfe::uInt elemRIndex = iElem * numDofsPerElem * numDofsPerElem;
+    dftfe::uInt nodeRIndex = iNode * numDofsPerElem + jNode;
 
-    dftfe::size_type iNodeQuadIndex = iNode * numQuadPoints;
-    dftfe::size_type jNodeQuadIndex = jNode * numQuadPoints;
+    dftfe::uInt iNodeQuadIndex = iNode * numQuadPoints;
+    dftfe::uInt jNodeQuadIndex = jNode * numQuadPoints;
 
-    dftfe::size_type elemQuadIndex = iElem * numQuadPoints;
-    for (dftfe::size_type iQuad = 0; iQuad < numQuadPoints; iQuad++) {
+    dftfe::uInt elemQuadIndex = iElem * numQuadPoints;
+    for (dftfe::uInt iQuad = 0; iQuad < numQuadPoints; iQuad++) {
       dftfe::utils::copyValue(
           rMatrix + elemRIndex + nodeRIndex,
           dftfe::utils::add(
@@ -56,8 +55,8 @@ __global__ void rMatrixDeviceKernel(const dftfe::size_type numLocalCells,
 
 template <typename ValueType1, typename ValueType2>
 void rMatrixMemSpaceKernel(
-    const dftfe::size_type numLocalCells, const dftfe::size_type numDofsPerElem,
-    const dftfe::size_type numQuadPoints,
+    const dftfe::uInt numLocalCells, const dftfe::uInt numDofsPerElem,
+    const dftfe::uInt numQuadPoints,
     const std::shared_ptr<
         dftfe::linearAlgebra::BLASWrapper<dftfe::utils::MemorySpace::DEVICE>>
         &BLASWrapperPtr,
@@ -96,24 +95,24 @@ void rMatrixMemSpaceKernel(
 
 template <typename ValueType>
 __global__ void muMatrixDeviceKernel(
-    const dftfe::size_type numLocalCells, const dftfe::size_type numVec,
-    const dftfe::size_type numQuadPoints, const dftfe::size_type blockSize,
+    const dftfe::uInt numLocalCells, const dftfe::uInt numVec,
+    const dftfe::uInt numQuadPoints, const dftfe::uInt blockSize,
     const ValueType *orbitalOccupancy, const unsigned int *vecList,
     const ValueType *cellLevelQuadValues, const ValueType *inputJxW,
     ValueType *muMatrixCellWise) {
-  const dftfe::size_type globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::size_type numberEntries = numLocalCells * numVec;
+  const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
+  const dftfe::uInt numberEntries = numLocalCells * numVec;
 
-  for (dftfe::size_type index = globalThreadId; index < numberEntries;
+  for (dftfe::uInt index = globalThreadId; index < numberEntries;
        index += blockDim.x * gridDim.x) {
-    dftfe::size_type iElem = index / (numVec);
-    dftfe::size_type vecIndex = index % numVec;
-    dftfe::size_type vecId = vecList[2 * vecIndex];
-    dftfe::size_type degenerateId = vecList[2 * vecIndex + 1];
+    dftfe::uInt iElem = index / (numVec);
+    dftfe::uInt vecIndex = index % numVec;
+    dftfe::uInt vecId = vecList[2 * vecIndex];
+    dftfe::uInt degenerateId = vecList[2 * vecIndex + 1];
 
-    dftfe::size_type elemQuadIndex = iElem * numQuadPoints * blockSize;
-    dftfe::size_type elemInputQuadIndex = iElem * numQuadPoints;
-    for (dftfe::size_type iQuad = 0; iQuad < numQuadPoints; iQuad++) {
+    dftfe::uInt elemQuadIndex = iElem * numQuadPoints * blockSize;
+    dftfe::uInt elemInputQuadIndex = iElem * numQuadPoints;
+    for (dftfe::uInt iQuad = 0; iQuad < numQuadPoints; iQuad++) {
       dftfe::utils::copyValue(
           muMatrixCellWise + iElem * numVec + vecIndex,
           dftfe::utils::add(
@@ -133,8 +132,8 @@ __global__ void muMatrixDeviceKernel(
 
 template <typename ValueType>
 void muMatrixMemSpaceKernel(
-    const dftfe::size_type numLocalCells, const dftfe::size_type numVec,
-    const dftfe::size_type numQuadPoints, const dftfe::size_type blockSize,
+    const dftfe::uInt numLocalCells, const dftfe::uInt numVec,
+    const dftfe::uInt numQuadPoints, const dftfe::uInt blockSize,
     const std::shared_ptr<
         dftfe::linearAlgebra::BLASWrapper<dftfe::utils::MemorySpace::DEVICE>>
         &BLASWrapperPtr,
@@ -175,8 +174,8 @@ void muMatrixMemSpaceKernel(
 
 template <typename ValueType1, typename ValueType2>
 void rMatrixMemSpaceKernel(
-    const dftfe::size_type numLocalCells, const dftfe::size_type numDofsPerElem,
-    const dftfe::size_type numQuadPoints,
+    const dftfe::uInt numLocalCells, const dftfe::uInt numDofsPerElem,
+    const dftfe::uInt numQuadPoints,
     const std::shared_ptr<
         dftfe::linearAlgebra::BLASWrapper<dftfe::utils::MemorySpace::HOST>>
         &BLASWrapperPtr,
@@ -234,8 +233,8 @@ void rMatrixMemSpaceKernel(
 
 template <typename ValueType>
 void muMatrixMemSpaceKernel(
-    const dftfe::size_type numLocalCells, const dftfe::size_type numVec,
-    const dftfe::size_type numQuadPoints, const dftfe::size_type blockSize,
+    const dftfe::uInt numLocalCells, const dftfe::uInt numVec,
+    const dftfe::uInt numQuadPoints, const dftfe::uInt blockSize,
     const std::shared_ptr<
         dftfe::linearAlgebra::BLASWrapper<dftfe::utils::MemorySpace::HOST>>
         &BLASWrapperPtr,
@@ -250,14 +249,14 @@ void muMatrixMemSpaceKernel(
     dftfe::utils::MemoryStorage<ValueType, dftfe::utils::MemorySpace::HOST>
         &muMatrixCellWise) {
   for (unsigned int index = 0; index < numLocalCells * numVec; index++) {
-    dftfe::size_type iElem = index / (numVec);
-    dftfe::size_type vecIndex = index % numVec;
-    dftfe::size_type vecId = vecList[2 * vecIndex];
-    dftfe::size_type degenerateId = vecList[2 * vecIndex + 1];
+    dftfe::uInt iElem = index / (numVec);
+    dftfe::uInt vecIndex = index % numVec;
+    dftfe::uInt vecId = vecList[2 * vecIndex];
+    dftfe::uInt degenerateId = vecList[2 * vecIndex + 1];
 
-    dftfe::size_type elemQuadIndex = iElem * numQuadPoints * blockSize;
-    dftfe::size_type elemInputQuadIndex = iElem * numQuadPoints;
-    for (dftfe::size_type iQuad = 0; iQuad < numQuadPoints; iQuad++) {
+    dftfe::uInt elemQuadIndex = iElem * numQuadPoints * blockSize;
+    dftfe::uInt elemInputQuadIndex = iElem * numQuadPoints;
+    for (dftfe::uInt iQuad = 0; iQuad < numQuadPoints; iQuad++) {
       muMatrixCellWise[iElem * numVec + vecIndex] +=
           2.0 * orbitalOccupancy[vecId] *
           cellLevelQuadValues[elemQuadIndex + vecId + iQuad * blockSize] *
@@ -270,21 +269,21 @@ void muMatrixMemSpaceKernel(
 
 template <typename ValueType>
 __global__ void performHadamardProductKernel(
-    const dftfe::size_type contiguousBlockSize,
-    const dftfe::size_type nonConiguousBlockSize,
-    const dftfe::size_type numDegenerateVec, const unsigned int *vectorList,
+    const dftfe::uInt contiguousBlockSize,
+    const dftfe::uInt nonConiguousBlockSize,
+    const dftfe::uInt numDegenerateVec, const unsigned int *vectorList,
     const ValueType *vec1QuadValues, const ValueType *vec2QuadValues,
     ValueType *vecOutputQuadValues) {
-  const dftfe::size_type globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::size_type numberEntries =
+  const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
+  const dftfe::uInt numberEntries =
       numDegenerateVec * nonConiguousBlockSize;
 
-  for (dftfe::size_type index = globalThreadId; index < numberEntries;
+  for (dftfe::uInt index = globalThreadId; index < numberEntries;
        index += blockDim.x * gridDim.x) {
-    dftfe::size_type iNode = index / numDegenerateVec;
-    dftfe::size_type vecIndex = index - iNode * numDegenerateVec;
-    dftfe::size_type vec1Id = vectorList[2 * vecIndex];
-    dftfe::size_type vec2Id = vectorList[2 * vecIndex + 1];
+    dftfe::uInt iNode = index / numDegenerateVec;
+    dftfe::uInt vecIndex = index - iNode * numDegenerateVec;
+    dftfe::uInt vec1Id = vectorList[2 * vecIndex];
+    dftfe::uInt vec2Id = vectorList[2 * vecIndex + 1];
 
     dftfe::utils::copyValue(
         vecOutputQuadValues + numDegenerateVec * iNode + vecIndex,
@@ -359,21 +358,21 @@ void performHadamardProduct(
 
 template <typename ValueType>
 __global__ void removeNullSpaceAtomicAddKernel(
-    const dftfe::size_type contiguousBlockSize,
-    const dftfe::size_type nonConiguousBlockSize,
-    const dftfe::size_type numDegenerateVec, const unsigned int *vectorList,
+    const dftfe::uInt contiguousBlockSize,
+    const dftfe::uInt nonConiguousBlockSize,
+    const dftfe::uInt numDegenerateVec, const unsigned int *vectorList,
     const ValueType *nullVectors, const ValueType *dotProduct,
     ValueType *outputVec) {
-  const dftfe::size_type globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::size_type numberEntries =
+  const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
+  const dftfe::uInt numberEntries =
       numDegenerateVec * nonConiguousBlockSize;
 
-  for (dftfe::size_type index = globalThreadId; index < numberEntries;
+  for (dftfe::uInt index = globalThreadId; index < numberEntries;
        index += blockDim.x * gridDim.x) {
-    dftfe::size_type iNode = index / numDegenerateVec;
-    dftfe::size_type vecIndex = index - iNode * numDegenerateVec;
-    dftfe::size_type vec1Id = vectorList[2 * vecIndex];
-    dftfe::size_type vec2Id = vectorList[2 * vecIndex + 1];
+    dftfe::uInt iNode = index / numDegenerateVec;
+    dftfe::uInt vecIndex = index - iNode * numDegenerateVec;
+    dftfe::uInt vec1Id = vectorList[2 * vecIndex];
+    dftfe::uInt vec2Id = vectorList[2 * vecIndex + 1];
 
     atomicAdd(
         outputVec + vec1Id + iNode * contiguousBlockSize,
@@ -536,15 +535,15 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::computeDiagonalA() {
   d_basisOperationsPtr->computeStiffnessVector(true, true);
   d_basisOperationsPtr->computeInverseSqrtMassVector();
 
-  dftfe::utils::MemoryStorage<dftfe::global_size_type,
+  dftfe::utils::MemoryStorage<dftfe::uInt,
                               dftfe::utils::MemorySpace::HOST>
       nodeIds;
   nodeIds.resize(d_locallyOwnedSize);
-  for (dftfe::size_type i = 0; i < d_locallyOwnedSize; i++) {
+  for (dftfe::uInt i = 0; i < d_locallyOwnedSize; i++) {
     nodeIds.data()[i] = i;
   }
 
-  dftfe::utils::MemoryStorage<dftfe::global_size_type, memorySpace>
+  dftfe::utils::MemoryStorage<dftfe::uInt, memorySpace>
       mapNodeIdToProcId;
   mapNodeIdToProcId.resize(d_locallyOwnedSize);
   mapNodeIdToProcId.copyFrom(nodeIds);
@@ -627,18 +626,18 @@ MultiVectorAdjointLinearSolverProblem<memorySpace>::computeRhs(
 
   if (d_blockSize != blockSizeInput) {
     d_blockSize = blockSizeInput;
-    dftfe::utils::MemoryStorage<dftfe::global_size_type,
+    dftfe::utils::MemoryStorage<dftfe::uInt,
                                 dftfe::utils::MemorySpace::HOST>
         nodeIds, quadIds;
     nodeIds.resize(d_locallyOwnedSize);
-    for (dftfe::size_type i = 0; i < d_locallyOwnedSize; i++) {
+    for (dftfe::uInt i = 0; i < d_locallyOwnedSize; i++) {
       nodeIds.data()[i] = i * d_blockSize;
     }
     d_mapNodeIdToProcId.resize(d_locallyOwnedSize);
     d_mapNodeIdToProcId.copyFrom(nodeIds);
 
     quadIds.resize(d_numCells * d_numQuadsPerCell);
-    for (dftfe::size_type i = 0; i < d_numCells * d_numQuadsPerCell; i++) {
+    for (dftfe::uInt i = 0; i < d_numCells * d_numQuadsPerCell; i++) {
       quadIds.data()[i] = i * d_blockSize;
     }
     d_mapQuadIdToProcId.resize(d_numCells * d_numQuadsPerCell);

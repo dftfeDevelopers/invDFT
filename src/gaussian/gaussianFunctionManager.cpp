@@ -1385,15 +1385,13 @@ void gaussianFunctionManager::evaluateForQuad(
       for (unsigned int j = 0; j < numBasis; ++j) {
         const double diff =
             std::abs(d_SMat[quadIndex][i * numBasis + j] - SMatExternal[i][j]);
-        //                if (diff > DFTFE_SMAT_DIFF_TOL)
-        //                  pcout
-        //                    << "Mismatch in evaluated and external overlap (S)
-        //                    matrix "
-        //                       " for pairs "
-        //                    << i << ", " << j << ". Evaluated val: "
-        //                    << d_SMat[quadIndex][i * numBasis + j]
-        //                    << " External val: " << SMatExternal[i][j] <<
-        //                    std::endl;
+                        if (diff > DFTFE_SMAT_DIFF_TOL)
+                          pcout
+                            << "Mismatch in evaluated and external overlap (S) matrix  for pairs "
+                            << i << ", " << j << ". Evaluated val: "
+                            << d_SMat[quadIndex][i * numBasis + j]
+                            << " External val: " << SMatExternal[i][j] <<
+                            std::endl;
       }
     }
 
