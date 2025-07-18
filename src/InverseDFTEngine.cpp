@@ -486,7 +486,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
           dftfe::utils::MemorySpace memorySpace>
 void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
-    setInitialDensityFromGaussian(
+    setInitialDensityFromAtomicOrbitals(
         std::vector<dftfe::utils::MemoryStorage<
             double, dftfe::utils::MemorySpace::HOST>> &rhoValuesFeSpin) {
   // Quadrature for AX multiplication will FEOrderElectro+1
@@ -539,222 +539,331 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       iElem++;
     }
 
-  std::vector<std::string> densityMatPrimaryFileNames;
-  densityMatPrimaryFileNames.push_back(
-      d_inverseDFTParams.densityMatPrimaryFileNameSpinUp);
-  if (d_numSpins == 2) {
-    densityMatPrimaryFileNames.push_back(
-        d_inverseDFTParams.densityMatPrimaryFileNameSpinDown);
-  }
 
-  gaussianFunctionManager gaussianFuncManPrimaryObj(
-      densityMatPrimaryFileNames,             // densityMatFilenames
-      d_inverseDFTParams.gaussianAtomicCoord, // atomicCoordsFilename
-      'A',                                    // unit
-      d_mpiComm_parent, d_mpiComm_domain);
-
-  unsigned int gaussQuadIndex = 0;
-  gaussianFuncManPrimaryObj.evaluateForQuad(
-      &d_quadCoordinatesParent[0], &quadJxWValues[0],
-      numTotalQuadraturePointsParent,
-      true,  // evalBasis,
-      false, // evalBasisDerivatives,
-      false, // evalBasisDoubleDerivatives,
-      true,  // evalSMat,
-      true,  // normalizeBasis,
-      gaussQuadIndex, d_inverseDFTParams.sMatrixName);
-
-  std::vector<
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-      rhoGaussianPrimary;
-  rhoGaussianPrimary.resize(
-      d_numSpins,
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-          totalLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
-
-  for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
-    gaussianFuncManPrimaryObj.getRhoValue(gaussQuadIndex, iSpin,
-                                          rhoGaussianPrimary[iSpin].data());
-  }
-
-  
-  if (d_inverseDFTParams.useLb94InInitialguess) {
-    const dftfe::utils::MemoryStorage<dftfe::dataTypes::number, memorySpace>
-        &eigenVectorsMemSpace = d_dftBaseClass->getEigenVectors();
-
-    const std::vector<std::vector<double>> &eigenValuesHost =
-        d_dftBaseClass->getEigenValues();
-    const double fermiEnergy = d_dftBaseClass->getFermiEnergy();
-
-    auto dftBasisOp = d_dftBaseClass->getBasisOperationsMemSpace();
-/*
     std::vector<
-        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-        rhoValues, gradRhoValues;
-    rhoValues.resize(
-        d_numSpins,
-        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-            numQuadraturePointsPerCellParent * totalLocallyOwnedCellsParent));
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+            rhoGaussianPrimary;
+    rhoGaussianPrimary.resize(
+            d_numSpins,
+            dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+                    totalLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
 
-    gradRhoValues.resize(
-        d_numSpins,
-        dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-            3.0 * numQuadraturePointsPerCellParent *
-            totalLocallyOwnedCellsParent));
+    std::vector<
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+            rhoGaussianDFT;
+    rhoGaussianDFT.resize(
+            d_numSpins,
+            dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+                    totalLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
 
-    dftfe::computeRhoFromPSI<dftfe::dataTypes::number>(
-        &eigenVectorsMemSpace, d_numEigenValues,fractionalOcc,
-        dftBasisOp,
-        // d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
-        d_blasWrapperMemSpace, d_dftBaseClass->getDensityDofHandlerIndex(),
-        d_dftBaseClass->getDensityQuadratureId(),
-        // d_matrixFreePsiVectorComponent,            //
-        // matrixFreeDofhandlerIndex d_matrixFreeQuadratureComponentAdjointRhs,
-        // // quadratureIndex
-        d_kpointWeights, rhoValues, gradRhoValues, true, d_mpiComm_parent,
-        d_mpiComm_interpool, d_mpiComm_bandgroup, d_dftParams,
-        false // spectrum splitting
-    );
-*/
-    if (d_numSpins == 1) {
-      std::vector<double> qpointCoord(3, 0.0);
-      std::vector<double> gradVal(3, 0.0);
+    std::vector<
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+            rhoDiffMemStorage;
+    rhoDiffMemStorage.resize(
+            d_numSpins,
+            dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+                    totalLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
 
-      d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
-                                  numQuadraturePointsPerCellParent);
-      std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
-      // TODO uncomment this after testing
-      for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
-           iCell++) {
-        for (unsigned int q_point = 0;
-             q_point < numQuadraturePointsPerCellParent; ++q_point) {
-          unsigned int qPointId =
-              (iCell * numQuadraturePointsPerCellParent) + q_point;
-          unsigned int qPointCoordIndex = qPointId * 3;
+    if (d_inverseDFTParams.readGaussian)
+    {
 
-          qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
-          qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
-          qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
-
-          gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0, gradVal);
-          d_sigmaGradRhoTarget[qPointId] =
-              4.0 * (gradVal[0] * gradVal[0] + gradVal[1] * gradVal[1] +
-                     gradVal[2] * gradVal[2]);
-          /*
-          d_sigmaGradRhoTarget[qPointId] =
-              gradRhoValues[0].data()[qPointCoordIndex + 0] *
-                  gradRhoValues[0].data()[qPointCoordIndex + 0] +
-              gradRhoValues[0].data()[qPointCoordIndex + 1] *
-                  gradRhoValues[0].data()[qPointCoordIndex + 1] +
-              gradRhoValues[0].data()[qPointCoordIndex + 2] *
-                  gradRhoValues[0].data()[qPointCoordIndex + 2];
-*/
-          //                if ( d_sigmaGradRhoTarget[qPointId] > 1e8)
-          //                  {
-          //                    std::cout<<" Large value of d_sigmaGradRhoTarget
-          //                    found at "<<qpointCoord[0]<<"
-          //                    "<<qpointCoord[1]<<"
-          //                    "<<qpointCoord[2]<<"\n";
-          //                  }
+        std::vector<std::string> densityMatPrimaryFileNames;
+        densityMatPrimaryFileNames.push_back(
+                d_inverseDFTParams.densityMatGaussianPrimaryFileNameSpinUp);
+        if (d_numSpins == 2) {
+            densityMatPrimaryFileNames.push_back(
+                    d_inverseDFTParams.densityMatGaussianPrimaryFileNameSpinDown);
         }
-      }
-    }
-    if (d_numSpins == 2) {
-      std::vector<double> qpointCoord(3, 0.0);
-      std::vector<double> gradValSpinUp(3, 0.0);
-      std::vector<double> gradValSpinDown(3, 0.0);
-      d_sigmaGradRhoTarget.resize(3 * totalLocallyOwnedCellsParent *
-                                  numQuadraturePointsPerCellParent);
 
-      std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
-      for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
-           iCell++) {
-        for (unsigned int q_point = 0;
-             q_point < numQuadraturePointsPerCellParent; ++q_point) {
-
-          unsigned int qPointId =
-              (iCell * numQuadraturePointsPerCellParent) + q_point;
-          unsigned int qPointCoordIndex = qPointId * 3;
-
-          qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
-          qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
-          qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
-
-          gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
-                                                   gradValSpinUp);
-          gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 1,
-                                                   gradValSpinDown);
-
-          d_sigmaGradRhoTarget[3 * qPointId + 0] =
-              gradValSpinUp[0] * gradValSpinUp[0] +
-              gradValSpinUp[1] * gradValSpinUp[1] +
-              gradValSpinUp[2] * gradValSpinUp[2];
-
-          d_sigmaGradRhoTarget[3 * qPointId + 1] =
-              gradValSpinUp[0] * gradValSpinDown[0] +
-              gradValSpinUp[1] * gradValSpinDown[1] +
-              gradValSpinUp[2] * gradValSpinDown[2];
-
-          d_sigmaGradRhoTarget[3 * qPointId + 2] =
-              gradValSpinDown[0] * gradValSpinDown[0] +
-              gradValSpinDown[1] * gradValSpinDown[1] +
-              gradValSpinDown[2] * gradValSpinDown[2];
+        std::vector<std::string> densityMatDFTFileNames;
+        densityMatDFTFileNames.push_back(
+                d_inverseDFTParams.densityMatGaussianDFTFileNameSpinUp);
+        if (d_numSpins == 2) {
+            densityMatDFTFileNames.push_back(
+                    d_inverseDFTParams.densityMatGaussianDFTFileNameSpinDown);
         }
-      }
+
+        gaussianFunctionManager gaussianFuncManPrimaryObj(
+                densityMatPrimaryFileNames,             // densityMatFilenames
+                d_inverseDFTParams.gaussianAtomicCoord, // atomicCoordsFilename
+                'A',                                    // unit
+                d_mpiComm_parent, d_mpiComm_domain);
+
+        unsigned int gaussQuadIndex = 0;
+        gaussianFuncManPrimaryObj.evaluateForQuad(
+                &d_quadCoordinatesParent[0], &quadJxWValues[0],
+                numTotalQuadraturePointsParent,
+                true,  // evalBasis,
+                false, // evalBasisDerivatives,
+                false, // evalBasisDoubleDerivatives,
+                true,  // evalSMat,
+                true,  // normalizeBasis,
+                gaussQuadIndex, d_inverseDFTParams.gaussianSMatrixName);
+
+        for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
+            gaussianFuncManPrimaryObj.getRhoValue(gaussQuadIndex, iSpin,
+                                                  rhoGaussianPrimary[iSpin].data());
+        }
+
+        if (d_inverseDFTParams.useLb94InInitialguess) {
+            const dftfe::utils::MemoryStorage<dftfe::dataTypes::number, memorySpace>
+                    &eigenVectorsMemSpace = d_dftBaseClass->getEigenVectors();
+
+            const std::vector<std::vector<double>> &eigenValuesHost =
+                    d_dftBaseClass->getEigenValues();
+            const double fermiEnergy = d_dftBaseClass->getFermiEnergy();
+
+            auto dftBasisOp = d_dftBaseClass->getBasisOperationsMemSpace();
+
+            if (d_numSpins == 1) {
+                std::vector<double> qpointCoord(3, 0.0);
+                std::vector<double> gradVal(3, 0.0);
+
+                d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
+                                            numQuadraturePointsPerCellParent);
+                std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
+                // TODO uncomment this after testing
+                for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
+                     iCell++) {
+                    for (unsigned int q_point = 0;
+                         q_point < numQuadraturePointsPerCellParent; ++q_point) {
+                        unsigned int qPointId =
+                                (iCell * numQuadraturePointsPerCellParent) + q_point;
+                        unsigned int qPointCoordIndex = qPointId * 3;
+
+                        qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
+                        qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
+                        qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
+
+                        gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0, gradVal);
+                        d_sigmaGradRhoTarget[qPointId] =
+                                4.0 * (gradVal[0] * gradVal[0] + gradVal[1] * gradVal[1] +
+                                       gradVal[2] * gradVal[2]);
+                        /*
+                        d_sigmaGradRhoTarget[qPointId] =
+                            gradRhoValues[0].data()[qPointCoordIndex + 0] *
+                                gradRhoValues[0].data()[qPointCoordIndex + 0] +
+                            gradRhoValues[0].data()[qPointCoordIndex + 1] *
+                                gradRhoValues[0].data()[qPointCoordIndex + 1] +
+                            gradRhoValues[0].data()[qPointCoordIndex + 2] *
+                                gradRhoValues[0].data()[qPointCoordIndex + 2];
+              */
+                        //                if ( d_sigmaGradRhoTarget[qPointId] > 1e8)
+                        //                  {
+                        //                    std::cout<<" Large value of d_sigmaGradRhoTarget
+                        //                    found at "<<qpointCoord[0]<<"
+                        //                    "<<qpointCoord[1]<<"
+                        //                    "<<qpointCoord[2]<<"\n";
+                        //                  }
+                    }
+                }
+            }
+            if (d_numSpins == 2) {
+                std::vector<double> qpointCoord(3, 0.0);
+                std::vector<double> gradValSpinUp(3, 0.0);
+                std::vector<double> gradValSpinDown(3, 0.0);
+                d_sigmaGradRhoTarget.resize(3 * totalLocallyOwnedCellsParent *
+                                            numQuadraturePointsPerCellParent);
+
+                std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
+                for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
+                     iCell++) {
+                    for (unsigned int q_point = 0;
+                         q_point < numQuadraturePointsPerCellParent; ++q_point) {
+
+                        unsigned int qPointId =
+                                (iCell * numQuadraturePointsPerCellParent) + q_point;
+                        unsigned int qPointCoordIndex = qPointId * 3;
+
+                        qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
+                        qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
+                        qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
+
+                        gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
+                                                                 gradValSpinUp);
+                        gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 1,
+                                                                 gradValSpinDown);
+
+                        d_sigmaGradRhoTarget[3 * qPointId + 0] =
+                                gradValSpinUp[0] * gradValSpinUp[0] +
+                                gradValSpinUp[1] * gradValSpinUp[1] +
+                                gradValSpinUp[2] * gradValSpinUp[2];
+
+                        d_sigmaGradRhoTarget[3 * qPointId + 1] =
+                                gradValSpinUp[0] * gradValSpinDown[0] +
+                                gradValSpinUp[1] * gradValSpinDown[1] +
+                                gradValSpinUp[2] * gradValSpinDown[2];
+
+                        d_sigmaGradRhoTarget[3 * qPointId + 2] =
+                                gradValSpinDown[0] * gradValSpinDown[0] +
+                                gradValSpinDown[1] * gradValSpinDown[1] +
+                                gradValSpinDown[2] * gradValSpinDown[2];
+                    }
+                }
+            }
+
+            auto sigmaGradIt = std::max_element(d_sigmaGradRhoTarget.begin(),
+                                                d_sigmaGradRhoTarget.end());
+            double maxSigmaGradVal = *sigmaGradIt;
+
+            MPI_Allreduce(MPI_IN_PLACE, &maxSigmaGradVal, 1, MPI_DOUBLE, MPI_MAX,
+                          d_mpiComm_domain);
+
+            pcout << " Max vlaue of sigmaGradVal = " << maxSigmaGradVal << "\n";
+        }
+
+
+        gaussianFunctionManager gaussianFuncManDFTObj(
+                densityMatDFTFileNames,                 // densityMatFilenames
+                d_inverseDFTParams.gaussianAtomicCoord, // atomicCoordsFilename
+                'A',                                    // unit
+                d_mpiComm_parent, d_mpiComm_domain);
+
+        gaussianFuncManDFTObj.evaluateForQuad(
+                &d_quadCoordinatesParent[0], &quadJxWValues[0],
+                numTotalQuadraturePointsParent,
+                true,  // evalBasis,
+                false, // evalBasisDerivatives,
+                false, // evalBasisDoubleDerivatives,
+                true,  // evalSMat,
+                true,  // normalizeBasis,
+                gaussQuadIndex, d_inverseDFTParams.gaussianSMatrixName);
+
+        for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
+            gaussianFuncManDFTObj.getRhoValue(gaussQuadIndex, iSpin,
+                                              rhoGaussianDFT[iSpin].data());
+        }
+
     }
 
-    auto sigmaGradIt = std::max_element(d_sigmaGradRhoTarget.begin(),
-                                        d_sigmaGradRhoTarget.end());
-    double maxSigmaGradVal = *sigmaGradIt;
+    if(d_inverseDFTParams.readSlater) {
+        std::vector <std::string> densityMatPrimaryFileNames;
+        densityMatPrimaryFileNames.push_back(
+                d_inverseDFTParams.densityMatSlaterPrimaryFileNameSpinUp);
+        if (d_numSpins == 2) {
+            densityMatPrimaryFileNames.push_back(
+                    d_inverseDFTParams.densityMatSlaterPrimaryFileNameSpinDown);
+        }
 
-    MPI_Allreduce(MPI_IN_PLACE, &maxSigmaGradVal, 1, MPI_DOUBLE, MPI_MAX,
-                  d_mpiComm_domain);
+        std::vector <std::string> densityMatDFTFileNames;
+        densityMatDFTFileNames.push_back(
+                d_inverseDFTParams.densityMatSlaterDFTFileNameSpinUp);
+        if (d_numSpins == 2) {
+            densityMatDFTFileNames.push_back(
+                    d_inverseDFTParams.densityMatSlaterDFTFileNameSpinDown);
+        }
 
-    pcout << " Max vlaue of sigmaGradVal = " << maxSigmaGradVal << "\n";
-  }
-  std::vector<std::string> densityMatDFTFileNames;
-  densityMatDFTFileNames.push_back(
-      d_inverseDFTParams.densityMatDFTFileNameSpinUp);
-  if (d_numSpins == 2) {
-    densityMatDFTFileNames.push_back(
-        d_inverseDFTParams.densityMatDFTFileNameSpinDown);
-  }
+        if (d_inverseDFTParams.useLb94InInitialguess) {
+            if (d_numSpins == 1) {
+                d_sigmaGradRhoTarget.resize(totalLocallyOwnedCellsParent *
+                                            numQuadraturePointsPerCellParent);
+            }
+            if (d_numSpins == 2) {
+                d_sigmaGradRhoTarget.resize(3 * totalLocallyOwnedCellsParent *
+                                            numQuadraturePointsPerCellParent);
+            }
 
-  gaussianFunctionManager gaussianFuncManDFTObj(
-      densityMatDFTFileNames,                 // densityMatFilenames
-      d_inverseDFTParams.gaussianAtomicCoord, // atomicCoordsFilename
-      'A',                                    // unit
-      d_mpiComm_parent, d_mpiComm_domain);
+            std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
 
-  gaussianFuncManDFTObj.evaluateForQuad(
-      &d_quadCoordinatesParent[0], &quadJxWValues[0],
-      numTotalQuadraturePointsParent,
-      true,  // evalBasis,
-      false, // evalBasisDerivatives,
-      false, // evalBasisDoubleDerivatives,
-      true,  // evalSMat,
-      true,  // normalizeBasis,
-      gaussQuadIndex, d_inverseDFTParams.sMatrixName);
+        }
+        for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
+            SlaterFunctionManager slaterFuncPrimaryObj(densityMatPrimaryFileNames[iSpin],
+                                                       d_inverseDFTParams.slaterSMatrixName,
+                                                       d_inverseDFTParams.gaussianAtomicCoord);
 
-  std::vector<
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-      rhoGaussianDFT;
-  rhoGaussianDFT.resize(
-      d_numSpins,
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-          totalLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
+            SlaterFunctionManager slaterFuncDFTObj(densityMatDFTFileNames[iSpin],
+                                                   d_inverseDFTParams.slaterSMatrixName,
+                                                   d_inverseDFTParams.gaussianAtomicCoord);
 
-  std::vector<
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-      rhoDiffMemStorage;
-  rhoDiffMemStorage.resize(
-      d_numSpins,
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-          totalLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
-  for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
-    gaussianFuncManDFTObj.getRhoValue(gaussQuadIndex, iSpin,
-                                      rhoGaussianDFT[iSpin].data());
-  }
+            for (unsigned int q_point = 0; q_point < totalLocallyOwnedCellsParent *
+                                                     numQuadraturePointsPerCellParent;
+                 ++q_point) {
+                unsigned int qPointCoordIndex = q_point * 3;
+
+                std::vector<double> qpointCoord(3, 0.0);
+                std::vector<double> gradVal(3, 0.0);
+
+                qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
+                qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
+                qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
+
+                rhoGaussianDFT[iSpin][q_point] =
+                        slaterFuncPrimaryObj.getRhoValue(&qpointCoord[0]);
+
+
+                rhoGaussianDFT[iSpin][q_point] =
+                        slaterFuncDFTObj.getRhoValue(&qpointCoord[0]);
+
+                if (d_inverseDFTParams.useLb94InInitialguess) {
+                    if (d_numSpins == 1) {
+
+                        std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
+                        gradVal = slaterFuncPrimaryObj.getRhoGradient(&qpointCoord[0]);
+
+                        d_sigmaGradRhoTarget[q_point] =
+                                4.0 * (gradVal[0] * gradVal[0] + gradVal[1] * gradVal[1] +
+                                       gradVal[2] * gradVal[2]);
+                    }
+                    if (d_numSpins == 2) {
+                        std::vector<double> qpointCoord(3, 0.0);
+                        std::vector<double> gradValSpinUp(3, 0.0);
+                        std::vector<double> gradValSpinDown(3, 0.0);
+
+                        gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
+                                                                 gradValSpinUp);
+                        gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 1,
+                                                                 gradValSpinDown);
+
+                        d_sigmaGradRhoTarget[3 * qPointId + 0] =
+                                gradValSpinUp[0] * gradValSpinUp[0] +
+                                gradValSpinUp[1] * gradValSpinUp[1] +
+                                gradValSpinUp[2] * gradValSpinUp[2];
+
+                        d_sigmaGradRhoTarget[3 * qPointId + 1] =
+                                gradValSpinUp[0] * gradValSpinDown[0] +
+                                gradValSpinUp[1] * gradValSpinDown[1] +
+                                gradValSpinUp[2] * gradValSpinDown[2];
+
+                        d_sigmaGradRhoTarget[3 * qPointId + 2] =
+                                gradValSpinDown[0] * gradValSpinDown[0] +
+                                gradValSpinDown[1] * gradValSpinDown[1] +
+                                gradValSpinDown[2] * gradValSpinDown[2];
+
+                    }
+                }
+            }
+
+            if (d_inverseDFTParams.useLb94InInitialguess) {
+                if (d_numSpins == 1) {
+                    std::vector<double> qpointCoord(3, 0.0);
+                    std::vector<double> gradVal(3, 0.0);
+                    if (d_numSpins == 2) {
+
+
+                        std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
+                        for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
+                             iCell++) {
+                            for (unsigned int q_point = 0;
+                                 q_point < numQuadraturePointsPerCellParent; ++q_point) {
+
+                                unsigned int qPointId =
+                                        (iCell * numQuadraturePointsPerCellParent) + q_point;
+                                unsigned int qPointCoordIndex = qPointId * 3;
+
+                                qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
+                                qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
+                                qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
+
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
 
   if (d_inverseDFTParams.readFEDensity) {
 
@@ -817,32 +926,6 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
           iElem++;
         }
     }
-
-    /*
-    for (; cell != endc; ++cell)
-      if (cell->is_locally_owned()) {
-        for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
-             iQuad++) {
-          unsigned int index = iElem * numQuadraturePointsPerCellParent + iQuad;
-          d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index] -
-                                      rhoGaussianDFT[iSpin][index] +
-                                      rhoValuesFeSpin[iSpin][index];
-
-	  diffInGaussianDensityL2Norm += (rhoGaussianPrimary[iSpin][index] -
-                                        rhoGaussianDFT[iSpin][index] )*
-                  (rhoGaussianPrimary[iSpin][index] -
-                                        rhoGaussianDFT[iSpin][index])*
-		  quadJxWValues[(iElem * numQuadraturePointsPerCellParent) + iQuad];
-        
-	  diffInGaussianDensityL1Norm += std::abs((rhoGaussianPrimary[iSpin][index] -
-                                        rhoGaussianDFT[iSpin][index] ))*
-                  quadJxWValues[(iElem * numQuadraturePointsPerCellParent) + iQuad] ;
-
-	}
-        iElem++;
-      }
-
-    */
   }
   
 
@@ -3595,8 +3678,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
       }
   }
 
-  if (d_inverseDFTParams.readGaussian) {
-    setInitialDensityFromGaussian(rhoValuesFeSpin);
+  if (d_inverseDFTParams.readGaussian || d_inverseDFTParams.readSlater) {
+      setInitialDensityFromAtomicOrbitals(rhoValuesFeSpin);
   } else {
     setTargetDensity(rhoInValues, rhoInSpinPolarised);
   }

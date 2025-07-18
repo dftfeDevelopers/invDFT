@@ -107,7 +107,7 @@ private:
 
   void setInitialPotL2Proj();
 
-  void setInitialDensityFromGaussian(
+  void setInitialDensityFromAtomicOrbitals(
       std::vector<
           dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
           &rhoValuesFeSpin);
