@@ -787,10 +787,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                iQuad++) {
             unsigned int index =
                 iElem * numQuadraturePointsPerCellParent + iQuad;
+	    
             d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index] -
                                         rhoGaussianDFT[iSpin][index] +
-                                        rhoValuesFeSpin[iSpin][index];
-	  
+     					rhoValuesFeSpin[iSpin][index];
+
+               //d_rhoTarget[iSpin][index] = rhoGaussianPrimary[iSpin][index] ;	    
 	    diffInGaussianDensityL2Norm += (rhoGaussianPrimary[iSpin][index] -
                                         rhoGaussianDFT[iSpin][index] )*
                   (rhoGaussianPrimary[iSpin][index] -
@@ -816,6 +818,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         }
     }
 
+    /*
     for (; cell != endc; ++cell)
       if (cell->is_locally_owned()) {
         for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
@@ -838,7 +841,10 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 	}
         iElem++;
       }
+
+    */
   }
+  
 
   cell = dofHandlerParent->begin_active();
   iElem = 0;
@@ -2652,7 +2658,11 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     densityInputFile >> zcoordValue;
     densityInputFile >> jxwValues;
     densityInputFile >> fieldValue0;
-    densityInputFile >> fieldValue1;
+
+    if (d_inverseDFTParams.spinGSDensity)
+    {
+            densityInputFile >> fieldValue1;
+    }
 
     if ((q_point >= quadIdStartIndex) &&
         (q_point < quadIdStartIndex + numTotalQuadraturePointsParent)) {
@@ -2667,11 +2677,11 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
           (zcoordValue - quadCoord[(q_point - quadIdStartIndex) * 3 + 2]) *
           (zcoordValue - quadCoord[(q_point - quadIdStartIndex) * 3 + 2]);
       distBetweenQuad = std::sqrt(distBetweenQuad);
-      if (distBetweenQuad > 1e-3) {
+      if (distBetweenQuad > d_inverseDFTParams.distBetweenPoints) {
         std::cout << " Errorr while reading data quad nodes do not match \n";
 
         AssertThrow(
-            distBetweenQuad < 1e-3,
+            distBetweenQuad < d_inverseDFTParams.distBetweenPoints,
             ExcMessage(
                 "DFT-FE error:  quad coordinates of density are different "));
       }
@@ -2793,7 +2803,11 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             densityInputFile >> zcoordValue;
             densityInputFile >> jxwValues;
             densityInputFile >> fieldValue0;
+
+	    if (d_inverseDFTParams.spinGSDensity)
+    {
             densityInputFile >> fieldValue1;
+    }
 
             bool isInputPointInsideBoundingBox = true;
 
@@ -2836,7 +2850,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
                     distBetweenNodes = std::sqrt(distBetweenNodes);
 
-                    if (distBetweenNodes < 1e-4) {
+                    if (distBetweenNodes < d_inverseDFTParams.distBetweenPoints) {
                         AssertThrow(!quadPointInterpolated[closestLocalPointId],
                                     ExcMessage("invDFT error: Two input coordinates are "
                                                "nearest to the same quad "));
@@ -2916,10 +2930,10 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
       distBetweenNodes += (zcoordValue - dof_coord_child[iNode][2]) *
                           (zcoordValue - dof_coord_child[iNode][2]);
       distBetweenNodes = std::sqrt(distBetweenNodes);
-      if (distBetweenNodes > 1e-3) {
+      if (distBetweenNodes > d_inverseDFTParams.distBetweenPoints) {
         std::cout << " Errorr while reading data global nodes do not match \n";
 
-        AssertThrow(distBetweenNodes < 1e-3,
+        AssertThrow(distBetweenNodes < d_inverseDFTParams.distBetweenPoints,
                     ExcMessage("DFT-FE error: Vxc nodal coordinates of density "
                                "are different "));
       }
@@ -3069,7 +3083,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
             (zcoordValue - dof_coord_child[closestGlobalPointId][2]);
 
 	distBetweenNodes = std::sqrt(distBetweenNodes);
-        if (distBetweenNodes < 1e-2) {
+        if (distBetweenNodes < d_inverseDFTParams.distBetweenPoints) {
           AssertThrow(!coordInterpolated[closestLocalPointId],
                       ExcMessage("invDFT error: Two input coordinates are "
                                  "nearest to the same node "));

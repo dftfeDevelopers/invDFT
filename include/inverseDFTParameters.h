@@ -76,6 +76,8 @@ public:
   double inverseDegeneracyTol;
 
   bool readFEDensity;
+  bool spinGSDensity;
+  double distBetweenPoints;
   std::string fileNameReadDensity;
   unsigned int interBlockSize;
   bool useLb94InInitialguess;

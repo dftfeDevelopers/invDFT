@@ -216,6 +216,11 @@ void declare_parameters(dealii::ParameterHandler &prm) {
         "[Standard] The factor with which the Vxc LDA is added to the "
         "hamiltonian. By setting to 1, we compute the delta Vxc");
 
+
+    prm.declare_entry(
+        "TOL FOR DIST BETWEEN POINTS", "1e-3", dealii::Patterns::Double(0.0),
+        "[Standard] The tol up until which two points are considered same.");
+
     prm.declare_entry(
         "TAU FOR WEIGHTS FOR LOSS FUNCTION", "1e-2",
         dealii::Patterns::Double(0.0),
@@ -253,6 +258,12 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry(
         "FE DENSITY FILENAME", ".", dealii::Patterns::Anything(),
         "[Standard] File name containing the spin polarised FE GS density");
+    
+    
+    prm.declare_entry(
+        "READ FE DENSITY DATA WITH SPIN", "true", dealii::Patterns::Bool(),
+        "[Standard] Flag to determine if the FE density is read from a file");
+
     prm.declare_entry("USE LB94_X IN INITIAL GUESS", "true",
                       dealii::Patterns::Bool(),
                       "[Standard] Flag to determine if LB 94_X is used in "
@@ -350,6 +361,8 @@ inverseDFTParameters::inverseDFTParameters() {
   writeVxcFrequency = 20;
 
   readFEDensity = false;
+  spinGSDensity = true;
+  distBetweenPoints = 1e-3;
   fileNameReadDensity = "";
   factorForLDAVxc = 0.0;
   useDeltaRhoCorrection = true;
@@ -430,6 +443,8 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     writeVxcFrequency = prm.get_integer("FREQUENCY FOR WRITING VXC");
 
     readFEDensity = prm.get_bool("READ FE DENSITY DATA");
+    spinGSDensity = prm.get_bool("READ FE DENSITY DATA WITH SPIN");
+    distBetweenPoints = prm.get_double("TOL FOR DIST BETWEEN POINTS");
     fileNameReadDensity = prm.get("FE DENSITY FILENAME");
     factorForLDAVxc = prm.get_double("FACTOR FOR LDA VXC");
     netCharge = prm.get_integer("NET CHARGE");
