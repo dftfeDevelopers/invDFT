@@ -57,6 +57,7 @@ ENDIF()
 # Declare all source files the target consists of:
 SET(TARGET_SRC ./src/gaussian/gaussianFunctionContainer.cpp
 	       ./src/gaussian/gaussianFunctionManager.cpp
+	       ./src/slater/SlaterFunctionManager.cpp
 	       ./src/BFGSInverseDFTSolver.cpp
 	       ./src/InverseDFTSolverFunction.cpp
 	       ./src/InverseDFTEngine.cpp

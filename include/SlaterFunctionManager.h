@@ -21,10 +21,7 @@
 #define INVDFT_SLATERFUNCTIONMANAGER_H
 
 
-#if defined(HAVE_CONFIG_H)
-#include "dft_config.h"
-#endif // HAVE_CONFIG_H
-
+#include "headers.h"
 #include <string>
 #include <vector>
 #include <set>
@@ -66,7 +63,12 @@ namespace invDFT {
          */
         SlaterFunctionManager(const std::string densityMatFilename,
                               const std::string smatrixFilename,
-                              const std::string atomicCoordsFilename);
+                              const std::string atomicCoordsFilename,
+			      std::vector<double> quadCoordinates,
+                              std::vector<double> quadJxW,
+                              unsigned int numQuadPoints,
+			      const MPI_Comm &mpi_comm_parent,
+                              const MPI_Comm &mpi_comm_domain);
 
 
         /**
@@ -126,7 +128,9 @@ namespace invDFT {
         int getNumberBasisFunctions();
 
         std::vector<std::vector<double> >
-        getEvaluatedSMat();
+        getEvaluatedSMat(std::vector<double> quadCoordinates,
+                         std::vector<double> quadJxW,
+                         unsigned int numQuadPoints);
 
 //        std::vector<double>
 //        getProjectedMO(QuadratureValuesContainer<DoubleVector>  MOInput,
@@ -172,6 +176,9 @@ namespace invDFT {
         std::vector<SlaterFunctionManager::basis*> d_basisFunctions;
 
         std::vector<double> d_SMatInvFlattened;
+    
+	MPI_Comm d_mpiComm_domain, d_mpiComm_parent;
+    
     };
 
 }

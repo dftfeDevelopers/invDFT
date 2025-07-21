@@ -12,7 +12,8 @@
 #include <cerrno>
 #include <cmath>
 #include <cassert>
-#include <utils/mpi/MPIController.h>
+
+#include "dftUtils.h"
 
 #include <boost/math/special_functions/legendre.hpp>
 #include <boost/math/special_functions/spherical_harmonic.hpp>
@@ -133,8 +134,9 @@ namespace invDFT {
 
                 std::cout << "Failure info: " << info << std::endl;
                 const std::string message("DGETRF failed to converge");
-                throw InvalidArgument(message);
 
+		AssertThrow(false, dealii::ExcMessage(
+                           "InvDFT Error: DGETRF in Slater basis eval failed to converge "));
             }
 
         }
@@ -164,8 +166,9 @@ namespace invDFT {
             {
 
                 const std::string message("DGETRI failed to converge");
-                throw InvalidArgument(message);
 
+		 AssertThrow(false, dealii::ExcMessage(
+                           "InvDFT Error: DGETRI in Slater basis eval failed to converge "));
             }
 
         }
@@ -388,8 +391,8 @@ namespace invDFT {
             {
 
                 const std::string message("Invalid number of FD points. Please enter number of FD points as 3, 5, 7, 9, 11 or 13.");
-                throw dft::InvalidArgument(message);
-            }
+             AssertThrow(false, dealii::ExcMessage(message));
+	    }
 
             return returnValue;
         }
@@ -593,7 +596,6 @@ namespace invDFT {
             if(n==1)
             {
                 std::string message("Gradient of slater orbital at atomic position is undefined for n=1");
-                throw InvalidArgument(message);
 
             }
 
@@ -603,8 +605,9 @@ namespace invDFT {
                 if(l==0)
                 {
                     std::string message("Gradient of slater orbital at atomic position is undefined for n=2 and l=0");
-                    throw InvalidArgument(message);
-                }
+                
+		    AssertThrow(false, dealii::ExcMessage(message));
+		}
 
                 if(l==1)
                 {
@@ -734,7 +737,8 @@ namespace invDFT {
             else
             {
                 std::string message("A point that is expected to be lying on the pole is not on the pole.");
-                throw InvalidArgument(message);
+
+		AssertThrow(false, dealii::ExcMessage(message));
 
             }
 
@@ -804,7 +808,8 @@ namespace invDFT {
             if(n==1 || n==2)
             {
                 std::string message("Laplacian of slater function is undefined at atomic position for n=1 and n=2.");
-                throw InvalidArgument(message);
+
+		AssertThrow(false, dealii::ExcMessage(message));
 
             }
 
@@ -822,8 +827,8 @@ namespace invDFT {
                 {
 
                     std::string message("Laplacian of slater function is undefined at atomic position for n=3, l=1.");
-                    throw InvalidArgument(message);
-                    return 0.0;
+                    AssertThrow(false, dealii::ExcMessage(message));
+		    return 0.0;
 
                 }
 
@@ -1070,8 +1075,9 @@ namespace invDFT {
                 if(readLine.empty())
                 {
                     std::string message("Empty or invalid line while reading atomic coordinates in SlaterFunctionManager");
-                    throw InvalidArgument(message);
-                }
+                
+		    AssertThrow(false, dealii::ExcMessage(message));
+		}
                 std::istringstream lineString(readLine);
                 std::string word;
                 unsigned int count = 0;
@@ -1082,16 +1088,18 @@ namespace invDFT {
                     {
                         std::string message("Invalid column entry while reading atomic coordinates in SlaterFunctionManager. "
                                             "Number of columns must be 5.");
-                        throw InvalidArgument(message);
-                    }
+                    
+			AssertThrow(false, dealii::ExcMessage(message));
+		    }
 
                     std::string wordTrimmed = trim(word);
 
                     if(wordTrimmed.empty())
                     {
                         std::string message("Empty column entry while reading atomic coordinates in SlaterFunctionManager");
-                        throw InvalidArgument(message);
-                    }
+                    
+			AssertThrow(false, dealii::ExcMessage(message));
+		    }
 
                     if(count >=1 && count <= 3)
                     {
@@ -1101,8 +1109,8 @@ namespace invDFT {
                         else
                         {
                             std::string message("Coordinate entry in the atomic coordinates in SlaterFunctionManager is not a number");
-                            throw InvalidArgument(message);
 
+			    AssertThrow(false, dealii::ExcMessage(message));
                         }
                     }
 
@@ -1171,8 +1179,9 @@ namespace invDFT {
                                 std::string message("Undefined behavior in slater file:"
                                                     " The principal quantum number read is not an integer");
 
-                                throw InvalidArgument(message);
-                            }
+                            
+				AssertThrow(false, dealii::ExcMessage(message));
+			    }
 
                             std::string lchars = nlChars.substr(lpos);
                             char lchar;
@@ -1181,8 +1190,9 @@ namespace invDFT {
                             else
                             {
                                 std::string message("Undefined behavior in slater file: The L (angular) quantum character is not proper");
-                                throw InvalidArgument(message);
-                            }
+                            
+				AssertThrow(false, dealii::ExcMessage(message));
+			    }
 
                             int l;
                             if(lchar == 'S' || lchar == 's')
@@ -1200,8 +1210,9 @@ namespace invDFT {
                             else
                             {
                                 std::string message("Undefined behavior in slater file: Invalid L quantum character read");
-                                throw InvalidArgument(message);
-                            }
+                            
+				AssertThrow(false, dealii::ExcMessage(message));
+			    }
 
                             //read the next word which contains the exponent
                             std::string strAlpha;
@@ -1210,16 +1221,17 @@ namespace invDFT {
                             if(strAlpha.empty())
                             {
                                 std::string message("Undefined behavior in slater file: Couldn't find the required exponent");
-                                throw InvalidArgument(message);
 
+				AssertThrow(false, dealii::ExcMessage(message));
                             }
                             else
                             {
                                 if(!isNumber(alpha,strAlpha))
                                 {
                                     std::string message("Undefined behavior in slater file: The exponent is not a number");
-                                    throw InvalidArgument(message);
-                                }
+                                
+				    AssertThrow(false, dealii::ExcMessage(message));
+				}
                             }
 
                             //
@@ -1272,8 +1284,8 @@ namespace invDFT {
                         {
 
                             std::string message ("Undefined behavior in slater file: The orbital name is not proper");
-                            throw InvalidArgument(message);
 
+			    AssertThrow(false, dealii::ExcMessage(message));
                         }
                     }
 
@@ -1325,7 +1337,8 @@ namespace invDFT {
 
             // Interpolate field at quad points
             //
-            QuadratureValuesContainer<DoubleVector>
+            /*
+		QuadratureValuesContainer<DoubleVector>
             interpolateFieldPower(const QuadratureValuesContainer<DoubleVector> & f,
                                   const int numberComponents,
                                   const ArrayNameManager::NameId fieldId,
@@ -1436,11 +1449,13 @@ namespace invDFT {
                 return returnValue;
 
             }
+	*/
 
 
             // Interpolate field at quad points
             //
-            QuadratureValuesContainer<DoubleVector>
+            /*
+		QuadratureValuesContainer<DoubleVector>
             interpolateFieldProduct(const QuadratureValuesContainer<DoubleVector> & f,
                                     const QuadratureValuesContainer<DoubleVector> & g,
                                     const int numberComponents,
@@ -1555,6 +1570,8 @@ namespace invDFT {
                 //
                 return returnValue;
             }
+	*/
+
         }
 
     }
@@ -1564,27 +1581,28 @@ namespace invDFT {
     //
     SlaterFunctionManager::SlaterFunctionManager(const std::string densityMatFilename,
                                                  const std::string smatrixFilename,
-                                                 const std::string atomicCoordsFilename):
+                                                 const std::string atomicCoordsFilename,
+						 std::vector<double> quadCoordinates,
+						 std::vector<double> quadJxW,
+						 unsigned int numQuadPoints,
+						 const MPI_Comm &mpi_comm_parent, 
+						 const MPI_Comm &mpi_comm_domain):
             d_atomicCoords(0),
             d_basisFileNames(0),
             d_densityMat(0),
             d_SMat(0),
             d_slaterBasisFunctions(0),
-            d_basisFunctions(0)
+            d_basisFunctions(0),
+	    d_mpiComm_domain(mpi_comm_domain), 
+	    d_mpiComm_parent(mpi_comm_parent)
     {
-#if defined(HAVE_MPI)
 
         //
 	// turn off output if not root task
 	//
-	const Utils::MPIController & mpiController =
-	  Utils::MPIControllerSingleton::getInstance();
-	const Utils::MPIController::mpi_task_id_type rootTaskId =
-	  mpiController.getRootId();
-	const Utils::MPIController::mpi_task_id_type taskId =
-	  mpiController.getId();
-
-#endif // HAVE_MPI
+	const unsigned int rootTaskId = 0 ;
+	const unsigned int taskId =
+	  dealii::Utilities::MPI::this_mpi_process(d_mpiComm_parent);
 
         readAtomicCoordsAndBasisFileNames(d_atomicCoords, d_basisFileNames, atomicCoordsFilename);
 
@@ -1598,13 +1616,13 @@ namespace invDFT {
                 d_atomicCoords[i][j] *= ANGSTROM_TO_BOHR;
         }
 
-        NuclearPositionsReader & nuclearPositionsReader =
-                dft::NuclearPositionsReaderSingleton::getInstance();
+        //NuclearPositionsReader & nuclearPositionsReader =
+        //        dft::NuclearPositionsReaderSingleton::getInstance();
 
         // Get the number of charges present in the system
         // FIXME: meshId passed to getTotalNumberCharges is 0
         //
-        unsigned int totalNumberCharges  = nuclearPositionsReader.getTotalNumberCharges(0);
+        //unsigned int totalNumberCharges  = nuclearPositionsReader.getTotalNumberCharges(0);
         for(unsigned int i = 0; i < d_basisFileNames.size(); ++i)
             d_uniqueBasisFileNames.insert(d_basisFileNames[i]);
 
@@ -1648,7 +1666,9 @@ namespace invDFT {
         d_SMat.resize(0);
         readMatrix(d_SMat, smatrixFilename);
 
-        std::vector<std::vector<double> > SMatEvaluated = this->getEvaluatedSMat();
+        std::vector<std::vector<double> > SMatEvaluated = this->getEvaluatedSMat(quadCoordinates,
+                                                 quadJxW,
+                                                 numQuadPoints);
 
         //Renormalize the basis
         //for(unsigned int i = 0; i < numBasis; ++i)
@@ -1656,7 +1676,7 @@ namespace invDFT {
         //	d_basisFunctions[i]->basisNormConst = 1.0/sqrt(SMatEvaluated[i][i]);
         //}
 
-        ofstream outfile;
+	std::ofstream outfile;
         outfile.open("SlaterTestData");
 
         double rhoEvaluated = 0.0;
@@ -1944,116 +1964,32 @@ namespace invDFT {
     }
 
     std::vector<std::vector<double> >
-    SlaterFunctionManager::getEvaluatedSMat()
+    SlaterFunctionManager::getEvaluatedSMat(std::vector<double> quadCoordinates,
+                         std::vector<double> quadJxW,
+                         unsigned int numQuadPoints)
     {
 
-        int meshId = 0;
-
-        //
-        // get mesh manager
-        //
-        MeshManager & meshManager = MeshManagerSingleton::getInstance();
-
-        //
-        // get QuadratureRuleManager
-        //
-        QuadratureRuleManager & quadratureRuleManager = QuadratureRuleManagerSingleton::getInstance();
-
-        //
-        // get handle to FieldQuadratureTypeManager
-        //
-        FieldQuadratureTypeManager & fieldQuadratureTypeManager = FieldQuadratureTypeManagerSingleton::getInstance();
-
-
-        //
-        // Get the quadratureType for the fieldId
-        //
-
-        QuadratureRuleManager::QuadratureNameId quadratureType = fieldQuadratureTypeManager.getFieldQuadratureType(dft::ArrayNameManager::RHO);
-
-        //
-        // get handle to Adaptive quadrature rule container
-        //
-        const QuadratureRuleContainer & quadratureRuleContainer = quadratureRuleManager.getQuadratureRuleContainer(quadratureType);
-
-        //
-        // get the number of elements in the mesh
-        //
-        const int numberElements = meshManager.getNumberElements(meshId);
-
-        //
-        // instantiate return value by getting the QuadratureValuesContainer associated with quadratureValuesManager
-        // FIXME: quadrature id used is 0
-        QuadratureValuesContainer<DoubleVector> quadValues(meshId,
-                                                           0,
-                                                           quadratureType,
-                                                           1, //numberComponents
-                                                           0.0);
 
         const int numBasis = d_basisFunctions.size();
         std::vector<std::vector<double> > SMat(numBasis, std::vector<double>(numBasis));
         for(unsigned int i = 0; i < numBasis; ++i)
         {
+		std::fill(SMat[i].begin(),SMat[i].end(),0.0);
             for(unsigned int j = 0; j < numBasis; ++j)
             {
+		    for (unsigned int iQuad = 0; iQuad < numQuadPoints; iQuad++)
+		    {
 
-                //
-                // iterate over elements
-                //
-                for (vtkIdType iElem = 0; iElem < numberElements; ++iElem) {
+			    SMat[i][j] += evaluateBasisValue(d_basisFunctions[i],&quadCoordinates[3*iQuad])*
+                                                        evaluateBasisValue(d_basisFunctions[j], &quadCoordinates[3*iQuad])
+							*quadJxW[iQuad];
 
+		    }
 
-                    //
-                    // get handle to the quadrature rule for the element
-                    //
-                    const QuadratureRule & quadratureRule =
-                            quadratureRuleContainer.getElementQuadratureRule(iElem,
-                                                                             0,
-                                                                             meshId);
-
-                    //
-                    // get the number of quad points
-                    //
-                    const QuadratureRule::quad_point_size_type numberQuadraturePoints =
-                            quadratureRule.getNumberPoints();
-
-
-                    //
-                    // get the current quad values for the element
-                    //
-                    const DoubleVector & elementQuadValuesCurrent = quadValues.getElementValues(iElem);
-
-                    //
-                    // copy current element quad values to a temporary storage
-                    //
-                    DoubleVector elementQuadValues = elementQuadValuesCurrent;
-
-                    //
-                    // compute value and gradient at quad points
-                    //
-                    for (int iQuadPoint = 0;
-                         iQuadPoint < numberQuadraturePoints;
-                         ++iQuadPoint) {
-
-                        //
-                        // get quad point coordinates
-                        //
-                        const Point & quadraturePoint =
-                                quadratureRule.getGlobalPoint(iQuadPoint);
-
-                        elementQuadValues[iQuadPoint] = evaluateBasisValue(d_basisFunctions[i],&quadraturePoint[0])*
-                                                        evaluateBasisValue(d_basisFunctions[j], &quadraturePoint[0]);
-
-                    }
-
-                    quadValues.setElementValues(iElem, elementQuadValues);
-
-                }
-
-                SMat[i][j] = dft::FieldIntegrator().integrate(quadValues,
-                                                              meshId);
-            }
-        }
+	    }
+	    MPI_Allreduce(MPI_IN_PLACE, &SMat[i][0], numBasis, MPI_DOUBLE, MPI_SUM,
+                d_mpiComm_domain);
+	}
 
         return SMat;
     }

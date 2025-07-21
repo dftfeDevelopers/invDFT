@@ -770,11 +770,19 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
             SlaterFunctionManager slaterFuncPrimaryObj(densityMatPrimaryFileNames[iSpin],
                                                        d_inverseDFTParams.slaterSMatrixName,
-                                                       d_inverseDFTParams.atomicOrbitalAtomicCoord);
+                                                       d_inverseDFTParams.atomicOrbitalAtomicCoord,
+						       d_quadCoordinatesParent, 
+						       quadJxWValues,
+						       numTotalQuadraturePointsParent,
+						       d_mpiComm_parent, d_mpiComm_domain);
 
             SlaterFunctionManager slaterFuncDFTObj(densityMatDFTFileNames[iSpin],
                                                    d_inverseDFTParams.slaterSMatrixName,
-                                                   d_inverseDFTParams.atomicOrbitalAtomicCoord);
+                                                   d_inverseDFTParams.atomicOrbitalAtomicCoord,
+						   d_quadCoordinatesParent, 
+                                                   quadJxWValues,
+                                                   numTotalQuadraturePointsParent,
+						   d_mpiComm_parent, d_mpiComm_domain);
 
             for (unsigned int q_point = 0; q_point < totalLocallyOwnedCellsParent *
                                                      numQuadraturePointsPerCellParent;
