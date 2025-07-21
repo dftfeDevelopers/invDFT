@@ -26,6 +26,7 @@
 #include "dftUtils.h"
 #include <densityCalculator.h>
 #include <gaussianFunctionManager.h>
+#include <SlaterFunctionManager.h>
 #include <xc.h>
 #include <RTreePoint.h>
 
@@ -585,7 +586,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
         gaussianFunctionManager gaussianFuncManPrimaryObj(
                 densityMatPrimaryFileNames,             // densityMatFilenames
-                d_inverseDFTParams.gaussianAtomicCoord, // atomicCoordsFilename
+                d_inverseDFTParams.atomicOrbitalAtomicCoord, // atomicCoordsFilename
                 'A',                                    // unit
                 d_mpiComm_parent, d_mpiComm_domain);
 
@@ -715,7 +716,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
         gaussianFunctionManager gaussianFuncManDFTObj(
                 densityMatDFTFileNames,                 // densityMatFilenames
-                d_inverseDFTParams.gaussianAtomicCoord, // atomicCoordsFilename
+                d_inverseDFTParams.atomicOrbitalAtomicCoord, // atomicCoordsFilename
                 'A',                                    // unit
                 d_mpiComm_parent, d_mpiComm_domain);
 
@@ -769,11 +770,11 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
             SlaterFunctionManager slaterFuncPrimaryObj(densityMatPrimaryFileNames[iSpin],
                                                        d_inverseDFTParams.slaterSMatrixName,
-                                                       d_inverseDFTParams.gaussianAtomicCoord);
+                                                       d_inverseDFTParams.atomicOrbitalAtomicCoord);
 
             SlaterFunctionManager slaterFuncDFTObj(densityMatDFTFileNames[iSpin],
                                                    d_inverseDFTParams.slaterSMatrixName,
-                                                   d_inverseDFTParams.gaussianAtomicCoord);
+                                                   d_inverseDFTParams.atomicOrbitalAtomicCoord);
 
             for (unsigned int q_point = 0; q_point < totalLocallyOwnedCellsParent *
                                                      numQuadraturePointsPerCellParent;
@@ -797,7 +798,6 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                 if (d_inverseDFTParams.useLb94InInitialguess) {
                     if (d_numSpins == 1) {
 
-                        std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
                         gradVal = slaterFuncPrimaryObj.getRhoGradient(&qpointCoord[0]);
 
                         d_sigmaGradRhoTarget[q_point] =
@@ -809,57 +809,33 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
                         std::vector<double> gradValSpinUp(3, 0.0);
                         std::vector<double> gradValSpinDown(3, 0.0);
 
+			//TODO extend to spin polarised case
+			/*
                         gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 0,
                                                                  gradValSpinUp);
                         gaussianFuncManPrimaryObj.getRhoGradient(&qpointCoord[0], 1,
                                                                  gradValSpinDown);
 
-                        d_sigmaGradRhoTarget[3 * qPointId + 0] =
+                        d_sigmaGradRhoTarget[3 * q_point + 0] =
                                 gradValSpinUp[0] * gradValSpinUp[0] +
                                 gradValSpinUp[1] * gradValSpinUp[1] +
                                 gradValSpinUp[2] * gradValSpinUp[2];
 
-                        d_sigmaGradRhoTarget[3 * qPointId + 1] =
+                        d_sigmaGradRhoTarget[3 * q_point + 1] =
                                 gradValSpinUp[0] * gradValSpinDown[0] +
                                 gradValSpinUp[1] * gradValSpinDown[1] +
                                 gradValSpinUp[2] * gradValSpinDown[2];
 
-                        d_sigmaGradRhoTarget[3 * qPointId + 2] =
+                        d_sigmaGradRhoTarget[3 * q_point + 2] =
                                 gradValSpinDown[0] * gradValSpinDown[0] +
                                 gradValSpinDown[1] * gradValSpinDown[1] +
                                 gradValSpinDown[2] * gradValSpinDown[2];
 
+				*/
                     }
                 }
             }
 
-            if (d_inverseDFTParams.useLb94InInitialguess) {
-                if (d_numSpins == 1) {
-                    std::vector<double> qpointCoord(3, 0.0);
-                    std::vector<double> gradVal(3, 0.0);
-                    if (d_numSpins == 2) {
-
-
-                        std::fill(d_sigmaGradRhoTarget.begin(), d_sigmaGradRhoTarget.end(), 0.0);
-                        for (unsigned int iCell = 0; iCell < totalLocallyOwnedCellsParent;
-                             iCell++) {
-                            for (unsigned int q_point = 0;
-                                 q_point < numQuadraturePointsPerCellParent; ++q_point) {
-
-                                unsigned int qPointId =
-                                        (iCell * numQuadraturePointsPerCellParent) + q_point;
-                                unsigned int qPointCoordIndex = qPointId * 3;
-
-                                qpointCoord[0] = d_quadCoordinatesParent[qPointCoordIndex + 0];
-                                qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
-                                qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
-
-
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 

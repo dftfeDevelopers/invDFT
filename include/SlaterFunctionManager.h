@@ -164,12 +164,12 @@ namespace invDFT {
         //
         std::set<std::string> d_uniqueBasisFileNames;
 
-        std::vector<std::vector<dft::SlaterFunctionManager::slaterBasis* > > d_slaterBasisFunctions;
+        std::vector<std::vector<SlaterFunctionManager::slaterBasis* > > d_slaterBasisFunctions;
 
         //
         // store basis function paramters
         //
-        std::vector<dft::SlaterFunctionManager::basis*> d_basisFunctions;
+        std::vector<SlaterFunctionManager::basis*> d_basisFunctions;
 
         std::vector<double> d_SMatInvFlattened;
     };

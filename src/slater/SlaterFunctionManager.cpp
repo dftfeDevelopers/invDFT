@@ -931,9 +931,9 @@ namespace invDFT {
         }
 
 
-        double evaluateBasisValue(const dft::SlaterFunctionManager::basis * b, const double * x)
+        double evaluateBasisValue(const SlaterFunctionManager::basis * b, const double * x)
         {
-            const dft::SlaterFunctionManager::slaterBasis *sb = b->sb;
+            const SlaterFunctionManager::slaterBasis *sb = b->sb;
             const double * x0 = b->origin;
             const double alpha = sb->alpha;
             const int n = sb->n;
@@ -961,7 +961,7 @@ namespace invDFT {
 
         double
         getBasisHigherOrderDerivativeFD(const double * point,
-                                        const dft::SlaterFunctionManager::basis * basis,
+                                        const SlaterFunctionManager::basis * basis,
                                         std::vector<int> & indices,
                                         const int numFDPoints,
                                         const double h)
@@ -1006,7 +1006,7 @@ namespace invDFT {
 
         double trapezoidal3d(const double L,
                              const double h,
-                             std::vector<const dft::SlaterFunctionManager::basis *> funcs)
+                             std::vector<const SlaterFunctionManager::basis *> funcs)
         {
 
             int N = L/h;
@@ -1121,7 +1121,7 @@ namespace invDFT {
         }
 
         void
-        readSlaterFiles(std::vector<dft::SlaterFunctionManager::slaterBasis*> & atomicSlaterBasisFunctions,
+        readSlaterFiles(std::vector<SlaterFunctionManager::slaterBasis*> & atomicSlaterBasisFunctions,
                         const std::string fileName)
         {
 
@@ -1236,7 +1236,7 @@ namespace invDFT {
                                 int qChem_p[] = {1,-1,0};
                                 for(unsigned int iM = 0; iM < 3; ++iM)
                                 {
-                                    dft::SlaterFunctionManager::slaterBasis *sb = new dft::SlaterFunctionManager::slaterBasis;
+                                    SlaterFunctionManager::slaterBasis *sb = new SlaterFunctionManager::slaterBasis;
                                     sb->alpha = alpha;
                                     sb->n = n;
                                     sb->l = l;
@@ -1254,7 +1254,7 @@ namespace invDFT {
                                 for(int m = -l; m <=l; ++m)
                                 {
 
-                                    dft::SlaterFunctionManager::slaterBasis *sb = new dft::SlaterFunctionManager::slaterBasis;
+                                    SlaterFunctionManager::slaterBasis *sb = new SlaterFunctionManager::slaterBasis;
                                     sb->alpha = alpha;
                                     sb->n = n;
                                     sb->l = l;
@@ -1598,7 +1598,7 @@ namespace invDFT {
                 d_atomicCoords[i][j] *= ANGSTROM_TO_BOHR;
         }
 
-        dft::NuclearPositionsReader & nuclearPositionsReader =
+        NuclearPositionsReader & nuclearPositionsReader =
                 dft::NuclearPositionsReaderSingleton::getInstance();
 
         // Get the number of charges present in the system
@@ -1614,7 +1614,7 @@ namespace invDFT {
         for(std::set<std::string>::const_iterator iter = d_uniqueBasisFileNames.begin();
             iter!= d_uniqueBasisFileNames.end(); iter++)
         {
-            std::vector<dft::SlaterFunctionManager::slaterBasis*> & atomicSlaterBasisFunctions =
+            std::vector<SlaterFunctionManager::slaterBasis*> & atomicSlaterBasisFunctions =
                     d_slaterBasisFunctions[i];
             std::string fileName = *iter;
             readSlaterFiles(atomicSlaterBasisFunctions, fileName);
@@ -1626,12 +1626,12 @@ namespace invDFT {
             const std::string basisFileName = d_basisFileNames[iAtom];
             std::set<std::string>::const_iterator iter = d_uniqueBasisFileNames.find(basisFileName);
             unsigned int index = std::distance(d_uniqueBasisFileNames.begin(), iter);
-            std::vector<dft::SlaterFunctionManager::slaterBasis*> & atomicSlaterBasisFunctions =
+            std::vector<SlaterFunctionManager::slaterBasis*> & atomicSlaterBasisFunctions =
                     d_slaterBasisFunctions[index];
             unsigned int numAtomicSlaters = atomicSlaterBasisFunctions.size();
             for(unsigned int j = 0; j < numAtomicSlaters; ++j)
             {
-                dft::SlaterFunctionManager::basis * b = new dft::SlaterFunctionManager::basis ;
+                SlaterFunctionManager::basis * b = new SlaterFunctionManager::basis ;
                 b->sb = atomicSlaterBasisFunctions[j];
                 b->origin = &d_atomicCoords[iAtom][0];
                 b->basisNormConst = atomicSlaterBasisFunctions[j]->normConst;
@@ -1699,7 +1699,7 @@ namespace invDFT {
             for(unsigned int i = 0; i < numBasis; ++i)
             {
                 outfile << "\nInfo for basis: " << i << std::endl;
-                const dft::SlaterFunctionManager::slaterBasis * sb = d_basisFunctions[i]->sb;
+                const SlaterFunctionManager::slaterBasis * sb = d_basisFunctions[i]->sb;
                 outfile << "Alpha: " << sb->alpha << std::endl;
                 outfile << "Quantum numbers: " << sb->n << "\t" << sb->l << "\t" << sb->m << std::endl;
                 outfile << "NormConst: " << sb->normConst << std::endl;
@@ -1770,12 +1770,12 @@ namespace invDFT {
         unsigned int numAtoms = d_slaterBasisFunctions.size();
         for(unsigned int i = 0; i < numAtoms; ++i)
         {
-            std::vector<dft::SlaterFunctionManager::slaterBasis*> & atomicSlaterBasisFunctions =
+            std::vector<SlaterFunctionManager::slaterBasis*> & atomicSlaterBasisFunctions =
                     d_slaterBasisFunctions[i];
             const int numAtomicSlaters = atomicSlaterBasisFunctions.size();
             for(unsigned int j = 0; j < numAtomicSlaters; ++j)
             {
-                dft::SlaterFunctionManager::slaterBasis * sb = atomicSlaterBasisFunctions[j];
+                SlaterFunctionManager::slaterBasis * sb = atomicSlaterBasisFunctions[j];
                 delete sb;
             }
         }
@@ -1890,8 +1890,8 @@ namespace invDFT {
     SlaterFunctionManager::getBasisFunctionGradient(const int basisId, const double * x)
     {
 
-        const dft::SlaterFunctionManager::basis * b = d_basisFunctions[basisId];
-        const dft::SlaterFunctionManager::slaterBasis *sb = b->sb;
+        const SlaterFunctionManager::basis * b = d_basisFunctions[basisId];
+        const SlaterFunctionManager::slaterBasis *sb = b->sb;
         const double * x0 = b->origin;
         const double alpha = sb->alpha;
         const int n = sb->n;
@@ -1916,8 +1916,8 @@ namespace invDFT {
     double
     SlaterFunctionManager::getBasisFunctionLaplacian(const int basisId, const double * x)
     {
-        const dft::SlaterFunctionManager::basis * b = d_basisFunctions[basisId];
-        const dft::SlaterFunctionManager::slaterBasis *sb = b->sb;
+        const SlaterFunctionManager::basis * b = d_basisFunctions[basisId];
+        const SlaterFunctionManager::slaterBasis *sb = b->sb;
         const double * x0 = b->origin;
         const double alpha = sb->alpha;
         const int n = sb->n;

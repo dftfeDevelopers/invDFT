@@ -83,14 +83,22 @@ public:
   bool useLb94InInitialguess;
   bool useMemOptForTransfer;
   bool readGaussian;
+  bool readSlater;
   bool fermiAmaldiBC;
   double factorFermiAmaldi;
-  std::string densityMatPrimaryFileNameSpinUp;
-  std::string densityMatPrimaryFileNameSpinDown;
-  std::string gaussianAtomicCoord;
-  std::string sMatrixName;
-  std::string densityMatDFTFileNameSpinUp;
-  std::string densityMatDFTFileNameSpinDown;
+  std::string densityMatGaussianPrimaryFileNameSpinUp;
+  std::string densityMatGaussianPrimaryFileNameSpinDown;
+  std::string atomicOrbitalAtomicCoord;
+  std::string gaussianSMatrixName;
+  std::string densityMatGaussianDFTFileNameSpinUp;
+  std::string densityMatGaussianDFTFileNameSpinDown;
+  
+
+  std::string slaterSMatrixName;
+  std::string densityMatSlaterPrimaryFileNameSpinUp;
+  std::string densityMatSlaterPrimaryFileNameSpinDown;
+  std::string densityMatSlaterDFTFileNameSpinUp;
+  std::string densityMatSlaterDFTFileNameSpinDown;
 
   double factorForLDAVxc;
   inverseDFTParameters();

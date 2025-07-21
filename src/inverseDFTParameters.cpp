@@ -278,6 +278,13 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       dealii::Patterns::Bool(),
                       "[Standard] Flag to determine if the initial Vxc is read "
                       "from a file which is written in gaussian format");
+    
+    
+    prm.declare_entry("READ SLATER DATA AS INPUT","false",
+		    dealii::Patterns::Bool(),
+		    "[Standard] Flag to determine if the initial Vxc is read "
+                      "from a file which is written in Slater format");
+    
     prm.declare_entry("SET FERMIAMALDI IN THE FAR FIELD AS INPUT", "true",
                       dealii::Patterns::Bool(),
                       "[Standard] Flag to determine if the initial Vxc has "
@@ -314,15 +321,50 @@ void declare_parameters(dealii::ParameterHandler &prm) {
         "gaussian code. This density is used for computing the delta rho "
         "correction. In case of spin un polarised, this file is not used ");
 
-    prm.declare_entry(
-        "GAUSSIAN ATOMIC COORD FILE", ".", dealii::Patterns::Anything(),
-        "[Standard] File name containing the coordinates of the atoms. These "
-        "coordinates will be used by the Gaussian code. This has to compatible "
-        "with the input coordinates file");
 
     prm.declare_entry("GAUSSIAN S MATRIX FILE", ".",
                       dealii::Patterns::Anything(),
-                      "[Standard] File containing the S matrix");
+                      "[Standard] File containing the Gaussian S matrix");
+
+  prm.declare_entry(
+        "SLATER DENSITY FOR PRIMARY RHO SPIN UP", ".",
+        dealii::Patterns::Anything(),
+        "[Standard] File name containing the density matrix obtained from the "
+        "Slater code. This is the density for which the Vxc is computed. In "
+        "case of spin un polarised, provide half the total density ");
+
+    prm.declare_entry(
+        "SLATER DENSITY FOR PRIMARY RHO SPIN DOWN", ".",
+        dealii::Patterns::Anything(),
+        "[Standard] File name containing the density matrix obtained from the "
+        "Slater code. This is the density for which the Vxc is computed. In "
+        "case of spin un polarised, this is not used");
+
+    prm.declare_entry("SLATER DENSITY FOR DFT RHO SPIN UP", ".",
+                      dealii::Patterns::Anything(),
+                      "[Standard] File name containing the density matrix "
+                      "obtained from the Slater code. This density is used "
+                      "for computing the delta rho correction. In case of spin "
+                      "un polarised, provide half the total density ");
+
+        prm.declare_entry(
+        "SLATER DENSITY FOR DFT RHO SPIN DOWN", ".",
+        dealii::Patterns::Anything(),
+        "[Standard] File name containing the density matrix obtained from the "
+        "Slater code. This density is used for computing the delta rho "
+        "correction. In case of spin un polarised, this file is not used ");
+
+    prm.declare_entry(
+        "ATOMIC ORBITAL ATOMIC COORD FILE", ".", dealii::Patterns::Anything(),
+        "[Standard] File name containing the coordinates of the atoms. These "
+        "coordinates will be used by the Gaussian/Slater code. This has to compatible "
+        "with the input coordinates file");
+
+    prm.declare_entry("SLATER S MATRIX FILE", ".",
+                      dealii::Patterns::Anything(),
+                      "[Standard] File containing the Slater S matrix");
+  
+
   }
   prm.leave_subsection();
 }
@@ -388,14 +430,24 @@ inverseDFTParameters::inverseDFTParameters() {
   additionalEigenStatesSolved = 0;
   netCharge = 0;
   readGaussian = false;
+  readSlater = false;
   fermiAmaldiBC = false;
   factorFermiAmaldi = 1.0;
-  densityMatPrimaryFileNameSpinUp = ".";
-  densityMatPrimaryFileNameSpinDown = ".";
-  gaussianAtomicCoord = ".";
-  sMatrixName = ".";
-  densityMatDFTFileNameSpinUp = ".";
-  densityMatDFTFileNameSpinDown = ".";
+
+  densityMatGaussianPrimaryFileNameSpinUp  = '.';
+  densityMatGaussianPrimaryFileNameSpinDown = '.';
+  atomicOrbitalAtomicCoord = '.';
+  gaussianSMatrixName = '.';
+  densityMatGaussianDFTFileNameSpinUp  = '.';
+  densityMatGaussianDFTFileNameSpinDown = '.';
+
+
+  slaterSMatrixName = '.';
+  densityMatSlaterPrimaryFileNameSpinUp = '.';
+  densityMatSlaterPrimaryFileNameSpinDown = '.';
+  densityMatSlaterDFTFileNameSpinUp = '.';
+  densityMatSlaterDFTFileNameSpinDown = '.';
+
 }
 
 void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
@@ -481,18 +533,31 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     inverseDegeneracyTol = prm.get_double("TOL FOR DEGENERACY");
     useMemOptForTransfer = prm.get_bool("USE MEM OPT FOR TRANSFER");
     readGaussian = prm.get_bool("READ GAUSSIAN DATA AS INPUT");
+    readSlater = prm.get_bool("READ SLATER DATA AS INPUT");
     fermiAmaldiBC = prm.get_bool("SET FERMIAMALDI IN THE FAR FIELD AS INPUT");
     factorFermiAmaldi = prm.get_double("FACTOR FOR FERMIAMALDI");
-    densityMatPrimaryFileNameSpinUp =
+    densityMatGaussianPrimaryFileNameSpinUp =
         prm.get("GAUSSIAN DENSITY FOR PRIMARY RHO SPIN UP");
-    densityMatPrimaryFileNameSpinDown =
+    densityMatGaussianPrimaryFileNameSpinDown =
         prm.get("GAUSSIAN DENSITY FOR PRIMARY RHO SPIN DOWN");
-    gaussianAtomicCoord = prm.get("GAUSSIAN ATOMIC COORD FILE");
-    sMatrixName = prm.get("GAUSSIAN S MATRIX FILE");
-    densityMatDFTFileNameSpinUp =
+    atomicOrbitalAtomicCoord = prm.get("ATOMIC ORBITAL ATOMIC COORD FILE");
+    gaussianSMatrixName = prm.get("GAUSSIAN S MATRIX FILE");
+    densityMatGaussianDFTFileNameSpinUp =
         prm.get("GAUSSIAN DENSITY FOR DFT RHO SPIN UP");
-    densityMatDFTFileNameSpinDown =
+    densityMatGaussianDFTFileNameSpinDown =
         prm.get("GAUSSIAN DENSITY FOR DFT RHO SPIN DOWN");
+
+    slaterSMatrixName = prm.get("SLATER S MATRIX FILE");
+    densityMatSlaterPrimaryFileNameSpinUp = 
+	    prm.get("SLATER DENSITY FOR PRIMARY RHO SPIN UP");
+    densityMatSlaterPrimaryFileNameSpinDown = 
+	    prm.get("SLATER DENSITY FOR PRIMARY RHO SPIN DOWN");
+    densityMatSlaterDFTFileNameSpinUp = 
+	    prm.get("SLATER DENSITY FOR DFT RHO SPIN UP");
+    densityMatSlaterDFTFileNameSpinDown = 
+	    prm.get("SLATER DENSITY FOR DFT RHO SPIN DOWN");
+
+
   }
   prm.leave_subsection();
 
