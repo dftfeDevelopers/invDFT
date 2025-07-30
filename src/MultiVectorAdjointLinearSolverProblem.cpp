@@ -3,11 +3,20 @@
 //
 
 #include "MultiVectorAdjointLinearSolverProblem.h"
+#  include <DeviceAPICalls.h>
+#  include <stdio.h>
+#  include <vector>
+#  include <DeviceDataTypeOverloads.h>
+#  include <DeviceKernelLauncherHelpers.h>
+#  include <Exceptions.h>
+
+#ifdef DFTFE_WITH_DEVICE_LANG_HIP
+#include "hip/hip_runtime.h"
+#endif
+
 
 #include <DeviceAPICalls.h>
 #include <DeviceDataTypeOverloads.h>
-#include <DeviceKernelLauncherConstants.h>
-#include <deviceKernelsGeneric.h>
 
 namespace invDFT {
 
