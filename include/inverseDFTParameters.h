@@ -92,7 +92,6 @@ public:
   std::string gaussianSMatrixName;
   std::string densityMatGaussianDFTFileNameSpinUp;
   std::string densityMatGaussianDFTFileNameSpinDown;
-  
 
   std::string slaterSMatrixName;
   std::string densityMatSlaterPrimaryFileNameSpinUp;

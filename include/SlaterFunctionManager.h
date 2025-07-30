@@ -20,168 +20,164 @@
 #ifndef INVDFT_SLATERFUNCTIONMANAGER_H
 #define INVDFT_SLATERFUNCTIONMANAGER_H
 
-
 #include "headers.h"
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
 
 namespace invDFT {
 
+/**
+ * @brief Class to read and store the Slater basis parameters to construct the
+ * input density
+ *
+ */
+class SlaterFunctionManager {
 
-    /**
-     * @brief Class to read and store the Slater basis parameters to construct the input density
-     *
-     */
-    class SlaterFunctionManager {
+  //
+  // types
+  //
+public:
+  struct slaterBasis {
+    double alpha;     // exponent of the basis
+    int n;            // principal quantum number
+    int l;            // azimuthal(angular) quantum number
+    int m;            // magnetic quantum number
+    double normConst; // normalization constant
+  };
 
-        //
-        // types
-        //
-    public:
+  struct basis {
+    const slaterBasis *sb; // pointer to the Slater basis
+    const double *origin;  // Origin or position of the atom about which the
+                           // Slater is defined
+    double basisNormConst; // normalization constant
+  };
+  //
+  // methods
+  //
+public:
+  /**
+   * @brief Constructor
+   */
+  SlaterFunctionManager(const std::string densityMatFilename,
+                        const std::string smatrixFilename,
+                        const std::string atomicCoordsFilename,
+                        std::vector<double> quadCoordinates,
+                        std::vector<double> quadJxW, unsigned int numQuadPoints,
+                        const MPI_Comm &mpi_comm_parent,
+                        const MPI_Comm &mpi_comm_domain);
 
-        struct slaterBasis {
-            double alpha; // exponent of the basis
-            int n; // principal quantum number
-            int l; // azimuthal(angular) quantum number
-            int m; // magnetic quantum number
-            double normConst; // normalization constant
-        };
+  /**
+   * @brief Destructor
+   *
+   */
+  ~SlaterFunctionManager();
 
-        struct basis {
-            const slaterBasis * sb; // pointer to the Slater basis
-            const double * origin; // Origin or position of the atom about which the Slater is defined
-            double basisNormConst; // normalization constant
-        };
-        //
-        // methods
-        //
-    public:
+  /**
+   * @brief get the value of the density at a point
+   *
+   * @param point Point at which the density is to be computed
+   *
+   * @return value of density at the point
+   */
+  double getRhoValue(const double *point);
+  std::vector<double> getRhoGradient(const double *point);
+  double getRhoLaplacian(const double *point);
 
-        /**
-         * @brief Constructor
-         */
-        SlaterFunctionManager(const std::string densityMatFilename,
-                              const std::string smatrixFilename,
-                              const std::string atomicCoordsFilename,
-			      std::vector<double> quadCoordinates,
-                              std::vector<double> quadJxW,
-                              unsigned int numQuadPoints,
-			      const MPI_Comm &mpi_comm_parent,
-                              const MPI_Comm &mpi_comm_domain);
+  /**
+   * @brief get the gradient of the density at a point
+   *
+   * @param point Point at which the gradient is to be computed
+   *
+   * @return value of gradient density at the point
+   */
+  // std::vector<double> getRhoGradient(const double * point);
 
+  /**
+   * @brief get the value of a basis function at a given point
+   *
+   * @param basisId Id of the basis function
+   * @param point Point at which the density is to be computed
+   *
+   * @return value of the basis function at the point
+   */
+  double getBasisFunctionValue(const int basisId, const double *point);
+  std::vector<double> getBasisFunctionGradient(const int basisId,
+                                               const double *point);
+  double getBasisFunctionLaplacian(const int basisId, const double *point);
 
-        /**
-         * @brief Destructor
-         *
-         */
-        ~SlaterFunctionManager();
+  /**
+   * @brief get the gradient of a basis function at a given point
+   *
+   * @param basisId Id of the basis function
+   * @param point Point at which the gradient is to be computed
+   *
+   * @return gradient of the basis function at the point
+   */
+  // std::vector<double>
+  //	getBasisFunctionGradientValue(const int basisId, const double * point);
 
-        /**
-         * @brief get the value of the density at a point
-         *
-         * @param point Point at which the density is to be computed
-         *
-         * @return value of density at the point
-         */
-        double getRhoValue(const double * point);
-        std::vector<double> getRhoGradient(const double * point);
-        double getRhoLaplacian(const double * point);
+  /**
+   * @brief get the number of basis functions
+   *
+   * @return Number of basis functions
+   */
+  int getNumberBasisFunctions();
 
-        /**
-         * @brief get the gradient of the density at a point
-         *
-         * @param point Point at which the gradient is to be computed
-         *
-         * @return value of gradient density at the point
-         */
-        //std::vector<double> getRhoGradient(const double * point);
+  std::vector<std::vector<double>>
+  getEvaluatedSMat(std::vector<double> quadCoordinates,
+                   std::vector<double> quadJxW, unsigned int numQuadPoints);
 
-        /**
-         * @brief get the value of a basis function at a given point
-         *
-         * @param basisId Id of the basis function
-         * @param point Point at which the density is to be computed
-         *
-         * @return value of the basis function at the point
-         */
-        double getBasisFunctionValue(const int basisId, const double * point);
-        std::vector<double> getBasisFunctionGradient(const int basisId, const double * point);
-        double getBasisFunctionLaplacian(const int basisId, const double * point);
+  //        std::vector<double>
+  //        getProjectedMO(QuadratureValuesContainer<DoubleVector>  MOInput,
+  //                       const int meshId);
+  //
+  //        QuadratureValuesContainer<DoubleVector>
+  //        computeMOSlaterFunction(const
+  //        QuadratureValuesContainer<DoubleVector> & mo,
+  //                                const int slaterFunctionId,
+  //                                const int meshId);
+  //
+  //        QuadratureValuesContainer<DoubleVector>
+  //        computeMOFromDensityCoeffs(const std::vector<double> &
+  //        densityCoeffs,
+  //                                   const int meshId);
+private:
+  //
+  // store atomic coordinates
+  //
+  std::vector<std::vector<double>> d_atomicCoords;
 
-        /**
-         * @brief get the gradient of a basis function at a given point
-         *
-         * @param basisId Id of the basis function
-         * @param point Point at which the gradient is to be computed
-         *
-         * @return gradient of the basis function at the point
-         */
-        //std::vector<double>
-        //	getBasisFunctionGradientValue(const int basisId, const double * point);
+  //
+  // store the density matrix
+  //
+  std::vector<std::vector<double>> d_densityMat;
 
-        /**
-         * @brief get the number of basis functions
-         *
-         * @return Number of basis functions
-         */
-        int getNumberBasisFunctions();
+  std::vector<std::vector<double>> d_SMat;
 
-        std::vector<std::vector<double> >
-        getEvaluatedSMat(std::vector<double> quadCoordinates,
-                         std::vector<double> quadJxW,
-                         unsigned int numQuadPoints);
+  //
+  // store basis file names for each atom
+  //
+  std::vector<std::string> d_basisFileNames;
 
-//        std::vector<double>
-//        getProjectedMO(QuadratureValuesContainer<DoubleVector>  MOInput,
-//                       const int meshId);
-//
-//        QuadratureValuesContainer<DoubleVector>
-//        computeMOSlaterFunction(const QuadratureValuesContainer<DoubleVector> & mo,
-//                                const int slaterFunctionId,
-//                                const int meshId);
-//
-//        QuadratureValuesContainer<DoubleVector>
-//        computeMOFromDensityCoeffs(const std::vector<double> & densityCoeffs,
-//                                   const int meshId);
-    private:
+  //
+  // store the unique basis file names
+  //
+  std::set<std::string> d_uniqueBasisFileNames;
 
-        //
-        // store atomic coordinates
-        //
-        std::vector<std::vector<double> > d_atomicCoords;
+  std::vector<std::vector<SlaterFunctionManager::slaterBasis *>>
+      d_slaterBasisFunctions;
 
-        //
-        // store the density matrix
-        //
-        std::vector<std::vector<double> > d_densityMat;
+  //
+  // store basis function paramters
+  //
+  std::vector<SlaterFunctionManager::basis *> d_basisFunctions;
 
-        std::vector<std::vector<double> > d_SMat;
+  std::vector<double> d_SMatInvFlattened;
 
-        //
-        // store basis file names for each atom
-        //
-        std::vector<std::string> d_basisFileNames;
+  MPI_Comm d_mpiComm_domain, d_mpiComm_parent;
+};
 
-        //
-        //store the unique basis file names
-        //
-        std::set<std::string> d_uniqueBasisFileNames;
+} // namespace invDFT
 
-        std::vector<std::vector<SlaterFunctionManager::slaterBasis* > > d_slaterBasisFunctions;
-
-        //
-        // store basis function paramters
-        //
-        std::vector<SlaterFunctionManager::basis*> d_basisFunctions;
-
-        std::vector<double> d_SMatInvFlattened;
-    
-	MPI_Comm d_mpiComm_domain, d_mpiComm_parent;
-    
-    };
-
-}
-
-
-#endif //INVDFT_SLATERFUNCTIONMANAGER_H
+#endif // INVDFT_SLATERFUNCTIONMANAGER_H

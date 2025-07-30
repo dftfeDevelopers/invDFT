@@ -58,10 +58,11 @@ public:
           &densityParentQuad,
       std::vector<double> &quadCoord);
 
-    void readDensityDataFromFileWithSearch(
-            std::vector<dftfe::utils::MemoryStorage<
-                    double, dftfe::utils::MemorySpace::HOST>> &densityParentQuad,
-            std::vector<double> &quadCoord);
+  void readDensityDataFromFileWithSearch(
+      std::vector<
+          dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+          &densityParentQuad,
+      std::vector<double> &quadCoord);
 
 private:
   //
@@ -115,8 +116,8 @@ private:
   void readVxcDataFromFile(
       std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes);
 
-    void readVxcDataFromFileWithSearch(
-            std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes);
+  void readVxcDataFromFileWithSearch(
+      std::vector<dftfe::distributedCPUVec<double>> &vxcChildNodes);
 
   void readVxcInput();
 
@@ -124,19 +125,15 @@ private:
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
           &hartreeQuadData);
 
-    void
-    interpolateElectroNodalDataToQuadratureDataGeneral(
-      const std::shared_ptr<
-        dftfe::basis::
-          FEBasisOperations<double, double, dftfe::utils::MemorySpace::HOST>>
-        &                              basisOperationsPtr,
-      const unsigned int               dofHandlerId,
-      const unsigned int               quadratureId,
+  void interpolateElectroNodalDataToQuadratureDataGeneral(
+      const std::shared_ptr<dftfe::basis::FEBasisOperations<
+          double, double, dftfe::utils::MemorySpace::HOST>> &basisOperationsPtr,
+      const unsigned int dofHandlerId, const unsigned int quadratureId,
       const dftfe::distributedCPUVec<double> &nodalField,
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
-        &quadratureValueData,
+          &quadratureValueData,
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
-        &        quadratureGradValueData,
+          &quadratureGradValueData,
       const bool isEvaluateGradData = false);
   //
   // TODO
@@ -204,7 +201,7 @@ private:
   unsigned int d_adjointMFAdjointConstraints, d_adjointMFPsiConstraints;
   dealii::AffineConstraints<double> d_constraintMatrixAdjoint;
 
-  dftfe::dftClass< memorySpace> *d_dftBaseClass;
+  dftfe::dftClass<memorySpace> *d_dftBaseClass;
   const dealii::MatrixFree<3, double> *d_dftMatrixFreeData;
   unsigned int d_dftDensityDoFHandlerIndex, d_dftQuadIndex;
 

@@ -167,10 +167,8 @@ private:
       d_numQuadsPerCell;
 
   dftfe::KohnShamDFTBaseOperator<memorySpace> *d_ksOperatorPtr;
-  dftfe::utils::MemoryStorage<dftfe::uInt, memorySpace>
-      d_mapNodeIdToProcId;
-  dftfe::utils::MemoryStorage<dftfe::uInt, memorySpace>
-      d_mapQuadIdToProcId;
+  dftfe::utils::MemoryStorage<dftfe::uInt, memorySpace> d_mapNodeIdToProcId;
+  dftfe::utils::MemoryStorage<dftfe::uInt, memorySpace> d_mapQuadIdToProcId;
 
   dftfe::utils::MemoryStorage<double, memorySpace> tempOutputDotProdMemSpace,
       oneBlockSizeMemSpace;

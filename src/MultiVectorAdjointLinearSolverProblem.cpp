@@ -3,17 +3,16 @@
 //
 
 #include "MultiVectorAdjointLinearSolverProblem.h"
-#  include <DeviceAPICalls.h>
-#  include <stdio.h>
-#  include <vector>
-#  include <DeviceDataTypeOverloads.h>
-#  include <DeviceKernelLauncherHelpers.h>
-#  include <Exceptions.h>
+#include <DeviceAPICalls.h>
+#include <DeviceDataTypeOverloads.h>
+#include <DeviceKernelLauncherHelpers.h>
+#include <Exceptions.h>
+#include <stdio.h>
+#include <vector>
 
 #ifdef DFTFE_WITH_DEVICE_LANG_HIP
 #include "hip/hip_runtime.h"
 #endif
-
 
 #include <DeviceAPICalls.h>
 #include <DeviceDataTypeOverloads.h>
@@ -279,13 +278,11 @@ void muMatrixMemSpaceKernel(
 template <typename ValueType>
 __global__ void performHadamardProductKernel(
     const dftfe::uInt contiguousBlockSize,
-    const dftfe::uInt nonConiguousBlockSize,
-    const dftfe::uInt numDegenerateVec, const unsigned int *vectorList,
-    const ValueType *vec1QuadValues, const ValueType *vec2QuadValues,
-    ValueType *vecOutputQuadValues) {
+    const dftfe::uInt nonConiguousBlockSize, const dftfe::uInt numDegenerateVec,
+    const unsigned int *vectorList, const ValueType *vec1QuadValues,
+    const ValueType *vec2QuadValues, ValueType *vecOutputQuadValues) {
   const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::uInt numberEntries =
-      numDegenerateVec * nonConiguousBlockSize;
+  const dftfe::uInt numberEntries = numDegenerateVec * nonConiguousBlockSize;
 
   for (dftfe::uInt index = globalThreadId; index < numberEntries;
        index += blockDim.x * gridDim.x) {
@@ -368,13 +365,11 @@ void performHadamardProduct(
 template <typename ValueType>
 __global__ void removeNullSpaceAtomicAddKernel(
     const dftfe::uInt contiguousBlockSize,
-    const dftfe::uInt nonConiguousBlockSize,
-    const dftfe::uInt numDegenerateVec, const unsigned int *vectorList,
-    const ValueType *nullVectors, const ValueType *dotProduct,
-    ValueType *outputVec) {
+    const dftfe::uInt nonConiguousBlockSize, const dftfe::uInt numDegenerateVec,
+    const unsigned int *vectorList, const ValueType *nullVectors,
+    const ValueType *dotProduct, ValueType *outputVec) {
   const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::uInt numberEntries =
-      numDegenerateVec * nonConiguousBlockSize;
+  const dftfe::uInt numberEntries = numDegenerateVec * nonConiguousBlockSize;
 
   for (dftfe::uInt index = globalThreadId; index < numberEntries;
        index += blockDim.x * gridDim.x) {
@@ -544,16 +539,14 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::computeDiagonalA() {
   d_basisOperationsPtr->computeStiffnessVector(true, true);
   d_basisOperationsPtr->computeInverseSqrtMassVector();
 
-  dftfe::utils::MemoryStorage<dftfe::uInt,
-                              dftfe::utils::MemorySpace::HOST>
+  dftfe::utils::MemoryStorage<dftfe::uInt, dftfe::utils::MemorySpace::HOST>
       nodeIds;
   nodeIds.resize(d_locallyOwnedSize);
   for (dftfe::uInt i = 0; i < d_locallyOwnedSize; i++) {
     nodeIds.data()[i] = i;
   }
 
-  dftfe::utils::MemoryStorage<dftfe::uInt, memorySpace>
-      mapNodeIdToProcId;
+  dftfe::utils::MemoryStorage<dftfe::uInt, memorySpace> mapNodeIdToProcId;
   mapNodeIdToProcId.resize(d_locallyOwnedSize);
   mapNodeIdToProcId.copyFrom(nodeIds);
 
@@ -635,8 +628,7 @@ MultiVectorAdjointLinearSolverProblem<memorySpace>::computeRhs(
 
   if (d_blockSize != blockSizeInput) {
     d_blockSize = blockSizeInput;
-    dftfe::utils::MemoryStorage<dftfe::uInt,
-                                dftfe::utils::MemorySpace::HOST>
+    dftfe::utils::MemoryStorage<dftfe::uInt, dftfe::utils::MemorySpace::HOST>
         nodeIds, quadIds;
     nodeIds.resize(d_locallyOwnedSize);
     for (dftfe::uInt i = 0; i < d_locallyOwnedSize; i++) {
@@ -854,10 +846,10 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::updateInputPsi(
 
   for (unsigned int i = 0; i < blockSize; i++) {
     effectiveOrbitalOccupancyHost_4x[i] = 4.0 * effectiveOrbitalOccupancy[i];
-/*
-    pcout << " orb occ [" << i << "] = " << effectiveOrbitalOccupancy[i]
-          << "\n";
-	  */
+    /*
+        pcout << " orb occ [" << i << "] = " << effectiveOrbitalOccupancy[i]
+              << "\n";
+              */
   }
 
   d_4xeffectiveOrbitalOccupancyMemSpace.resize(blockSize);
@@ -979,14 +971,14 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::computeMuMatrix(
   }
   MPI_Allreduce(MPI_IN_PLACE, &d_MuMatrixHost[0], d_blockSize * d_blockSize,
                 MPI_DOUBLE, MPI_SUM, mpi_communicator);
-/*
-  for (unsigned int iVecList = 0; iVecList < numVec; iVecList++) {
-    unsigned int iVec = d_vectorList[2 * iVecList];
-    unsigned int degenerateVecId = d_vectorList[2 * iVecList + 1];
-    pcout << " Mu[" << iVec << "][" << degenerateVecId << "]"
-          << d_MuMatrixHost[iVec * d_blockSize + degenerateVecId] << "\n";
-  }
-*/
+  /*
+    for (unsigned int iVecList = 0; iVecList < numVec; iVecList++) {
+      unsigned int iVec = d_vectorList[2 * iVecList];
+      unsigned int degenerateVecId = d_vectorList[2 * iVecList + 1];
+      pcout << " Mu[" << iVec << "][" << degenerateVecId << "]"
+            << d_MuMatrixHost[iVec * d_blockSize + degenerateVecId] << "\n";
+    }
+  */
   d_MuMatrixMemSpace.copyFrom(d_MuMatrixHost);
 }
 
@@ -1062,13 +1054,13 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::distributeX() {
     if (vec1 == vec2) {
       correction += DFi_epsi * etaVal;
     }
-/*
-    pcout << " iVec = " << vec1 << " jVec = " << vec2
-          << " dotProd = " << dotProductHost[i] << " corr = " << correction
-          << "\n";
-    */
+    /*
+        pcout << " iVec = " << vec1 << " jVec = " << vec2
+              << " dotProd = " << dotProductHost[i] << " corr = " << correction
+              << "\n";
+        */
 
-	  dotProductHost[i] = -1.0 * dotProductHost[i] + correction;
+    dotProductHost[i] = -1.0 * dotProductHost[i] + correction;
     // dotProductHost[i] = -1.0 * dotProductHost[i];
   }
 
@@ -1355,12 +1347,13 @@ void MultiVectorAdjointLinearSolverProblem<memorySpace>::vmult(
     unsigned int blockSize) {
   Ax.setValue(0.0);
 
-  d_ksOperatorPtr->HXWithLowdinOrthonormalisedInput(x,
-                      1.0, // scalarHX,
-                      0.0, // scalarY,
-                      0.0, // scalarX
-                      Ax,
-                      false); // onlyHPrimePartForFirstOrderDensityMatResponse
+  d_ksOperatorPtr->HXWithLowdinOrthonormalisedInput(
+      x,
+      1.0, // scalarHX,
+      0.0, // scalarY,
+      0.0, // scalarX
+      Ax,
+      false); // onlyHPrimePartForFirstOrderDensityMatResponse
 
   d_constraintsInfo.set_zero(x);
   d_constraintsInfo.set_zero(Ax);

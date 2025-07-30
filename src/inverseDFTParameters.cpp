@@ -26,7 +26,8 @@ void declare_parameters(dealii::ParameterHandler &prm) {
   prm.declare_entry(
       "SOLVER MODE", "INVERSE",
       dealii::Patterns::Selection("INVERSE|POST_PROCESS|FUNCTIONAL_TEST"),
-      "[Standard] invDFT SOLVER MODE: If INVERSE: performs inverse DFT calculation. "
+      "[Standard] invDFT SOLVER MODE: If INVERSE: performs inverse DFT "
+      "calculation. "
       "If POST_PROCESS: interpolates the Vxc from an input file to a set of "
       "points. If FUNCTIONAL_TEST: run a functional test on the adjoint solve");
 
@@ -216,7 +217,6 @@ void declare_parameters(dealii::ParameterHandler &prm) {
         "[Standard] The factor with which the Vxc LDA is added to the "
         "hamiltonian. By setting to 1, we compute the delta Vxc");
 
-
     prm.declare_entry(
         "TOL FOR DIST BETWEEN POINTS", "1e-3", dealii::Patterns::Double(0.0),
         "[Standard] The tol up until which two points are considered same.");
@@ -258,8 +258,7 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry(
         "FE DENSITY FILENAME", ".", dealii::Patterns::Anything(),
         "[Standard] File name containing the spin polarised FE GS density");
-    
-    
+
     prm.declare_entry(
         "READ FE DENSITY DATA WITH SPIN", "true", dealii::Patterns::Bool(),
         "[Standard] Flag to determine if the FE density is read from a file");
@@ -278,13 +277,12 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       dealii::Patterns::Bool(),
                       "[Standard] Flag to determine if the initial Vxc is read "
                       "from a file which is written in gaussian format");
-    
-    
-    prm.declare_entry("READ SLATER DATA AS INPUT","false",
-		    dealii::Patterns::Bool(),
-		    "[Standard] Flag to determine if the initial Vxc is read "
+
+    prm.declare_entry("READ SLATER DATA AS INPUT", "false",
+                      dealii::Patterns::Bool(),
+                      "[Standard] Flag to determine if the initial Vxc is read "
                       "from a file which is written in Slater format");
-    
+
     prm.declare_entry("SET FERMIAMALDI IN THE FAR FIELD AS INPUT", "true",
                       dealii::Patterns::Bool(),
                       "[Standard] Flag to determine if the initial Vxc has "
@@ -321,12 +319,11 @@ void declare_parameters(dealii::ParameterHandler &prm) {
         "gaussian code. This density is used for computing the delta rho "
         "correction. In case of spin un polarised, this file is not used ");
 
-
     prm.declare_entry("GAUSSIAN S MATRIX FILE", ".",
                       dealii::Patterns::Anything(),
                       "[Standard] File containing the Gaussian S matrix");
 
-  prm.declare_entry(
+    prm.declare_entry(
         "SLATER DENSITY FOR PRIMARY RHO SPIN UP", ".",
         dealii::Patterns::Anything(),
         "[Standard] File name containing the density matrix obtained from the "
@@ -347,7 +344,7 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       "for computing the delta rho correction. In case of spin "
                       "un polarised, provide half the total density ");
 
-        prm.declare_entry(
+    prm.declare_entry(
         "SLATER DENSITY FOR DFT RHO SPIN DOWN", ".",
         dealii::Patterns::Anything(),
         "[Standard] File name containing the density matrix obtained from the "
@@ -357,14 +354,12 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry(
         "ATOMIC ORBITAL ATOMIC COORD FILE", ".", dealii::Patterns::Anything(),
         "[Standard] File name containing the coordinates of the atoms. These "
-        "coordinates will be used by the Gaussian/Slater code. This has to compatible "
+        "coordinates will be used by the Gaussian/Slater code. This has to "
+        "compatible "
         "with the input coordinates file");
 
-    prm.declare_entry("SLATER S MATRIX FILE", ".",
-                      dealii::Patterns::Anything(),
+    prm.declare_entry("SLATER S MATRIX FILE", ".", dealii::Patterns::Anything(),
                       "[Standard] File containing the Slater S matrix");
-  
-
   }
   prm.leave_subsection();
 }
@@ -434,20 +429,18 @@ inverseDFTParameters::inverseDFTParameters() {
   fermiAmaldiBC = false;
   factorFermiAmaldi = 1.0;
 
-  densityMatGaussianPrimaryFileNameSpinUp  = '.';
+  densityMatGaussianPrimaryFileNameSpinUp = '.';
   densityMatGaussianPrimaryFileNameSpinDown = '.';
   atomicOrbitalAtomicCoord = '.';
   gaussianSMatrixName = '.';
-  densityMatGaussianDFTFileNameSpinUp  = '.';
+  densityMatGaussianDFTFileNameSpinUp = '.';
   densityMatGaussianDFTFileNameSpinDown = '.';
-
 
   slaterSMatrixName = '.';
   densityMatSlaterPrimaryFileNameSpinUp = '.';
   densityMatSlaterPrimaryFileNameSpinDown = '.';
   densityMatSlaterDFTFileNameSpinUp = '.';
   densityMatSlaterDFTFileNameSpinDown = '.';
-
 }
 
 void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
@@ -548,16 +541,14 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
         prm.get("GAUSSIAN DENSITY FOR DFT RHO SPIN DOWN");
 
     slaterSMatrixName = prm.get("SLATER S MATRIX FILE");
-    densityMatSlaterPrimaryFileNameSpinUp = 
-	    prm.get("SLATER DENSITY FOR PRIMARY RHO SPIN UP");
-    densityMatSlaterPrimaryFileNameSpinDown = 
-	    prm.get("SLATER DENSITY FOR PRIMARY RHO SPIN DOWN");
-    densityMatSlaterDFTFileNameSpinUp = 
-	    prm.get("SLATER DENSITY FOR DFT RHO SPIN UP");
-    densityMatSlaterDFTFileNameSpinDown = 
-	    prm.get("SLATER DENSITY FOR DFT RHO SPIN DOWN");
-
-
+    densityMatSlaterPrimaryFileNameSpinUp =
+        prm.get("SLATER DENSITY FOR PRIMARY RHO SPIN UP");
+    densityMatSlaterPrimaryFileNameSpinDown =
+        prm.get("SLATER DENSITY FOR PRIMARY RHO SPIN DOWN");
+    densityMatSlaterDFTFileNameSpinUp =
+        prm.get("SLATER DENSITY FOR DFT RHO SPIN UP");
+    densityMatSlaterDFTFileNameSpinDown =
+        prm.get("SLATER DENSITY FOR DFT RHO SPIN DOWN");
   }
   prm.leave_subsection();
 
