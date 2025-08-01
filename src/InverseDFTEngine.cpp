@@ -773,7 +773,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
         qpointCoord[1] = d_quadCoordinatesParent[qPointCoordIndex + 1];
         qpointCoord[2] = d_quadCoordinatesParent[qPointCoordIndex + 2];
 
-        rhoGaussianDFT[iSpin][q_point] =
+        rhoGaussianPrimary[iSpin][q_point] =
             slaterFuncPrimaryObj.getRhoValue(&qpointCoord[0]);
 
         rhoGaussianDFT[iSpin][q_point] =
