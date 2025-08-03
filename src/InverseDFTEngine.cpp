@@ -3706,8 +3706,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
 
   dftfe::dftUtils::printCurrentMemoryUsage(d_mpiComm_domain,
                                            "after solver func reinit");
-
-
+  if(dealii::Utilities::MPI::this_mpi_process(d_mpiComm_parent) == 0)
+  {
   if (d_inverseDFTParams.vxcDataFolder == ".") {
         std::cout << "The folder where the vxc files are written is set to the current directory" << std::endl;
     } else {
@@ -3725,6 +3725,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
             }
         }
     }
+  }
 
   // computing energies
   {
