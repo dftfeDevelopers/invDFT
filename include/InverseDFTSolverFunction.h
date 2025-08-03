@@ -352,6 +352,11 @@ private:
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
       rhoValues, gradRhoValues, rhoValuesSpinPolarized,
       gradRhoValuesSpinPolarized, d_potKSQuadData;
+  
+  std::vector<
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
+      d_tauValues;
+  
   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
       kineticEnergyDensityValues;
   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>

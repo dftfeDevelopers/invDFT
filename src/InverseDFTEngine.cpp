@@ -29,6 +29,7 @@
 #include <densityCalculator.h>
 #include <gaussianFunctionManager.h>
 #include <xc.h>
+#include <filesystem>
 
 namespace invDFT {
 namespace {
@@ -3706,14 +3707,35 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
   dftfe::dftUtils::printCurrentMemoryUsage(d_mpiComm_domain,
                                            "after solver func reinit");
 
+
+  if (d_inverseDFTParams.vxcDataFolder == ".") {
+        std::cout << "The folder where the vxc files are written is set to the current directory" << std::endl;
+    } else {
+        std::cout << "The folder provided for writing vxc files is "<<d_inverseDFTParams.vxcDataFolder << std::endl;
+
+        // Check if a directory with the inputString name already exists
+        if (std::filesystem::is_directory(d_inverseDFTParams.vxcDataFolder)) {
+            std::cout << "A directory named '" <<d_inverseDFTParams.vxcDataFolder << "' already exists." << std::endl;
+        } else {
+            // Attempt to create the directory
+            if (std::filesystem::create_directory(d_inverseDFTParams.vxcDataFolder)) {
+                std::cout << "Directory '" << d_inverseDFTParams.vxcDataFolder << "' created successfully." << std::endl;
+            } else {
+                std::cerr << "Failed to create directory '" << d_inverseDFTParams.vxcDataFolder << "'." << std::endl;
+            }
+        }
+    }
+
   // computing energies
   {
     // compute KE
-    pcout << " Kinetic energy at start\n";
+    /*
+      pcout << " Kinetic energy at start\n";
     dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
         kineticEnergyDensityValues;
     double kineticEnergy =
         d_dftBaseClass->computeAndPrintKE(kineticEnergyDensityValues);
+ */
 
     // compute electrostatic energy
     dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>

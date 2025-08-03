@@ -381,6 +381,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     d_kohnShamClass->setVEffExternalPotCorrToZero();
   }
 
+  d_tauValues.resize(d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent);
   /***
    *
    * computing Vxc LDA
@@ -738,9 +739,6 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   MPI_Barrier(d_mpi_comm_domain);
   d_computingTimerStandard.enter_subsection("Calculating Density");
 
-  std::vector<
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-      tauValues;
   auto dftBasisOp = d_dftClassPtr->getBasisOperationsMemSpace();
 
   std::vector<double> kPointCoords;
@@ -754,8 +752,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
       d_dftClassPtr->getDensityQuadratureId(),
       // d_matrixFreePsiVectorComponent,            // matrixFreeDofhandlerIndex
       // d_matrixFreeQuadratureComponentAdjointRhs, // quadratureIndex
-      kPointCoords, d_kpointWeights, rhoValues, gradRhoValues, tauValues, true,
-      false, d_mpi_comm_parent, d_mpi_comm_interpool, d_mpi_comm_interband,
+      kPointCoords, d_kpointWeights, rhoValues, gradRhoValues, d_tauValues, true,
+      true, d_mpi_comm_parent, d_mpi_comm_interpool, d_mpi_comm_interband,
       *d_dftParams);
 
 #if defined(DFTFE_WITH_DEVICE)
@@ -1711,7 +1709,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro,
                               memorySpace>::computeEnergyMetrics() {
   // compute KE
   double kineticEnergy =
-      d_dftClassPtr->computeAndPrintKE(kineticEnergyDensityValues);
+      d_dftClassPtr->computeAndPrintKE(d_tauValues[0]);
 
   // compute electrostatic energy
 
@@ -1742,7 +1740,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro,
     int exceptParamC =
         xc_func_init(&funcCMGGA, XC_MGGA_C_R2SCAN, XC_UNPOLARIZED);
     double xcMGGAEnergy = computeMGGAEnergy(
-        rhoValues[0], gradRhoValues[0], kineticEnergyDensityValues,
+        rhoValues[0], gradRhoValues[0], d_tauValues[0],
         "MGGA-R2SCAN", funcXMGGA, funcCMGGA);
   }
 
@@ -1751,7 +1749,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro,
     int exceptParamX = xc_func_init(&funcXMGGA, XC_MGGA_X_SCAN, XC_UNPOLARIZED);
     int exceptParamC = xc_func_init(&funcCMGGA, XC_MGGA_C_SCAN, XC_UNPOLARIZED);
     double xcMGGAEnergy = computeMGGAEnergy(rhoValues[0], gradRhoValues[0],
-                                            kineticEnergyDensityValues,
+                                            d_tauValues[0],
                                             "MGGA-SCAN", funcXMGGA, funcCMGGA);
   }
 }
