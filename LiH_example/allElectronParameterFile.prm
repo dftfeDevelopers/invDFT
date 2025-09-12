@@ -1,0 +1,53 @@
+set VERBOSITY = 5
+set SOLVER MODE = GS
+set USE GPU        = true
+subsection Geometry
+  set NATOMS=2
+  set NATOM TYPES=2
+  set ATOMIC COORDINATES FILE      = coordinates.inp 
+  set DOMAIN VECTORS FILE = domainVectors.inp
+end
+
+subsection Boundary conditions
+  set PERIODIC1                       = false
+  set PERIODIC2                       = false
+  set PERIODIC3                       = false
+  set SELF POTENTIAL RADIUS=3.5
+end
+
+subsection GPU
+  set USE GPU=true
+  set USE ELPA GPU KERNEL = true
+end
+
+
+subsection Finite element mesh parameters
+  set POLYNOMIAL ORDER=4
+  set POLYNOMIAL ORDER ELECTROSTATICS = 4
+  subsection Auto mesh generation parameters
+    set MESH SIZE AT ATOM = 0.06
+    set MESH SIZE AROUND ATOM = 0.45
+    set ATOM BALL RADIUS=6.0
+    set INNER ATOM BALL RADIUS = 0.5
+  end
+end
+
+subsection DFT functional parameters
+  set EXCHANGE CORRELATION TYPE   = LDA-PW
+  set PSEUDOPOTENTIAL CALCULATION = false
+end
+
+subsection SCF parameters
+  set MIXING PARAMETER =0.2
+  set COMPUTE ENERGY EACH ITER = false
+  set MIXING METHOD= ANDERSON
+  set STARTING WFC             = RANDOM
+  set TEMPERATURE              = 500
+  set TOLERANCE                = 1e-8
+  subsection Eigen-solver parameters
+    set NUMBER OF KOHN-SHAM WAVEFUNCTIONS                    = 5
+    set CHEBYSHEV FILTER TOLERANCE = 1e-10
+    set ENABLE HAMILTONIAN TIMES VECTOR OPTIM  = false
+    set ORTHOGONALIZATION TYPE=CGS
+  end
+end
