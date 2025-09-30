@@ -22,6 +22,7 @@ namespace invDFT {
 namespace {
 
 #ifdef DFTFE_WITH_DEVICE
+
 template <typename ValueType1, typename ValueType2>
 __global__ void rMatrixDeviceKernel(const dftfe::uInt numLocalCells,
                                     const dftfe::uInt numDofsPerElem,
@@ -178,6 +179,131 @@ void muMatrixMemSpaceKernel(
       dftfe::utils::makeDataTypeDeviceCompatible(muMatrixCellWise.begin()));
 #endif
 }
+
+
+template <typename ValueType>
+__global__ void performHadamardProductKernel(
+    const dftfe::uInt contiguousBlockSize,
+    const dftfe::uInt nonConiguousBlockSize, const dftfe::uInt numDegenerateVec,
+    const unsigned int *vectorList, const ValueType *vec1QuadValues,
+    const ValueType *vec2QuadValues, ValueType *vecOutputQuadValues) {
+  const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
+  const dftfe::uInt numberEntries = numDegenerateVec * nonConiguousBlockSize;
+
+  for (dftfe::uInt index = globalThreadId; index < numberEntries;
+       index += blockDim.x * gridDim.x) {
+    dftfe::uInt iNode = index / numDegenerateVec;
+    dftfe::uInt vecIndex = index - iNode * numDegenerateVec;
+    dftfe::uInt vec1Id = vectorList[2 * vecIndex];
+    dftfe::uInt vec2Id = vectorList[2 * vecIndex + 1];
+
+    dftfe::utils::copyValue(
+        vecOutputQuadValues + numDegenerateVec * iNode + vecIndex,
+        dftfe::utils::mult(
+            vec1QuadValues[iNode * contiguousBlockSize + vec1Id],
+            vec2QuadValues[iNode * contiguousBlockSize + vec2Id]));
+  }
+}
+
+template <typename ValueType>
+void performHadamardProduct(
+    const unsigned int contiguousBlockSize,
+    const unsigned int nonConiguousBlockSize,
+    const unsigned int numDegenerateVec,
+    const dftfe::utils::MemoryStorage<
+        unsigned int, dftfe::utils::MemorySpace::DEVICE> &vectorList,
+    const dftfe::utils::MemoryStorage<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &vec1QuadValues,
+    const dftfe::utils::MemoryStorage<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &vec2QuadValues,
+    dftfe::utils::MemoryStorage<ValueType, dftfe::utils::MemorySpace::DEVICE>
+        &vecOutputQuadValues) {
+#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
+  performHadamardProductKernel<<<(numDegenerateVec * nonConiguousBlockSize) /
+                                         dftfe::utils::DEVICE_BLOCK_SIZE +
+                                     1,
+                                 dftfe::utils::DEVICE_BLOCK_SIZE>>>(
+      contiguousBlockSize, nonConiguousBlockSize, numDegenerateVec,
+      dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(vec1QuadValues.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(vec2QuadValues.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(vecOutputQuadValues.begin()));
+#elif DFTFE_WITH_DEVICE_LANG_HIP
+  hipLaunchKernelGGL(
+      performHadamardProductKernel,
+      (numDegenerateVec * nonConiguousBlockSize) /
+              dftfe::utils::DEVICE_BLOCK_SIZE +
+          1,
+      dftfe::utils::DEVICE_BLOCK_SIZE, 0, 0, contiguousBlockSize,
+      nonConiguousBlockSize, numDegenerateVec,
+      dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(vec1QuadValues.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(vec2QuadValues.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(vecOutputQuadValues.begin()));
+#endif
+}
+
+template <typename ValueType>
+__global__ void removeNullSpaceAtomicAddKernel(
+    const dftfe::uInt contiguousBlockSize,
+    const dftfe::uInt nonConiguousBlockSize, const dftfe::uInt numDegenerateVec,
+    const unsigned int *vectorList, const ValueType *nullVectors,
+    const ValueType *dotProduct, ValueType *outputVec) {
+  const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
+  const dftfe::uInt numberEntries = numDegenerateVec * nonConiguousBlockSize;
+
+  for (dftfe::uInt index = globalThreadId; index < numberEntries;
+       index += blockDim.x * gridDim.x) {
+    dftfe::uInt iNode = index / numDegenerateVec;
+    dftfe::uInt vecIndex = index - iNode * numDegenerateVec;
+    dftfe::uInt vec1Id = vectorList[2 * vecIndex];
+    dftfe::uInt vec2Id = vectorList[2 * vecIndex + 1];
+
+    atomicAdd(
+        outputVec + vec1Id + iNode * contiguousBlockSize,
+        dftfe::utils::mult(nullVectors[iNode * contiguousBlockSize + vec2Id],
+                           dotProduct[vecIndex]));
+  }
+}
+
+template <typename ValueType>
+void removeNullSpace(
+    const unsigned int contiguousBlockSize,
+    const unsigned int nonConiguousBlockSize,
+    const unsigned int numDegenerateVec,
+    const dftfe::utils::MemoryStorage<
+        unsigned int, dftfe::utils::MemorySpace::DEVICE> &vectorList,
+    const dftfe::linearAlgebra::MultiVector<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &nullVectors,
+    const dftfe::utils::MemoryStorage<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &dotProduct,
+    dftfe::linearAlgebra::MultiVector<
+        ValueType, dftfe::utils::MemorySpace::DEVICE> &outputVec) {
+#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
+  removeNullSpaceAtomicAddKernel<<<(numDegenerateVec * nonConiguousBlockSize) /
+                                           dftfe::utils::DEVICE_BLOCK_SIZE +
+                                       1,
+                                   dftfe::utils::DEVICE_BLOCK_SIZE>>>(
+      contiguousBlockSize, nonConiguousBlockSize, numDegenerateVec,
+      dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(nullVectors.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(dotProduct.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(outputVec.begin()));
+#elif DFTFE_WITH_DEVICE_LANG_HIP
+  hipLaunchKernelGGL(
+      removeNullSpaceAtomicAddKernel,
+      (numDegenerateVec * nonConiguousBlockSize) /
+              dftfe::utils::DEVICE_BLOCK_SIZE +
+          1,
+      dftfe::utils::DEVICE_BLOCK_SIZE, 0, 0, contiguousBlockSize,
+      nonConiguousBlockSize, numDegenerateVec,
+      dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(nullVectors.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(dotProduct.begin()),
+      dftfe::utils::makeDataTypeDeviceCompatible(outputVec.begin()));
+#endif
+}
+
 #endif
 
 template <typename ValueType1, typename ValueType2>
@@ -276,68 +402,6 @@ void muMatrixMemSpaceKernel(
 }
 
 template <typename ValueType>
-__global__ void performHadamardProductKernel(
-    const dftfe::uInt contiguousBlockSize,
-    const dftfe::uInt nonConiguousBlockSize, const dftfe::uInt numDegenerateVec,
-    const unsigned int *vectorList, const ValueType *vec1QuadValues,
-    const ValueType *vec2QuadValues, ValueType *vecOutputQuadValues) {
-  const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::uInt numberEntries = numDegenerateVec * nonConiguousBlockSize;
-
-  for (dftfe::uInt index = globalThreadId; index < numberEntries;
-       index += blockDim.x * gridDim.x) {
-    dftfe::uInt iNode = index / numDegenerateVec;
-    dftfe::uInt vecIndex = index - iNode * numDegenerateVec;
-    dftfe::uInt vec1Id = vectorList[2 * vecIndex];
-    dftfe::uInt vec2Id = vectorList[2 * vecIndex + 1];
-
-    dftfe::utils::copyValue(
-        vecOutputQuadValues + numDegenerateVec * iNode + vecIndex,
-        dftfe::utils::mult(
-            vec1QuadValues[iNode * contiguousBlockSize + vec1Id],
-            vec2QuadValues[iNode * contiguousBlockSize + vec2Id]));
-  }
-}
-
-template <typename ValueType>
-void performHadamardProduct(
-    const unsigned int contiguousBlockSize,
-    const unsigned int nonConiguousBlockSize,
-    const unsigned int numDegenerateVec,
-    const dftfe::utils::MemoryStorage<
-        unsigned int, dftfe::utils::MemorySpace::DEVICE> &vectorList,
-    const dftfe::utils::MemoryStorage<
-        ValueType, dftfe::utils::MemorySpace::DEVICE> &vec1QuadValues,
-    const dftfe::utils::MemoryStorage<
-        ValueType, dftfe::utils::MemorySpace::DEVICE> &vec2QuadValues,
-    dftfe::utils::MemoryStorage<ValueType, dftfe::utils::MemorySpace::DEVICE>
-        &vecOutputQuadValues) {
-#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
-  performHadamardProductKernel<<<(numDegenerateVec * nonConiguousBlockSize) /
-                                         dftfe::utils::DEVICE_BLOCK_SIZE +
-                                     1,
-                                 dftfe::utils::DEVICE_BLOCK_SIZE>>>(
-      contiguousBlockSize, nonConiguousBlockSize, numDegenerateVec,
-      dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(vec1QuadValues.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(vec2QuadValues.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(vecOutputQuadValues.begin()));
-#elif DFTFE_WITH_DEVICE_LANG_HIP
-  hipLaunchKernelGGL(
-      performHadamardProductKernel,
-      (numDegenerateVec * nonConiguousBlockSize) /
-              dftfe::utils::DEVICE_BLOCK_SIZE +
-          1,
-      dftfe::utils::DEVICE_BLOCK_SIZE, 0, 0, contiguousBlockSize,
-      nonConiguousBlockSize, numDegenerateVec,
-      dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(vec1QuadValues.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(vec2QuadValues.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(vecOutputQuadValues.begin()));
-#endif
-}
-
-template <typename ValueType>
 void performHadamardProduct(
     const unsigned int contiguousBlockSize,
     const unsigned int nonConiguousBlockSize,
@@ -360,67 +424,6 @@ void performHadamardProduct(
           vec2QuadValues.data()[iNode * contiguousBlockSize + vec2Id];
     }
   }
-}
-
-template <typename ValueType>
-__global__ void removeNullSpaceAtomicAddKernel(
-    const dftfe::uInt contiguousBlockSize,
-    const dftfe::uInt nonConiguousBlockSize, const dftfe::uInt numDegenerateVec,
-    const unsigned int *vectorList, const ValueType *nullVectors,
-    const ValueType *dotProduct, ValueType *outputVec) {
-  const dftfe::uInt globalThreadId = blockIdx.x * blockDim.x + threadIdx.x;
-  const dftfe::uInt numberEntries = numDegenerateVec * nonConiguousBlockSize;
-
-  for (dftfe::uInt index = globalThreadId; index < numberEntries;
-       index += blockDim.x * gridDim.x) {
-    dftfe::uInt iNode = index / numDegenerateVec;
-    dftfe::uInt vecIndex = index - iNode * numDegenerateVec;
-    dftfe::uInt vec1Id = vectorList[2 * vecIndex];
-    dftfe::uInt vec2Id = vectorList[2 * vecIndex + 1];
-
-    atomicAdd(
-        outputVec + vec1Id + iNode * contiguousBlockSize,
-        dftfe::utils::mult(nullVectors[iNode * contiguousBlockSize + vec2Id],
-                           dotProduct[vecIndex]));
-  }
-}
-
-template <typename ValueType>
-void removeNullSpace(
-    const unsigned int contiguousBlockSize,
-    const unsigned int nonConiguousBlockSize,
-    const unsigned int numDegenerateVec,
-    const dftfe::utils::MemoryStorage<
-        unsigned int, dftfe::utils::MemorySpace::DEVICE> &vectorList,
-    const dftfe::linearAlgebra::MultiVector<
-        ValueType, dftfe::utils::MemorySpace::DEVICE> &nullVectors,
-    const dftfe::utils::MemoryStorage<
-        ValueType, dftfe::utils::MemorySpace::DEVICE> &dotProduct,
-    dftfe::linearAlgebra::MultiVector<
-        ValueType, dftfe::utils::MemorySpace::DEVICE> &outputVec) {
-#ifdef DFTFE_WITH_DEVICE_LANG_CUDA
-  removeNullSpaceAtomicAddKernel<<<(numDegenerateVec * nonConiguousBlockSize) /
-                                           dftfe::utils::DEVICE_BLOCK_SIZE +
-                                       1,
-                                   dftfe::utils::DEVICE_BLOCK_SIZE>>>(
-      contiguousBlockSize, nonConiguousBlockSize, numDegenerateVec,
-      dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(nullVectors.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(dotProduct.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(outputVec.begin()));
-#elif DFTFE_WITH_DEVICE_LANG_HIP
-  hipLaunchKernelGGL(
-      removeNullSpaceAtomicAddKernel,
-      (numDegenerateVec * nonConiguousBlockSize) /
-              dftfe::utils::DEVICE_BLOCK_SIZE +
-          1,
-      dftfe::utils::DEVICE_BLOCK_SIZE, 0, 0, contiguousBlockSize,
-      nonConiguousBlockSize, numDegenerateVec,
-      dftfe::utils::makeDataTypeDeviceCompatible(vectorList.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(nullVectors.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(dotProduct.begin()),
-      dftfe::utils::makeDataTypeDeviceCompatible(outputVec.begin()));
-#endif
 }
 
 template <typename ValueType>

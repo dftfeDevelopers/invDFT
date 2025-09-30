@@ -27,9 +27,9 @@
 #include <RTreePoint.h>
 #include <SlaterFunctionManager.h>
 #include <densityCalculator.h>
+#include <filesystem>
 #include <gaussianFunctionManager.h>
 #include <xc.h>
-#include <filesystem>
 
 namespace invDFT {
 namespace {
@@ -1432,7 +1432,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro,
         d_vxcInitialChildNodes[spinIndex]);
 
     d_constraintMatrixVxc.set_zero(d_vxcInitialChildNodes[spinIndex]);
-    //    d_vxcInitialChildNodes[spinIndex].zero_out_ghosts();
+    //    d_vxcInitialChildNodes[spinIndex].zero_out_ghost_values();
 
     dftfe::distributedCPUVec<double> exactVxcTestChild;
     exactVxcTestChild.reinit(d_vxcInitialChildNodes[spinIndex]);
@@ -3706,24 +3706,30 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::run() {
 
   dftfe::dftUtils::printCurrentMemoryUsage(d_mpiComm_domain,
                                            "after solver func reinit");
-  if(dealii::Utilities::MPI::this_mpi_process(d_mpiComm_parent) == 0)
-  {
-  if (d_inverseDFTParams.vxcDataFolder == ".") {
-        std::cout << "The folder where the vxc files are written is set to the current directory" << std::endl;
+  if (dealii::Utilities::MPI::this_mpi_process(d_mpiComm_parent) == 0) {
+    if (d_inverseDFTParams.vxcDataFolder == ".") {
+      std::cout << "The folder where the vxc files are written is set to the "
+                   "current directory"
+                << std::endl;
     } else {
-        std::cout << "The folder provided for writing vxc files is "<<d_inverseDFTParams.vxcDataFolder << std::endl;
+      std::cout << "The folder provided for writing vxc files is "
+                << d_inverseDFTParams.vxcDataFolder << std::endl;
 
-        // Check if a directory with the inputString name already exists
-        if (std::filesystem::is_directory(d_inverseDFTParams.vxcDataFolder)) {
-            std::cout << "A directory named '" <<d_inverseDFTParams.vxcDataFolder << "' already exists." << std::endl;
+      // Check if a directory with the inputString name already exists
+      if (std::filesystem::is_directory(d_inverseDFTParams.vxcDataFolder)) {
+        std::cout << "A directory named '" << d_inverseDFTParams.vxcDataFolder
+                  << "' already exists." << std::endl;
+      } else {
+        // Attempt to create the directory
+        if (std::filesystem::create_directory(
+                d_inverseDFTParams.vxcDataFolder)) {
+          std::cout << "Directory '" << d_inverseDFTParams.vxcDataFolder
+                    << "' created successfully." << std::endl;
         } else {
-            // Attempt to create the directory
-            if (std::filesystem::create_directory(d_inverseDFTParams.vxcDataFolder)) {
-                std::cout << "Directory '" << d_inverseDFTParams.vxcDataFolder << "' created successfully." << std::endl;
-            } else {
-                std::cerr << "Failed to create directory '" << d_inverseDFTParams.vxcDataFolder << "'." << std::endl;
-            }
+          std::cerr << "Failed to create directory '"
+                    << d_inverseDFTParams.vxcDataFolder << "'." << std::endl;
         }
+      }
     }
   }
 
