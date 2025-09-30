@@ -381,7 +381,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     d_kohnShamClass->setVEffExternalPotCorrToZero();
   }
 
-  d_tauValues.resize(d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent);
+  d_tauValues.resize(d_numLocallyOwnedCellsParent *
+                     numQuadraturePointsPerCellParent);
   /***
    *
    * computing Vxc LDA
@@ -752,8 +753,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
       d_dftClassPtr->getDensityQuadratureId(),
       // d_matrixFreePsiVectorComponent,            // matrixFreeDofhandlerIndex
       // d_matrixFreeQuadratureComponentAdjointRhs, // quadratureIndex
-      kPointCoords, d_kpointWeights, rhoValues, gradRhoValues, d_tauValues, true,
-      true, d_mpi_comm_parent, d_mpi_comm_interpool, d_mpi_comm_interband,
+      kPointCoords, d_kpointWeights, rhoValues, gradRhoValues, d_tauValues,
+      true, true, d_mpi_comm_parent, d_mpi_comm_interpool, d_mpi_comm_interband,
       *d_dftParams);
 
 #if defined(DFTFE_WITH_DEVICE)
@@ -1243,7 +1244,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
     pcout << "force norm = " << force[iSpin].l2_norm() << "\n";
 
     d_constraintMatrixPot->set_zero(force[iSpin]);
-    force[iSpin].zero_out_ghosts();
+    force[iSpin].zero_out_ghost_values();
   } // spin loop
 
   d_computingTimerStandard.enter_subsection("Post process");
@@ -1293,7 +1294,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
     d_constraintMatrixPot->set_zero(pot[iSpin]);
-    pot[iSpin].zero_out_ghosts();
+    pot[iSpin].zero_out_ghost_values();
   }
   d_getForceCounter++;
   d_resizeMemSpaceVecDuringInterpolation = false;
@@ -1695,7 +1696,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::dotProduct(
     std::vector<double> &outputDot) {
   outputDot.resize(blockSize);
   std::fill(outputDot.begin(), outputDot.end(), 0.0);
-  for (unsigned int iNode = 0; iNode < vec1.local_size(); iNode++) {
+  for (unsigned int iNode = 0; iNode < vec1.locally_owned_size(); iNode++) {
     outputDot[iNode % blockSize] +=
         vec1.local_element(iNode) * vec2.local_element(iNode);
   }
@@ -1708,8 +1709,7 @@ template <unsigned int FEOrder, unsigned int FEOrderElectro,
 void InverseDFTSolverFunction<FEOrder, FEOrderElectro,
                               memorySpace>::computeEnergyMetrics() {
   // compute KE
-  double kineticEnergy =
-      d_dftClassPtr->computeAndPrintKE(d_tauValues[0]);
+  double kineticEnergy = d_dftClassPtr->computeAndPrintKE(d_tauValues[0]);
 
   // compute electrostatic energy
 
@@ -1739,18 +1739,18 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro,
         xc_func_init(&funcXMGGA, XC_MGGA_X_R2SCAN, XC_UNPOLARIZED);
     int exceptParamC =
         xc_func_init(&funcCMGGA, XC_MGGA_C_R2SCAN, XC_UNPOLARIZED);
-    double xcMGGAEnergy = computeMGGAEnergy(
-        rhoValues[0], gradRhoValues[0], d_tauValues[0],
-        "MGGA-R2SCAN", funcXMGGA, funcCMGGA);
+    double xcMGGAEnergy =
+        computeMGGAEnergy(rhoValues[0], gradRhoValues[0], d_tauValues[0],
+                          "MGGA-R2SCAN", funcXMGGA, funcCMGGA);
   }
 
   {
     xc_func_type funcXMGGA, funcCMGGA;
     int exceptParamX = xc_func_init(&funcXMGGA, XC_MGGA_X_SCAN, XC_UNPOLARIZED);
     int exceptParamC = xc_func_init(&funcCMGGA, XC_MGGA_C_SCAN, XC_UNPOLARIZED);
-    double xcMGGAEnergy = computeMGGAEnergy(rhoValues[0], gradRhoValues[0],
-                                            d_tauValues[0],
-                                            "MGGA-SCAN", funcXMGGA, funcCMGGA);
+    double xcMGGAEnergy =
+        computeMGGAEnergy(rhoValues[0], gradRhoValues[0], d_tauValues[0],
+                          "MGGA-SCAN", funcXMGGA, funcCMGGA);
   }
 }
 

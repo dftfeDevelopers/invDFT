@@ -21,10 +21,10 @@
 #ifndef DFTFE_INVERSEDFTSOLVERFUNCTION_H
 #define DFTFE_INVERSEDFTSOLVERFUNCTION_H
 
-#include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include "inverseDFTParameters.h"
-#include <MultiVectorAdjointLinearSolverProblem.h>
+//#include <MultiVectorAdjointLinearSolverProblem.h>
 #include <MultiVectorMinResSolver.h>
+#include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include <constraintMatrixInfo.h>
 #include <dft.h>
 #include <headers.h>
@@ -32,6 +32,7 @@
 #include <linearAlgebraOperationsInternal.h>
 #include <nonlinearSolverFunction.h>
 #include <vectorUtilities.h>
+#include <MultiVectorAdjointLinearSolverProblem.h>
 namespace invDFT {
 /**
  * @brief Class implementing the inverse DFT problem
@@ -352,11 +353,11 @@ private:
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
       rhoValues, gradRhoValues, rhoValuesSpinPolarized,
       gradRhoValuesSpinPolarized, d_potKSQuadData;
-  
+
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
       d_tauValues;
-  
+
   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
       kineticEnergyDensityValues;
   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>

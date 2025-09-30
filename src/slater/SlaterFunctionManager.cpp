@@ -1556,14 +1556,12 @@ double SlaterFunctionManager::getRhoValue(const double *x) {
   double val = 0.0;
   std::vector<double> basisValsVec;
   basisValsVec.resize(numBasis);
-  for (unsigned int i = 0; i < numBasis; ++i)
-  {
-	  basisValsVec[i] = evaluateBasisValue(d_basisFunctions[i], x);
+  for (unsigned int i = 0; i < numBasis; ++i) {
+    basisValsVec[i] = evaluateBasisValue(d_basisFunctions[i], x);
   }
   for (unsigned int i = 0; i < numBasis; ++i) {
     for (unsigned int j = 0; j < numBasis; ++j)
-      val += d_densityMat[i][j] * basisValsVec[i] *
-             basisValsVec[j];
+      val += d_densityMat[i][j] * basisValsVec[i] * basisValsVec[j];
   }
 
   return val;
@@ -1702,45 +1700,36 @@ SlaterFunctionManager::getEvaluatedSMat(std::vector<double> quadCoordinates,
   const int numBasis = d_basisFunctions.size();
   std::vector<std::vector<double>> SMat(numBasis,
                                         std::vector<double>(numBasis));
-  
+
   std::vector<double> SMatTemp;
-  SMatTemp.resize(numBasis*numBasis);
+  SMatTemp.resize(numBasis * numBasis);
   std::fill(SMatTemp.begin(), SMatTemp.end(), 0.0);
-  
+
   for (unsigned int iQuad = 0; iQuad < numQuadPoints; iQuad++) {
-	  std::vector<double> basisValsVec;
-	  basisValsVec.resize(numBasis);
-	  std::fill(basisValsVec.begin(), basisValsVec.end(), 0.0);
-	  for (unsigned int i = 0; i < numBasis; ++i)
-	  {
-		  basisValsVec[i] = evaluateBasisValue(d_basisFunctions[i],
-                                         &quadCoordinates[3 * iQuad]);
-	  }
+    std::vector<double> basisValsVec;
+    basisValsVec.resize(numBasis);
+    std::fill(basisValsVec.begin(), basisValsVec.end(), 0.0);
+    for (unsigned int i = 0; i < numBasis; ++i) {
+      basisValsVec[i] =
+          evaluateBasisValue(d_basisFunctions[i], &quadCoordinates[3 * iQuad]);
+    }
 
-	  for (unsigned int i = 0; i < numBasis; ++i)
-	  {
-		  for (unsigned int j = 0; j < numBasis; ++j)
-		  {
-			  SMatTemp[i*numBasis + j] += basisValsVec[i]*
-				  basisValsVec[j] *
-				  quadJxW[iQuad];
-
-		  }
-
-	  }
-
+    for (unsigned int i = 0; i < numBasis; ++i) {
+      for (unsigned int j = 0; j < numBasis; ++j) {
+        SMatTemp[i * numBasis + j] +=
+            basisValsVec[i] * basisValsVec[j] * quadJxW[iQuad];
+      }
+    }
   }
 
-  MPI_Allreduce(MPI_IN_PLACE, &SMatTemp[0], numBasis*numBasis, MPI_DOUBLE, MPI_SUM,
-                  d_mpiComm_domain);
+  MPI_Allreduce(MPI_IN_PLACE, &SMatTemp[0], numBasis * numBasis, MPI_DOUBLE,
+                MPI_SUM, d_mpiComm_domain);
 
-	for (unsigned int i = 0; i < numBasis; ++i) 
-	{
-		for (unsigned int j = 0; j < numBasis; ++j)
-		{
-			SMat[i][j] = SMatTemp[i*numBasis + j];
-		}
-	}
+  for (unsigned int i = 0; i < numBasis; ++i) {
+    for (unsigned int j = 0; j < numBasis; ++j) {
+      SMat[i][j] = SMatTemp[i * numBasis + j];
+    }
+  }
 
   return SMat;
 }

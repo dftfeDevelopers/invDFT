@@ -61,7 +61,7 @@ SET(TARGET_SRC ./src/gaussian/gaussianFunctionContainer.cpp
 	       ./src/BFGSInverseDFTSolver.cpp
 	       ./src/InverseDFTSolverFunction.cpp
 	       ./src/InverseDFTEngine.cpp
-	       #./src/MultiVectorAdjointLinearSolverProblem.cpp
+	       ./src/MultiVectorAdjointLinearSolverProblem.cpp
 	       ./src/inverseDFTParameters.cpp
 	       ./src/TriangulationManagerVxc.cpp
 )
