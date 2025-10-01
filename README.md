@@ -37,3 +37,8 @@ For more information please contact the following,
 	- Bikash Kanungo (bikash@umich.edu)
 	- Vikram Gavini (vikramg@umich.edu) [Mentor]
 
+License
+-------
+
+invDFT is published under [LGPL v2.1 or newer](https://github.com/dftfeDevelopers/invDFT/blob/main/LICENSE).
+
