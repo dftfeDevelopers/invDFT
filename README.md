@@ -3,7 +3,7 @@ invDFT : A finite-element based C++ code to perform inverse DFT calculations
 
 About
 -----
-invDFT is a massively parallel C++ code that can perform inverse DFT calculations. The code uses a complete finite-element basis providing a robust and efficient formulation to compute the exact v_{xc} potential for the input ground state electron density.
+invDFT is a massively parallel C++ code that can perform inverse DFT calculations. The code uses a complete finite-element basis providing a robust and efficient formulation to compute the exact v_{xc} potential for a given input ground state electron density.
 The code can run on CPU and GPU (NVidia and AMD) architectures and its efficiency and accuracy has been demonstrated for different molecules.
 
 Installation instructions
