@@ -828,9 +828,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     MPI_Barrier(d_mpiComm_domain);
     double readDensityStart = MPI_Wtime();
 
-    // readDensityDataFromFile(rhoValuesFeSpin, d_quadCoordinatesParent);
+    readDensityDataFromFile(rhoValuesFeSpin, d_quadCoordinatesParent);
 
-    readDensityDataFromFileWithSearch(rhoValuesFeSpin, d_quadCoordinatesParent);
+    //readDensityDataFromFileWithSearch(rhoValuesFeSpin, d_quadCoordinatesParent);
 
     MPI_Barrier(d_mpiComm_domain);
     double readDensityEnd = MPI_Wtime();
