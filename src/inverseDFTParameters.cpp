@@ -41,14 +41,16 @@ void declare_parameters(dealii::ParameterHandler &prm) {
         "INTERPOLATE TO POINTS", "false", dealii::Patterns::Bool(),
         "[Standard] Interpolates Vxc to a set of points and writes to a file");
 
-    prm.declare_entry("READS POINTS FROM FILE", "false",
+    prm.declare_entry("READ POINTS FROM FILE", "false",
                       dealii::Patterns::Bool(),
                       "[Standard] if the points to which the Vxc has to be "
                       "interpolated should be read from file");
 
     prm.declare_entry(
         "FILENAME FOR POINTS", ".", dealii::Patterns::Anything(),
-        "[Standard] Name of the file from which the points are to be read");
+        "[Standard] Name of the file from which the points are to be read. The "
+        "input file should contain the coordinates of the file. The format is "
+        "x_coord y_coord z_coord");
 
     prm.declare_entry("FILENAME FOR OUTPUT", ".", dealii::Patterns::Anything(),
                       "[Standard] Name of the file to which the interpolated "
@@ -455,7 +457,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
   {
     writeVtuFile = prm.get_bool("WRITE VTU FILE");
     writeToPoints = prm.get_bool("INTERPOLATE TO POINTS");
-    readPointsFromFile = prm.get_bool("READS POINTS FROM FILE");
+    readPointsFromFile = prm.get_bool("READ POINTS FROM FILE");
     fileNameReadPoints = prm.get("FILENAME FOR POINTS");
     fileNameWriteVxcPostProcess = prm.get("FILENAME FOR OUTPUT");
     startX = prm.get_double("STARTING X");
