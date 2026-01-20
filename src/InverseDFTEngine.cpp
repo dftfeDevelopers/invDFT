@@ -828,9 +828,9 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
     MPI_Barrier(d_mpiComm_domain);
     double readDensityStart = MPI_Wtime();
 
-    // readDensityDataFromFile(rhoValuesFeSpin, d_quadCoordinatesParent);
+    readDensityDataFromFile(rhoValuesFeSpin, d_quadCoordinatesParent);
 
-    readDensityDataFromFileWithSearch(rhoValuesFeSpin, d_quadCoordinatesParent);
+    //readDensityDataFromFileWithSearch(rhoValuesFeSpin, d_quadCoordinatesParent);
 
     MPI_Barrier(d_mpiComm_domain);
     double readDensityEnd = MPI_Wtime();
@@ -3273,15 +3273,75 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
 
   if (d_inverseDFTParams.writeToPoints) {
     std::vector<std::vector<double>> targetPts;
-    // if (d_inverseDFTParams.readPointsFromFile)
-    //{
-    //
-    //}
-    // else
-    //{
-    unsigned int numPointsX = d_inverseDFTParams.numPointsX;
-    unsigned int numPointsY = d_inverseDFTParams.numPointsY;
-    unsigned int numPointsZ = d_inverseDFTParams.numPointsZ;
+    unsigned int numPointsX = 0;
+    unsigned int numPointsY = 0;
+    unsigned int numPointsZ = 0;
+    unsigned int totalNumPoints = 0;
+    unsigned int startingIndex = 0;
+    unsigned int numPointsInProc = 0;
+    if (d_inverseDFTParams.readPointsFromFile)
+    {
+	    std::string filename = d_inverseDFTParams.fileNameReadPoints;
+	   
+
+	   std::ifstream countfile(filename);
+    if (!countfile) {
+        std::cerr << "Error opening file on first pass!\n";
+        exit(0);
+    }
+    unsigned int total_points = 0;
+    std::string line;
+    while (std::getline(countfile, line)) {
+        if (!line.empty())
+            ++total_points;
+    }
+    countfile.close();
+
+    totalNumPoints = total_points;
+    pcout<<" Total number of points read from file = "<<totalNumPoints<<"\n";
+
+
+	int thisRank, numRank;
+    MPI_Comm_rank(d_mpiComm_domain, &thisRank);
+    MPI_Comm_size(d_mpiComm_domain, &numRank);
+
+    numPointsInProc = totalNumPoints / numRank;
+    if (thisRank == numRank - 1) {
+      numPointsInProc = numPointsInProc + totalNumPoints % numRank;
+    }
+
+    targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
+    startingIndex = (totalNumPoints / numRank) * thisRank;
+
+    targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
+    std::ifstream infile(filename);
+
+    if (!infile) {
+        std::cerr << "Error opening file on second pass!\n";
+        exit(0);
+    }
+    unsigned int idx = 0;
+    while (std::getline(infile, line)) {
+        if (!line.empty()) {
+            if (idx >= startingIndex && idx < startingIndex + numPointsInProc) {
+                std::istringstream iss(line);
+                double x, y,z;
+                if (iss >> x >> y >> z) {
+			targetPts[idx - startingIndex][0] = x;
+			targetPts[idx - startingIndex][1] = y;
+			targetPts[idx - startingIndex][2] = z;
+                }
+            }
+            ++idx;
+        }
+    }
+    infile.close();
+    }
+     else
+    {
+    numPointsX = d_inverseDFTParams.numPointsX;
+    numPointsY = d_inverseDFTParams.numPointsY;
+    numPointsZ = d_inverseDFTParams.numPointsZ;
 
     double startingX = d_inverseDFTParams.startX;
     double endingX = d_inverseDFTParams.endX;
@@ -3331,7 +3391,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
       z_coord[iCoord] = z_coord[iCoord - 1] + dz;
     }
 
-    unsigned int totalNumPoints = numPointsX * numPointsY * numPointsZ;
+    totalNumPoints = numPointsX * numPointsY * numPointsZ;
 
     // TODO a better domain decomposition would be cubic
     // but I am doing linear for simplicity
@@ -3340,12 +3400,12 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
     MPI_Comm_rank(d_mpiComm_domain, &thisRank);
     MPI_Comm_size(d_mpiComm_domain, &numRank);
 
-    unsigned int numPointsInProc = totalNumPoints / numRank;
+    numPointsInProc = totalNumPoints / numRank;
     if (thisRank == numRank - 1) {
       numPointsInProc = numPointsInProc + totalNumPoints % numRank;
     }
 
-    unsigned int startingIndex = (totalNumPoints / numRank) * thisRank;
+    startingIndex = (totalNumPoints / numRank) * thisRank;
 
     targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
 
@@ -3361,7 +3421,7 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
       targetPts[index - startingIndex][1] = y_coord[yIndex];
       targetPts[index - startingIndex][2] = z_coord[zIndex];
     }
-    //}
+    }
 
     unsigned int totalOwnedCellsPsi = d_dftMatrixFreeData->n_physical_cells();
 
