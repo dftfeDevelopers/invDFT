@@ -180,7 +180,6 @@ void muMatrixMemSpaceKernel(
 #endif
 }
 
-
 template <typename ValueType>
 __global__ void performHadamardProductKernel(
     const dftfe::uInt contiguousBlockSize,

@@ -830,7 +830,8 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::
 
     readDensityDataFromFile(rhoValuesFeSpin, d_quadCoordinatesParent);
 
-    //readDensityDataFromFileWithSearch(rhoValuesFeSpin, d_quadCoordinatesParent);
+    // readDensityDataFromFileWithSearch(rhoValuesFeSpin,
+    // d_quadCoordinatesParent);
 
     MPI_Barrier(d_mpiComm_domain);
     double readDensityEnd = MPI_Wtime();
@@ -3279,148 +3280,150 @@ void InverseDFTEngine<FEOrder, FEOrderElectro, memorySpace>::interpolateVxc() {
     unsigned int totalNumPoints = 0;
     unsigned int startingIndex = 0;
     unsigned int numPointsInProc = 0;
-    if (d_inverseDFTParams.readPointsFromFile)
-    {
-	    std::string filename = d_inverseDFTParams.fileNameReadPoints;
-	   
+    if (d_inverseDFTParams.readPointsFromFile) {
+      std::string filename = d_inverseDFTParams.fileNameReadPoints;
 
-	   std::ifstream countfile(filename);
-    if (!countfile) {
+      std::ifstream countfile(filename);
+      if (!countfile) {
         std::cerr << "Error opening file on first pass!\n";
         exit(0);
-    }
-    unsigned int total_points = 0;
-    std::string line;
-    while (std::getline(countfile, line)) {
+      }
+      unsigned int total_points = 0;
+      std::string line;
+      while (std::getline(countfile, line)) {
         if (!line.empty())
-            ++total_points;
-    }
-    countfile.close();
+          ++total_points;
+      }
+      countfile.close();
 
-    totalNumPoints = total_points;
-    pcout<<" Total number of points read from file = "<<totalNumPoints<<"\n";
+      totalNumPoints = total_points;
+      pcout << " Total number of points read from file = " << totalNumPoints
+            << "\n";
 
+      int thisRank, numRank;
+      MPI_Comm_rank(d_mpiComm_domain, &thisRank);
+      MPI_Comm_size(d_mpiComm_domain, &numRank);
 
-	int thisRank, numRank;
-    MPI_Comm_rank(d_mpiComm_domain, &thisRank);
-    MPI_Comm_size(d_mpiComm_domain, &numRank);
+      numPointsInProc = totalNumPoints / numRank;
+      if (thisRank == numRank - 1) {
+        numPointsInProc = numPointsInProc + totalNumPoints % numRank;
+      }
 
-    numPointsInProc = totalNumPoints / numRank;
-    if (thisRank == numRank - 1) {
-      numPointsInProc = numPointsInProc + totalNumPoints % numRank;
-    }
+      targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
+      startingIndex = (totalNumPoints / numRank) * thisRank;
 
-    targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
-    startingIndex = (totalNumPoints / numRank) * thisRank;
+      targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
+      std::ifstream infile(filename);
 
-    targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
-    std::ifstream infile(filename);
-
-    if (!infile) {
+      if (!infile) {
         std::cerr << "Error opening file on second pass!\n";
         exit(0);
-    }
-    unsigned int idx = 0;
-    while (std::getline(infile, line)) {
+      }
+      unsigned int idx = 0;
+      while (std::getline(infile, line)) {
         if (!line.empty()) {
-            if (idx >= startingIndex && idx < startingIndex + numPointsInProc) {
-                std::istringstream iss(line);
-                double x, y,z;
-                if (iss >> x >> y >> z) {
-			targetPts[idx - startingIndex][0] = x;
-			targetPts[idx - startingIndex][1] = y;
-			targetPts[idx - startingIndex][2] = z;
-                }
+          if (idx >= startingIndex && idx < startingIndex + numPointsInProc) {
+            std::istringstream iss(line);
+            double x, y, z;
+            if (iss >> x >> y >> z) {
+              targetPts[idx - startingIndex][0] = x;
+              targetPts[idx - startingIndex][1] = y;
+              targetPts[idx - startingIndex][2] = z;
             }
-            ++idx;
+          }
+          ++idx;
         }
-    }
-    infile.close();
-    }
-     else
-    {
-    numPointsX = d_inverseDFTParams.numPointsX;
-    numPointsY = d_inverseDFTParams.numPointsY;
-    numPointsZ = d_inverseDFTParams.numPointsZ;
+      }
+      infile.close();
+    } else {
+      numPointsX = d_inverseDFTParams.numPointsX;
+      numPointsY = d_inverseDFTParams.numPointsY;
+      numPointsZ = d_inverseDFTParams.numPointsZ;
 
-    double startingX = d_inverseDFTParams.startX;
-    double endingX = d_inverseDFTParams.endX;
+      double startingX = d_inverseDFTParams.startX;
+      double endingX = d_inverseDFTParams.endX;
 
-    std::vector<double> x_coord(numPointsX, 0.0);
-    x_coord[0] = startingX;
-    x_coord[numPointsX - 1] = endingX;
-    if ((std::abs(startingX - endingX) < 1e-6) && (numPointsX != 1)) {
-      AssertThrow(false, ExcMessage(" x coords are too close to interpolate "));
-    }
-    double dx = (endingX - startingX) / (numPointsX - 1);
+      std::vector<double> x_coord(numPointsX, 0.0);
+      x_coord[0] = startingX;
+      x_coord[numPointsX - 1] = endingX;
+      if ((std::abs(startingX - endingX) < 1e-6) && (numPointsX != 1)) {
+        AssertThrow(false,
+                    ExcMessage(" x coords are too close to interpolate "));
+      }
+      double dx = (endingX - startingX) / (numPointsX - 1);
 
-    AssertThrow((dx > 0.0) || (numPointsX == 1), ExcMessage(" dx is negative"));
-    for (unsigned int iCoord = 1; iCoord < numPointsX - 1; iCoord++) {
-      x_coord[iCoord] = x_coord[iCoord - 1] + dx;
-    }
+      AssertThrow((dx > 0.0) || (numPointsX == 1),
+                  ExcMessage(" dx is negative"));
+      for (unsigned int iCoord = 1; iCoord < numPointsX - 1; iCoord++) {
+        x_coord[iCoord] = x_coord[iCoord - 1] + dx;
+      }
 
-    double startingY = d_inverseDFTParams.startY;
-    double endingY = d_inverseDFTParams.endY;
+      double startingY = d_inverseDFTParams.startY;
+      double endingY = d_inverseDFTParams.endY;
 
-    std::vector<double> y_coord(numPointsY, 0.0);
-    y_coord[0] = startingY;
-    y_coord[numPointsY - 1] = endingY;
-    if ((std::abs(startingY - endingY) < 1e-6) && (numPointsY != 1)) {
-      AssertThrow(false, ExcMessage(" y coords are too close to interpolate "));
-    }
-    double dy = (endingY - startingY) / (numPointsY - 1);
+      std::vector<double> y_coord(numPointsY, 0.0);
+      y_coord[0] = startingY;
+      y_coord[numPointsY - 1] = endingY;
+      if ((std::abs(startingY - endingY) < 1e-6) && (numPointsY != 1)) {
+        AssertThrow(false,
+                    ExcMessage(" y coords are too close to interpolate "));
+      }
+      double dy = (endingY - startingY) / (numPointsY - 1);
 
-    AssertThrow((dy > 0.0) || (numPointsY == 1), ExcMessage(" dy is negative"));
-    for (unsigned int iCoord = 1; iCoord < numPointsY - 1; iCoord++) {
-      y_coord[iCoord] = y_coord[iCoord - 1] + dy;
-    }
+      AssertThrow((dy > 0.0) || (numPointsY == 1),
+                  ExcMessage(" dy is negative"));
+      for (unsigned int iCoord = 1; iCoord < numPointsY - 1; iCoord++) {
+        y_coord[iCoord] = y_coord[iCoord - 1] + dy;
+      }
 
-    double startingZ = d_inverseDFTParams.startZ;
-    double endingZ = d_inverseDFTParams.endZ;
+      double startingZ = d_inverseDFTParams.startZ;
+      double endingZ = d_inverseDFTParams.endZ;
 
-    std::vector<double> z_coord(numPointsZ, 0.0);
-    z_coord[0] = startingZ;
-    z_coord[numPointsZ - 1] = endingZ;
-    if ((std::abs(startingZ - endingZ) < 1e-6) && (numPointsZ != 1)) {
-      AssertThrow(false, ExcMessage(" z coords are too close to interpolate "));
-    }
-    double dz = (endingZ - startingZ) / (numPointsZ - 1);
+      std::vector<double> z_coord(numPointsZ, 0.0);
+      z_coord[0] = startingZ;
+      z_coord[numPointsZ - 1] = endingZ;
+      if ((std::abs(startingZ - endingZ) < 1e-6) && (numPointsZ != 1)) {
+        AssertThrow(false,
+                    ExcMessage(" z coords are too close to interpolate "));
+      }
+      double dz = (endingZ - startingZ) / (numPointsZ - 1);
 
-    AssertThrow((dz > 0.0) || (numPointsZ == 1), ExcMessage(" dz is negative"));
-    for (unsigned int iCoord = 1; iCoord < numPointsZ - 1; iCoord++) {
-      z_coord[iCoord] = z_coord[iCoord - 1] + dz;
-    }
+      AssertThrow((dz > 0.0) || (numPointsZ == 1),
+                  ExcMessage(" dz is negative"));
+      for (unsigned int iCoord = 1; iCoord < numPointsZ - 1; iCoord++) {
+        z_coord[iCoord] = z_coord[iCoord - 1] + dz;
+      }
 
-    totalNumPoints = numPointsX * numPointsY * numPointsZ;
+      totalNumPoints = numPointsX * numPointsY * numPointsZ;
 
-    // TODO a better domain decomposition would be cubic
-    // but I am doing linear for simplicity
+      // TODO a better domain decomposition would be cubic
+      // but I am doing linear for simplicity
 
-    int thisRank, numRank;
-    MPI_Comm_rank(d_mpiComm_domain, &thisRank);
-    MPI_Comm_size(d_mpiComm_domain, &numRank);
+      int thisRank, numRank;
+      MPI_Comm_rank(d_mpiComm_domain, &thisRank);
+      MPI_Comm_size(d_mpiComm_domain, &numRank);
 
-    numPointsInProc = totalNumPoints / numRank;
-    if (thisRank == numRank - 1) {
-      numPointsInProc = numPointsInProc + totalNumPoints % numRank;
-    }
+      numPointsInProc = totalNumPoints / numRank;
+      if (thisRank == numRank - 1) {
+        numPointsInProc = numPointsInProc + totalNumPoints % numRank;
+      }
 
-    startingIndex = (totalNumPoints / numRank) * thisRank;
+      startingIndex = (totalNumPoints / numRank) * thisRank;
 
-    targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
+      targetPts.resize(numPointsInProc, std::vector<double>(3, 0.0));
 
-    for (unsigned int index = startingIndex;
-         index < startingIndex + numPointsInProc; index++) {
-      unsigned int xIndex = index / (numPointsZ * numPointsY);
-      unsigned int yIndex =
-          (index - xIndex * numPointsZ * numPointsY) / (numPointsZ);
-      unsigned int zIndex =
-          (index - xIndex * numPointsZ * numPointsY) % (numPointsZ);
+      for (unsigned int index = startingIndex;
+           index < startingIndex + numPointsInProc; index++) {
+        unsigned int xIndex = index / (numPointsZ * numPointsY);
+        unsigned int yIndex =
+            (index - xIndex * numPointsZ * numPointsY) / (numPointsZ);
+        unsigned int zIndex =
+            (index - xIndex * numPointsZ * numPointsY) % (numPointsZ);
 
-      targetPts[index - startingIndex][0] = x_coord[xIndex];
-      targetPts[index - startingIndex][1] = y_coord[yIndex];
-      targetPts[index - startingIndex][2] = z_coord[zIndex];
-    }
+        targetPts[index - startingIndex][0] = x_coord[xIndex];
+        targetPts[index - startingIndex][1] = y_coord[yIndex];
+        targetPts[index - startingIndex][2] = z_coord[zIndex];
+      }
     }
 
     unsigned int totalOwnedCellsPsi = d_dftMatrixFreeData->n_physical_cells();

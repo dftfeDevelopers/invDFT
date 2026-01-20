@@ -23,6 +23,7 @@
 
 #include "inverseDFTParameters.h"
 //#include <MultiVectorAdjointLinearSolverProblem.h>
+#include <MultiVectorAdjointLinearSolverProblem.h>
 #include <MultiVectorMinResSolver.h>
 #include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include <constraintMatrixInfo.h>
@@ -32,7 +33,6 @@
 #include <linearAlgebraOperationsInternal.h>
 #include <nonlinearSolverFunction.h>
 #include <vectorUtilities.h>
-#include <MultiVectorAdjointLinearSolverProblem.h>
 namespace invDFT {
 /**
  * @brief Class implementing the inverse DFT problem
