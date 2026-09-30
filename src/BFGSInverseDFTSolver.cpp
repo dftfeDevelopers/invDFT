@@ -287,18 +287,22 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
       }
     }
 
-    for (unsigned int iComp = 0; iComp < d_numComponents; ++iComp) {
+    double lambdaMax = 1e3 ;
+    double lambdaMin = 0.0 ;
+   for (unsigned int iComp = 0; iComp < d_numComponents; ++iComp) {
       double s = (f1[iComp] - f0[iComp]) / (lambda1[iComp] - lambda0[iComp]);
-      /* if the solve is going in the wrong direction, reverse it */
-      if (s > 0.0)
-        s = -s;
       double lambdaNext = lambda1[iComp] - f1[iComp] / s;
-      // switch directions if we stepped out of bounds
-      if (lambdaNext < 0.0)
-        lambdaNext = lambda1[iComp] + f1[iComp] / s;
-
+      if (lambdaNext <= lambdaMin || lambdaNext >= lambdaMax)
+      {
+         lambdaNext = 0.5*(lambda0[iComp] + lambda1[iComp]);
+      }
+      //if ( lambdaNext <= lambdaMin)
+	//      lambdaNext = lambdaMin;
+      //if ( lambdaNext > lambdaMax)
+	//      lambdaNext = lambdaMax; 
       lambda[iComp].push_back(lambdaNext);
     }
+  
   }
 }
 
@@ -345,8 +349,8 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
       pcout << lambdaNew[iComp] << " " << fNew[iComp] << std::endl;
     }
     for (unsigned int iComp = 0; iComp < d_numComponents; ++iComp) {
-      lambdaNew[iComp] = .5 * (lambdaNew[iComp] + lambdaOld[iComp]);
-      lambdaMid[iComp] = .5 * (lambdaNew[iComp] + lambdaOld[iComp]);
+      //lambdaNew[iComp] = .5 * (lambdaNew[iComp] + lambdaOld[iComp]);
+      //lambdaMid[iComp] = .5 * (lambdaNew[iComp] + lambdaOld[iComp]);
       const double delLambda = lambdaNew[iComp] - lambdaOld[iComp];
       /* compute f'() at the end points using second order one sided
        * differencing */
@@ -425,8 +429,8 @@ void BFGSInverseDFTSolver<FEOrder, FEOrderElectro, memorySpace>::
     }
 
     for (unsigned int iComp = 0; iComp < d_numComponents; ++iComp) {
-      lambdaNew[iComp] = .5 * (lambdaNew[iComp] + lambdaOld[iComp]);
-      lambdaMid[iComp] = .5 * (lambdaNew[iComp] + lambdaOld[iComp]);
+      //lambdaNew[iComp] = .5 * (lambdaNew[iComp] + lambdaOld[iComp]);
+      //lambdaMid[iComp] = .5 * (lambdaNew[iComp] + lambdaOld[iComp]);
       const double delLambda = lambdaNew[iComp] - lambdaOld[iComp];
       /* compute f'() at the end points using second order one sided
        * differencing */

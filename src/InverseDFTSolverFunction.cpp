@@ -111,6 +111,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     const std::vector<
         dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
         &rhoTargetQuadDataHost,
+    const dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+    &rhoTargetChildQuad,
     const std::vector<
         dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
         &weightQuadDataHost,
@@ -154,10 +156,12 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
     const unsigned int matrixFreePotVectorComponent,
     const unsigned int matrixFreeQuadratureComponentAdjointRhs,
     const unsigned int matrixFreeQuadratureComponentPot,
+    const std::vector<double> &applyDirichletBCForVxcChildQuad,
     const bool isComputeDiagonalA, const bool isComputeShapeFunction,
     const dftfe::dftParameters &dftParams,
     const inverseDFTParameters &inverseDFTParams) {
   d_rhoTargetQuadDataHost = rhoTargetQuadDataHost;
+    d_rhoTargetChildQuadHost = rhoTargetChildQuad;
   d_weightQuadDataHost = weightQuadDataHost;
   d_potBaseQuadDataHost = potBaseQuadDataHost;
 
@@ -186,6 +190,8 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
   d_matrixFreeQuadratureComponentAdjointRhs =
       matrixFreeQuadratureComponentAdjointRhs;
   d_matrixFreeQuadratureComponentPot = matrixFreeQuadratureComponentPot;
+
+    d_applyDirichletBCForVxcChildQuad = applyDirichletBCForVxcChildQuad;
   d_isComputeDiagonalA = isComputeDiagonalA;
   d_isComputeShapeFunction = isComputeShapeFunction;
   d_dftParams = &dftParams;
@@ -222,6 +228,24 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
 
   d_fractionalOccupancy.resize(
       d_numKPoints, std::vector<double>(d_numSpins * d_numEigenValues, 0.0));
+
+  if(d_inverseDFTParams->keepFractionalOccupancyFixed)
+  {
+	  for( unsigned int iWave = 0; iWave < d_numElectrons/2 -1; iWave++)
+	  {
+		  d_fractionalOccupancy[0][iWave] = 1.0;
+	  }
+
+	  d_fractionalOccupancy[0][d_numElectrons/2 - 1 ] = d_inverseDFTParams->fractionalOccupancyForHomoLevel;
+	   d_fractionalOccupancy[0][d_numElectrons/2] = 1.0 - d_inverseDFTParams->fractionalOccupancyForHomoLevel;
+
+  
+	   pcout<<" Printing fractional occupanct \n";
+	   for(unsigned int iWave = 0; iWave < d_numEigenValues; iWave++)
+	   {
+		   pcout<<"iWave = "<<iWave <<" orb Occ = "<<d_fractionalOccupancy[0][iWave]<<"\n";
+	   }
+  }
 
   d_numLocallyOwnedCellsParent =
       d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]->nCells();
@@ -268,6 +292,38 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
       &d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent]
            ->matrixFreeData();
   d_matrixFreeDataChild = &d_basisOperationsChildPtr->matrixFreeData();
+
+constraintsMatrixPsiDataInfo.initialize(
+        d_matrixFreeDataParent->get_vector_partitioner
+        (d_matrixFreePsiVectorComponent),
+        *d_constraintMatrixHomogeneousPsi);
+
+dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
+        d_matrixFreeDataParent->get_vector_partitioner(
+        d_matrixFreePsiVectorComponent),
+        d_numEigenValues, psiBlockVecMemSpace);
+
+std::shared_ptr<
+dftfe::utils::mpi::MPIPatternP2P<dftfe::utils::MemorySpace::HOST>>
+        psiVecMPIP2P = std::make_shared<dftfe::utils::mpi::MPIPatternP2P<
+                       dftfe::utils::MemorySpace::HOST>>(
+                               psiBlockVecMemSpace.getMPIPatternP2P()
+                                       ->getLocallyOwnedRange(),
+                                       psiBlockVecMemSpace.getMPIPatternP2P()->getGhostIndices(),
+                                       d_mpi_comm_domain);
+
+dftfe::vectorTools::computeCellLocalIndexSetMap(
+        psiVecMPIP2P, *d_matrixFreeDataParent,
+        d_matrixFreePsiVectorComponent, d_numEigenValues,
+        fullFlattenedArrayCellLocalProcIndexIdMapPsiHost);
+
+fractionalOccupanciesSqrtHost.resize(d_numEigenValues);
+fractionalOccupanciesSqrtMemspace.resize(d_numEigenValues);
+
+fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace.resize(
+        fullFlattenedArrayCellLocalProcIndexIdMapPsiHost.size());
+fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace.copyFrom(
+        fullFlattenedArrayCellLocalProcIndexIdMapPsiHost);
 
   dftfe::linearAlgebra::MultiVector<double, dftfe::utils::MemorySpace::HOST>
       dummyPotVec;
@@ -373,6 +429,11 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
           d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
 
+  rhoDiffNoPrefac.resize(
+      d_numSpins,
+      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+          d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
+
   d_kohnShamClass->resetExtPotHamFlag();
   if ((d_dftParams->isPseudopotential || d_dftParams->smearedNuclearCharges)) {
 
@@ -389,64 +450,9 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::reinit(
    *
    */
 
-  /*
-  d_vxcLDAQuadData.resize(
-      d_numSpins,
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-          d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
-
-  xc_func_type funcXLDA, funcCLDA;
-
-  std::vector<double> exchangePotentialVal(d_numSpins *
-                                               d_numLocallyOwnedCellsParent *
-                                               numQuadraturePointsPerCellParent,
-                                           0.0);
-
-  std::vector<double> corrPotentialVal(d_numSpins *
-                                           d_numLocallyOwnedCellsParent *
-                                           numQuadraturePointsPerCellParent,
-                                       0.0);
-
-  std::vector<double> rhoSpinFlattened(d_numSpins *
-                                           d_numLocallyOwnedCellsParent *
-                                           numQuadraturePointsPerCellParent,
-                                       0.0);
-
-  double spinFactor = (d_numSpins == 2) ? 1.0 : 2.0;
-
-  for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
-    for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent; iCell++)
-  { for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
-  iQuad++) { rhoSpinFlattened[(iCell * numQuadraturePointsPerCellParent + iQuad)
-  * d_numSpins + iSpin] = spinFactor * d_rhoTargetQuadDataHost[iSpin] [iCell *
-  numQuadraturePointsPerCellParent + iQuad];
-      }
-    }
-  }
-
-  xc_func_init(&funcXLDA, XC_LDA_X,
-               (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
-
-  xc_lda_vxc(&funcXLDA,
-             d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent,
-             &rhoSpinFlattened[0], &exchangePotentialVal[0]);
-
-  xc_func_init(&funcCLDA, XC_LDA_C_PW,
-               (d_numSpins == 2) ? XC_POLARIZED : XC_UNPOLARIZED);
-  xc_lda_vxc(&funcCLDA, d_numLocallyOwnedCellsParent *
-  numQuadraturePointsPerCellParent, &rhoSpinFlattened[0], &corrPotentialVal[0]);
-
-  for (unsigned int iSpin = 0; iSpin < d_numSpins; iSpin++) {
-    for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent; iCell++)
-  { for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
-  iQuad++) { d_vxcLDAQuadData[iSpin][iCell * numQuadraturePointsPerCellParent +
-  iQuad] = exchangePotentialVal[(iCell * numQuadraturePointsPerCellParent+
-  iQuad) * d_numSpins + iSpin] + corrPotentialVal[(iCell *
-  numQuadraturePointsPerCellParent + iQuad) * d_numSpins + iSpin];
-      }
-    }
-  }
-  */
+  d_tolForChebFiltering =
+                std::min(d_dftParams->chebyshevTolerance,
+                         d_inverseDFTParams->initialTolForChebFiltering);
 }
 
 // interpolate nodal data to quadrature values using FEEvaluation
@@ -680,7 +686,15 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 #endif
   MPI_Barrier(d_mpi_comm_domain);
   d_computingTimerStandard.enter_subsection("SolveEigen in inverse call");
-  this->solveEigen(pot);
+
+    d_transferDataPtr->interpolateMesh2DataToMesh1QuadPoints(
+            d_BLASWrapperHostPtr,
+            pot[0], 1,
+            d_fullFlattenedMapChild,
+            d_potParentQuadDataForce[0], 1, 1, 0,
+            d_resizeMemSpaceVecDuringInterpolation);
+
+    d_dftClassPtr->solveWithInputLDAVxc(d_potParentQuadDataForce,d_tolForChebFiltering);
 
   const std::vector<std::vector<double>> &eigenValuesHost =
       d_dftClassPtr->getEigenValues();
@@ -746,7 +760,7 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   kPointCoords.resize(3, 0.0);
 
   dftfe::computeRhoFromPSI<dftfe::dataTypes::number, memorySpace>(
-      &eigenVectorsMemSpace, d_numEigenValues, d_fractionalOccupancy,
+      &eigenVectorsMemSpace, d_numEigenValues, d_dftClassPtr->getPartialOccupancies(),
       dftBasisOp,
       // d_basisOperationsParentPtr[d_matrixFreePsiVectorComponent],
       d_BLASWrapperPtr, d_dftClassPtr->getDensityDofHandlerIndex(),
@@ -782,13 +796,21 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
         if (cellPtr->is_locally_owned()) {
           for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
                ++iQuad) {
-            rhoDiff[iSpin]
+		  double preFactor = (d_rhoTargetQuadDataHost[iSpin]
+                     .data()[iCell * numQuadraturePointsPerCellParent + iQuad])/(d_rhoTargetQuadDataHost[iSpin]
+                     .data()[iCell * numQuadraturePointsPerCellParent + iQuad] + d_inverseDFTParams->rhoTolForConstraints );
+           rhoDiffNoPrefac[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] =
                 (d_rhoTargetQuadDataHost[iSpin]
                      .data()[iCell * numQuadraturePointsPerCellParent + iQuad] -
                  0.5 * rhoValues[iSpin]
                            .data()[iCell * numQuadraturePointsPerCellParent +
                                    iQuad]);
+	   
+		  rhoDiff[iSpin]
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] =
+                        rhoDiffNoPrefac[iSpin]
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad]*preFactor;
           }
           iCell++;
         }
@@ -800,13 +822,24 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
           for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
                ++iQuad) {
             // TODO check the spin polarised case
+	    //
+	    rhoDiffNoPrefac[iSpin]
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] =
+		(rhoValuesSpinPolarized[iSpin]
+                        .data()[iCell * numQuadraturePointsPerCellParent +
+                                iQuad] -
+                                d_rhoTargetQuadDataHost[iSpin]
+                     .data()[iCell * numQuadraturePointsPerCellParent + iQuad]
+                 );
+
             rhoDiff[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] =
-                (d_rhoTargetQuadDataHost[iSpin]
-                     .data()[iCell * numQuadraturePointsPerCellParent + iQuad] -
-                 rhoValuesSpinPolarized[iSpin]
-                     .data()[iCell * numQuadraturePointsPerCellParent +
-                             iQuad]); // TODO check the spin polarised case
+                (rhoValuesSpinPolarized[iSpin]
+                        .data()[iCell * numQuadraturePointsPerCellParent +
+                                iQuad] -
+                                d_rhoTargetQuadDataHost[iSpin]
+                     .data()[iCell * numQuadraturePointsPerCellParent + iQuad]
+                 ); // TODO check the spin polarised case
           }
           iCell++;
         }
@@ -814,11 +847,16 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
     }
   }
 
+  std::vector<double> l1ErrorInDensityWithPrefac(d_numSpins, 0.0);
+  std::vector<double> lossWithPrefac(d_numSpins, 0.0);
   std::vector<double> lossUnWeighted(d_numSpins, 0.0);
   std::vector<double> errorInVxc(d_numSpins, 0.0);
   std::vector<double> l1ErrorInDensity(d_numSpins, 0.0);
 
   double intRhoVEff = 0.0;
+  double intRho_targetVeff = 0.0; 
+  double intRhoVc = 0.0; 
+  double intRho_targetVc = 0.0;
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
     d_computingTimerStandard.enter_subsection("Create Force Vector");
 #if defined(DFTFE_WITH_DEVICE)
@@ -847,6 +885,10 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
     std::fill(sumPsiAdjointChildQuadDataPartial.begin(),
               sumPsiAdjointChildQuadDataPartial.end(), 0.0);
 
+    sumPsiAdjointChildQuadDataOldRoute.resize(numTotalQuadraturePointsChild);
+    std::fill(sumPsiAdjointChildQuadDataOldRoute.begin(),
+              sumPsiAdjointChildQuadDataOldRoute.end(), 0.0);
+
     loss[iSpin] = 0.0;
     errorInVxc[iSpin] = 0.0;
     l1ErrorInDensity[iSpin] = 0.0;
@@ -857,10 +899,12 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 #endif
     MPI_Barrier(d_mpi_comm_domain);
     d_computingTimerStandard.enter_subsection("Interpolate To Parent Mesh");
-    d_transferDataPtr->interpolateMesh2DataToMesh1QuadPoints(
+    /*
+      d_transferDataPtr->interpolateMesh2DataToMesh1QuadPoints(
         d_BLASWrapperHostPtr, pot[iSpin], 1, d_fullFlattenedMapChild,
         d_potParentQuadDataForce[iSpin], 1, 1, 0,
         d_resizeMemSpaceVecDuringInterpolation);
+     */
 #if defined(DFTFE_WITH_DEVICE)
     if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
       dftfe::utils::deviceSynchronize();
@@ -880,25 +924,38 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad];
 
         l1ErrorInDensity[iSpin] += std::abs(
+            rhoDiffNoPrefac[iSpin]
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
+            d_parentCellJxW[iCell * numQuadraturePointsPerCellParent + iQuad]);
+        
+  l1ErrorInDensityWithPrefac[iSpin] += std::abs(
             rhoDiff[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
             d_parentCellJxW[iCell * numQuadraturePointsPerCellParent + iQuad]);
-        lossUnWeighted[iSpin] +=
-            rhoDiff[iSpin]
+
+	lossWithPrefac[iSpin] +=
+		rhoDiff[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
             rhoDiff[iSpin]
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
+            d_parentCellJxW[iCell * numQuadraturePointsPerCellParent + iQuad];
+
+	lossUnWeighted[iSpin] +=
+            rhoDiffNoPrefac[iSpin]
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
+            rhoDiffNoPrefac[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
             d_parentCellJxW[iCell * numQuadraturePointsPerCellParent + iQuad];
 
         loss[iSpin] +=
-            rhoDiff[iSpin]
+            rhoDiffNoPrefac[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
-            rhoDiff[iSpin]
+            rhoDiffNoPrefac[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
             d_weightQuadDataHost[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
             d_parentCellJxW[iCell * numQuadraturePointsPerCellParent + iQuad];
-
+/*
         intRhoVEff +=
             d_potKSQuadData[iSpin]
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
@@ -906,10 +963,178 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
             d_parentCellJxW
                 .data()[iCell * numQuadraturePointsPerCellParent + iQuad];
+  */
+	/*
+        intRho_targetVeff += 2.0* 
+	d_potKSQuadData[iSpin]
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
+            d_rhoTargetQuadDataHost[iSpin]
+                     .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
+		d_parentCellJxW
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad];
+*/
+        intRhoVc += 
+	    d_potParentQuadDataForce
+                        [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad] *
+			rhoValues[iSpin]
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
+            d_parentCellJxW
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad];
+
+	intRho_targetVc += 2.0 *
+                d_potParentQuadDataForce        
+		[iSpin][iCell * numQuadraturePointsPerCellParent + iQuad] * 
+		d_rhoTargetQuadDataHost[iSpin]
+                     .data()[iCell * numQuadraturePointsPerCellParent + iQuad] *
+            d_parentCellJxW
+                .data()[iCell * numQuadraturePointsPerCellParent + iQuad];
+
       }
     }
 
-    d_uValsMemSpace.copyFrom(d_uValsHost);
+      dftfe::distributedCPUVec<double> rhoDiffVec;
+      dftfe::vectorTools::createDealiiVector<double>(
+              d_matrixFreeDataParent->get_vector_partitioner(d_matrixFreePsiVectorComponent),
+              1, rhoDiffVec);
+      
+      auto dftBasisOpHost = d_dftClassPtr->getBasisOperationsHost();
+      d_dftClassPtr->l2ProjectionQuadToNodal(
+              dftBasisOpHost, *d_constraintMatrixHomogeneousPsi, d_matrixFreePsiVectorComponent,
+              d_dftClassPtr->getDensityQuadratureId(), rhoDiff[iSpin], rhoDiffVec);
+
+      rhoDiffVec.update_ghost_values();
+      d_constraintMatrixHomogeneousPsi->distribute(rhoDiffVec);
+      rhoDiffVec.update_ghost_values();
+
+      dftfe::linearAlgebra::MultiVector<double, memorySpace> psiBlockVecMemSpaceSingleVec;
+      std::vector<unsigned int>
+              fullFlattenedArrayCellLocalProcIndexIdMapPsiHostSingleVector;
+
+      dftfe::utils::MemoryStorage<unsigned int, dftfe::utils::MemorySpace::HOST>
+              fullFlattenedArrayCellLocalProcIndexIdMapPsiHostSingleVectorMemSpace;
+
+      dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
+              d_matrixFreeDataParent->get_vector_partitioner(
+                      d_matrixFreePsiVectorComponent),
+              1, psiBlockVecMemSpaceSingleVec);
+
+      std::shared_ptr<
+      dftfe::utils::mpi::MPIPatternP2P<dftfe::utils::MemorySpace::HOST>>
+              psiVecMPIP2P = std::make_shared<dftfe::utils::mpi::MPIPatternP2P<
+                             dftfe::utils::MemorySpace::HOST>>(
+                                     psiBlockVecMemSpaceSingleVec.getMPIPatternP2P()
+                                             ->getLocallyOwnedRange(),
+                                             psiBlockVecMemSpaceSingleVec.getMPIPatternP2P()->getGhostIndices(),
+                                             d_mpi_comm_domain);
+
+      dftfe::vectorTools::computeCellLocalIndexSetMap(
+              psiVecMPIP2P, *d_matrixFreeDataParent,
+              d_matrixFreePsiVectorComponent, 1,
+              fullFlattenedArrayCellLocalProcIndexIdMapPsiHostSingleVector);
+      fullFlattenedArrayCellLocalProcIndexIdMapPsiHostSingleVectorMemSpace.
+      resize(fullFlattenedArrayCellLocalProcIndexIdMapPsiHostSingleVector.size());
+
+        fullFlattenedArrayCellLocalProcIndexIdMapPsiHostSingleVectorMemSpace.copyFrom
+        (fullFlattenedArrayCellLocalProcIndexIdMapPsiHostSingleVector);
+
+      d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
+              d_BLASWrapperHostPtr, rhoDiffVec, 1,
+              fullFlattenedArrayCellLocalProcIndexIdMapPsiHostSingleVectorMemSpace,
+              sumPsiAdjointChildQuadDataOldRoute, 1, //TODO this is hard coded to cpus.
+              1, 0,
+              true);
+
+
+      const std::vector<std::vector<double>> &
+      partialOccupanciesHost = d_dftClassPtr->getPartialOccupancies();
+
+
+      for( unsigned int iWave = 0; iWave< d_numEigenValues; iWave++)
+      {
+          fractionalOccupanciesSqrtHost[iWave] =
+                  std::sqrt(partialOccupanciesHost[0][iWave])
+                  - 1.0;
+      }
+
+      psiBlockVecMemSpace.setValue(0.0);
+      fractionalOccupanciesSqrtMemspace.copyFrom(fractionalOccupanciesSqrtHost);
+      d_BLASWrapperPtr->stridedCopyToBlockConstantStride(
+              d_numEigenValues, d_numEigenValues, numLocallyOwnedDofs, 0,
+              eigenVectorsMemSpace.begin(),
+              psiBlockVecMemSpace.begin());
+
+      psiBlockVecMemSpace.updateGhostValues();
+      constraintsMatrixPsiDataInfo.distribute(psiBlockVecMemSpace);
+      psiBlockVecMemSpace.updateGhostValues();
+      d_psiChildQuadDataMemorySpace.setValue(0.0);
+      d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
+              d_BLASWrapperPtr, psiBlockVecMemSpace, d_numEigenValues,
+              fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace,
+              d_psiChildQuadDataMemorySpace, d_numEigenValues,
+              d_numEigenValues, 0,
+              d_resizeMemSpaceBlockSizeChildQuad);
+
+      d_BLASWrapperPtr->stridedBlockScaleAndAddColumnWise(
+              d_numEigenValues,
+              numTotalQuadraturePointsChild,
+              d_psiChildQuadDataMemorySpace.data(),
+              fractionalOccupanciesSqrtMemspace.data(),
+      d_psiChildQuadDataMemorySpace.data());
+
+
+      d_sumPsiAdjointChildQuadPartialDataMemorySpace.setValue(0.0);
+      d_BLASWrapperPtr->addVecOverContinuousIndex(
+              numTotalQuadraturePointsChild, d_numEigenValues,
+              d_psiChildQuadDataMemorySpace.data(),
+              d_psiChildQuadDataMemorySpace.data(),
+              d_sumPsiAdjointChildQuadPartialDataMemorySpace.data());
+
+      sumPsiAdjointChildQuadDataPartial.copyFrom(
+              d_sumPsiAdjointChildQuadPartialDataMemorySpace);
+
+      double diffIntegChild = 0.0; 
+      double rhoInputIntegChild = 0.0;
+      double rhoTargetIntegChild = 0.0;
+      double l1errorNewRoute = 0.0;
+      double l2errorNewRoute = 0.0;
+      for(unsigned int iPoint = 0; iPoint < sumPsiAdjointChildQuadData.size(); iPoint++)
+      {
+	      double preFactor = (d_rhoTargetChildQuadHost[iPoint])/(d_rhoTargetChildQuadHost[iPoint] + 10.0*d_inverseDFTParams->rhoTolForConstraints );
+
+	      sumPsiAdjointChildQuadData[iPoint] = d_applyDirichletBCForVxcChildQuad[iPoint]*(d_rhoTargetChildQuadHost[iPoint] - sumPsiAdjointChildQuadDataPartial[iPoint])*2.0;
+	      diffIntegChild += sumPsiAdjointChildQuadData[iPoint]*d_childCellJxW[iPoint] ;
+	      rhoInputIntegChild += sumPsiAdjointChildQuadDataPartial[iPoint]*d_childCellJxW[iPoint];
+	      rhoTargetIntegChild+= d_rhoTargetChildQuadHost[iPoint]*d_childCellJxW[iPoint];
+      
+	      l1errorNewRoute += std::abs(sumPsiAdjointChildQuadDataOldRoute[iPoint] - sumPsiAdjointChildQuadData[iPoint])*d_childCellJxW[iPoint] ;
+	      l2errorNewRoute += (sumPsiAdjointChildQuadDataOldRoute[iPoint] - sumPsiAdjointChildQuadData[iPoint])*
+		      (sumPsiAdjointChildQuadDataOldRoute[iPoint] - sumPsiAdjointChildQuadData[iPoint])*
+		      d_childCellJxW[iPoint];
+      
+      }
+
+     MPI_Allreduce(MPI_IN_PLACE, &diffIntegChild, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpi_comm_domain);
+    MPI_Allreduce(MPI_IN_PLACE, &rhoInputIntegChild, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpi_comm_domain);
+   MPI_Allreduce(MPI_IN_PLACE, &rhoTargetIntegChild, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpi_comm_domain);
+
+   MPI_Allreduce(MPI_IN_PLACE, &l1errorNewRoute, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpi_comm_domain);
+   MPI_Allreduce(MPI_IN_PLACE, &l2errorNewRoute, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpi_comm_domain);
+
+   l2errorNewRoute = std::sqrt(l2errorNewRoute);
+
+   pcout<<" diffIntegChild = "<<diffIntegChild<<"\n";
+   pcout<<" rhoInputIntegChild = "<<rhoInputIntegChild<<"\n";
+   pcout<<" rhoTargetIntegChild = "<<rhoTargetIntegChild<<"\n";
+
+   pcout<<" l1errorNewRoute = "<<l1errorNewRoute<<"\n";
+   pcout<<" l2errorNewRoute = "<<l2errorNewRoute<<"\n";
+
+      d_uValsMemSpace.copyFrom(d_uValsHost);
 
     const unsigned int defaultBlockSize = d_dftParams->chebyWfcBlockSize;
 
@@ -919,309 +1144,6 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 #endif
     MPI_Barrier(d_mpi_comm_domain);
     d_computingTimerStandard.leave_subsection("Compute Rho vectors");
-    for (unsigned int iKPoint = 0; iKPoint < d_numKPoints; ++iKPoint) {
-      //            pcout << " kpoint loop before adjoint " << iKPoint
-      //                  << " forceVector\n";
-      d_kohnShamClass->reinitkPointSpinIndex(iKPoint, iSpin);
-      unsigned int jvec = 0;
-      while (jvec < d_numEigenValues) {
-        d_computingTimerStandard.enter_subsection("Initialize Block Vectors");
-
-        unsigned int currentBlockSize =
-            std::min(defaultBlockSize, d_numEigenValues - jvec);
-
-        bool acceptCurrentBlockSize = false;
-
-        while (!acceptCurrentBlockSize) {
-          //
-          // check if last vector of this block and first vector of
-          // next block are degenerate
-          //
-          unsigned int idThisBlockLastVec = jvec + currentBlockSize - 1;
-          if (idThisBlockLastVec + 1 != d_numEigenValues) {
-            const double diffEigen =
-                std::abs(eigenValuesHost[iKPoint][d_numEigenValues * iSpin +
-                                                  idThisBlockLastVec] -
-                         eigenValuesHost[iKPoint][d_numEigenValues * iSpin +
-                                                  idThisBlockLastVec + 1]);
-            if (diffEigen < d_degeneracyTol) {
-              currentBlockSize--;
-            } else {
-              acceptCurrentBlockSize = true;
-            }
-          } else {
-            acceptCurrentBlockSize = true;
-          }
-        }
-
-        if (currentBlockSize != d_previousBlockSize) {
-
-          pcout << " block size not matching in inverse DFT Solver functions\n";
-
-          dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
-              d_matrixFreeDataParent->get_vector_partitioner(
-                  d_matrixFreePsiVectorComponent),
-              currentBlockSize, psiBlockVecMemSpace);
-
-          dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
-              d_matrixFreeDataParent->get_vector_partitioner(
-                  d_matrixFreePsiVectorComponent),
-              currentBlockSize,
-              multiVectorAdjointOutputWithPsiConstraintsMemSpace);
-
-          adjointInhomogenousDirichletValuesMemSpace.reinit(
-              multiVectorAdjointOutputWithPsiConstraintsMemSpace);
-
-          constraintsMatrixPsiDataInfo.initialize(
-              d_matrixFreeDataParent->get_vector_partitioner(
-                  d_matrixFreePsiVectorComponent),
-              *d_constraintMatrixHomogeneousPsi);
-
-          dftfe::linearAlgebra::createMultiVectorFromDealiiPartitioner(
-              d_matrixFreeDataParent->get_vector_partitioner(
-                  d_matrixFreeAdjointVectorComponent),
-              currentBlockSize,
-              multiVectorAdjointOutputWithAdjointConstraintsMemSpace);
-
-          constraintsMatrixAdjointDataInfo.initialize(
-              d_matrixFreeDataParent->get_vector_partitioner(
-                  d_matrixFreeAdjointVectorComponent),
-              *d_constraintMatrixHomogeneousAdjoint);
-
-          std::shared_ptr<
-              dftfe::utils::mpi::MPIPatternP2P<dftfe::utils::MemorySpace::HOST>>
-              psiVecMPIP2P = std::make_shared<dftfe::utils::mpi::MPIPatternP2P<
-                  dftfe::utils::MemorySpace::HOST>>(
-                  psiBlockVecMemSpace.getMPIPatternP2P()
-                      ->getLocallyOwnedRange(),
-                  psiBlockVecMemSpace.getMPIPatternP2P()->getGhostIndices(),
-                  d_mpi_comm_domain);
-
-          dftfe::vectorTools::computeCellLocalIndexSetMap(
-              psiVecMPIP2P, *d_matrixFreeDataParent,
-              d_matrixFreePsiVectorComponent, currentBlockSize,
-              fullFlattenedArrayCellLocalProcIndexIdMapPsiHost);
-
-          std::shared_ptr<
-              dftfe::utils::mpi::MPIPatternP2P<dftfe::utils::MemorySpace::HOST>>
-              adjVecMPIP2P = std::make_shared<dftfe::utils::mpi::MPIPatternP2P<
-                  dftfe::utils::MemorySpace::HOST>>(
-                  multiVectorAdjointOutputWithAdjointConstraintsMemSpace
-                      .getMPIPatternP2P()
-                      ->getLocallyOwnedRange(),
-                  multiVectorAdjointOutputWithAdjointConstraintsMemSpace
-                      .getMPIPatternP2P()
-                      ->getGhostIndices(),
-                  d_mpi_comm_domain);
-
-          dftfe::vectorTools::computeCellLocalIndexSetMap(
-              adjVecMPIP2P, *d_matrixFreeDataParent,
-              d_matrixFreeAdjointVectorComponent, currentBlockSize,
-              fullFlattenedArrayCellLocalProcIndexIdMapAdjointHost);
-
-          fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace.resize(
-              fullFlattenedArrayCellLocalProcIndexIdMapPsiHost.size());
-          fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace.copyFrom(
-              fullFlattenedArrayCellLocalProcIndexIdMapPsiHost);
-
-          fullFlattenedArrayCellLocalProcIndexIdMapAdjointMemSpace.resize(
-              fullFlattenedArrayCellLocalProcIndexIdMapAdjointHost.size());
-          fullFlattenedArrayCellLocalProcIndexIdMapAdjointMemSpace.copyFrom(
-              fullFlattenedArrayCellLocalProcIndexIdMapAdjointHost);
-
-          d_resizeMemSpaceBlockSizeChildQuad = true;
-        }
-
-#if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
-#endif
-        MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.leave_subsection("Initialize Block Vectors");
-
-#if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
-#endif
-        MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.enter_subsection("Set Up MINRES");
-        //
-        // @note We assume that there is only homogenous Dirichlet BC
-        //
-        adjointInhomogenousDirichletValuesMemSpace.setValue(0.0);
-
-        multiVectorAdjointOutputWithPsiConstraintsMemSpace.setValue(0.0);
-
-        multiVectorAdjointOutputWithAdjointConstraintsMemSpace.setValue(0.0);
-
-        d_BLASWrapperPtr->stridedCopyToBlockConstantStride(
-            currentBlockSize, d_numEigenValues, numLocallyOwnedDofs, jvec,
-            eigenVectorsMemSpace.begin() +
-                (d_numSpins * iKPoint + iSpin) * d_numEigenValues,
-            psiBlockVecMemSpace.begin());
-
-        std::vector<double> effectiveOrbitalOccupancy;
-        std::vector<std::vector<unsigned int>> degeneracyMap(0);
-        effectiveOrbitalOccupancy.resize(currentBlockSize);
-        degeneracyMap.resize(currentBlockSize);
-        std::vector<double> shiftValues;
-        shiftValues.resize(currentBlockSize);
-
-        for (unsigned int iBlock = 0; iBlock < currentBlockSize; iBlock++) {
-          shiftValues[iBlock] =
-              eigenValuesHost[iKPoint]
-                             [d_numEigenValues * iSpin + iBlock + jvec];
-
-          effectiveOrbitalOccupancy[iBlock] =
-              d_fractionalOccupancy[iKPoint]
-                                   [d_numEigenValues * iSpin + iBlock + jvec] *
-              d_kpointWeights[iKPoint];
-        }
-
-        evaluateDegeneracyMap(shiftValues, degeneracyMap, d_degeneracyTol);
-
-        d_multiVectorAdjointProblem.updateInputPsi(
-            psiBlockVecMemSpace, effectiveOrbitalOccupancy, d_uValsMemSpace,
-            degeneracyMap, fermiEnergy, shiftValues, currentBlockSize);
-        double adjoinTolForThisIteration =
-            d_tolForChebFiltering /
-            d_inverseDFTParams->adaptiveFactorForAdjoint;
-        d_adjointTol = std::min(d_adjointTol, adjoinTolForThisIteration);
-
-#if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
-#endif
-        MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.leave_subsection("Set Up MINRES");
-
-#if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
-#endif
-
-        pcout << " Minres solved to " << d_adjointTol << " tolerance \n";
-        MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.enter_subsection("MINRES Solve");
-        d_multiVectorLinearMINRESSolver.solve(
-            d_multiVectorAdjointProblem, d_BLASWrapperPtr,
-            multiVectorAdjointOutputWithPsiConstraintsMemSpace,
-            adjointInhomogenousDirichletValuesMemSpace, numLocallyOwnedDofs,
-            currentBlockSize, d_adjointTol, d_adjointMaxIterations,
-            d_dftParams->verbosity,
-            true); // distributeFlag
-
-#if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
-#endif
-        MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.leave_subsection("MINRES Solve");
-
-#if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
-#endif
-        MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.enter_subsection("copy vec");
-
-        d_BLASWrapperPtr->xcopy(
-            currentBlockSize * numLocallyOwnedDofs,
-            multiVectorAdjointOutputWithPsiConstraintsMemSpace.data(), 1,
-            multiVectorAdjointOutputWithAdjointConstraintsMemSpace.data(), 1);
-
-        multiVectorAdjointOutputWithAdjointConstraintsMemSpace
-            .updateGhostValues();
-        constraintsMatrixAdjointDataInfo.distribute(
-            multiVectorAdjointOutputWithAdjointConstraintsMemSpace);
-
-        multiVectorAdjointOutputWithAdjointConstraintsMemSpace
-            .updateGhostValues();
-        psiBlockVecMemSpace.updateGhostValues();
-
-#if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
-#endif
-        MPI_Barrier(d_mpi_comm_domain);
-        d_computingTimerStandard.leave_subsection("copy vec");
-#if defined(DFTFE_WITH_DEVICE)
-        if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-          dftfe::utils::deviceSynchronize();
-#endif
-        MPI_Barrier(d_mpi_comm_domain);
-
-        // d_computingTimerStandard.enter_subsection(
-        //    "interpolate parent data to child quad");
-
-        pcout << "d_resizeMemSpaceBlockSizeChildQuad in inverse dft Solver "
-                 "func = "
-              << d_resizeMemSpaceBlockSizeChildQuad << "\n";
-
-        for (unsigned int interBlockStart = 0;
-             interBlockStart < currentBlockSize;
-             interBlockStart += d_inverseDFTParams->interBlockSize) {
-          unsigned int interOutputBlockSize =
-              std::min(currentBlockSize, d_inverseDFTParams->interBlockSize);
-          unsigned int interCurrentBlockSize =
-              std::min(currentBlockSize - interBlockStart,
-                       d_inverseDFTParams->interBlockSize);
-
-          d_computingTimerStandard.enter_subsection(
-              "interpolate parent data to child quad");
-
-          d_psiChildQuadDataMemorySpace.setValue(0.0);
-          d_adjointChildQuadDataMemorySpace.setValue(0.0);
-          d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
-              d_BLASWrapperPtr, psiBlockVecMemSpace, interCurrentBlockSize,
-              fullFlattenedArrayCellLocalProcIndexIdMapPsiMemSpace,
-              d_psiChildQuadDataMemorySpace, interCurrentBlockSize,
-              interOutputBlockSize, interBlockStart,
-              d_resizeMemSpaceBlockSizeChildQuad);
-
-          d_transferDataPtr->interpolateMesh1DataToMesh2QuadPoints(
-              d_BLASWrapperPtr,
-              multiVectorAdjointOutputWithAdjointConstraintsMemSpace,
-              interCurrentBlockSize,
-              fullFlattenedArrayCellLocalProcIndexIdMapAdjointMemSpace,
-              d_adjointChildQuadDataMemorySpace, interCurrentBlockSize,
-              interOutputBlockSize, interBlockStart,
-              d_resizeMemSpaceBlockSizeChildQuad);
-
-          d_resizeMemSpaceBlockSizeChildQuad = false;
-#if defined(DFTFE_WITH_DEVICE)
-          if (memorySpace == dftfe::utils::MemorySpace::DEVICE)
-            dftfe::utils::deviceSynchronize();
-#endif
-          MPI_Barrier(d_mpi_comm_domain);
-          d_computingTimerStandard.leave_subsection(
-              "interpolate parent data to child quad");
-
-          d_computingTimerStandard.enter_subsection("Compute P_i Psi_i");
-          d_sumPsiAdjointChildQuadPartialDataMemorySpace.setValue(0.0);
-          d_BLASWrapperPtr->addVecOverContinuousIndex(
-              numTotalQuadraturePointsChild, interOutputBlockSize,
-              d_psiChildQuadDataMemorySpace.data(),
-              d_adjointChildQuadDataMemorySpace.data(),
-              d_sumPsiAdjointChildQuadPartialDataMemorySpace.data());
-
-          sumPsiAdjointChildQuadDataPartial.copyFrom(
-              d_sumPsiAdjointChildQuadPartialDataMemorySpace);
-
-          for (unsigned int iQuad = 0; iQuad < numTotalQuadraturePointsChild;
-               ++iQuad) {
-            sumPsiAdjointChildQuadData[iQuad] +=
-                sumPsiAdjointChildQuadDataPartial[iQuad];
-          }
-          d_computingTimerStandard.leave_subsection("Compute P_i Psi_i");
-        }
-
-        jvec += currentBlockSize;
-
-        d_previousBlockSize = currentBlockSize;
-
-      } // block loop
-    }   // kpoint loop
 
     // Assumes the block size is 1
     // if that changes, change the d_flattenedArrayCellChildCellMap
@@ -1275,19 +1197,50 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   MPI_Allreduce(MPI_IN_PLACE, &l1ErrorInDensity[0], d_numSpins, MPI_DOUBLE,
                 MPI_SUM, d_mpi_comm_domain);
 
+  MPI_Allreduce(MPI_IN_PLACE, &lossWithPrefac[0], d_numSpins, MPI_DOUBLE,
+                MPI_SUM, d_mpi_comm_domain);
+
+  MPI_Allreduce(MPI_IN_PLACE, &l1ErrorInDensityWithPrefac[0], d_numSpins, MPI_DOUBLE,
+                MPI_SUM, d_mpi_comm_domain);
   MPI_Allreduce(MPI_IN_PLACE, &intRhoVEff, 1, MPI_DOUBLE, MPI_SUM,
                 d_mpi_comm_domain);
+  MPI_Allreduce(MPI_IN_PLACE, &intRho_targetVeff, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpi_comm_domain);
+  MPI_Allreduce(MPI_IN_PLACE, &intRhoVc, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpi_comm_domain);
+  MPI_Allreduce(MPI_IN_PLACE, &intRho_targetVc, 1, MPI_DOUBLE, MPI_SUM,
+                d_mpi_comm_domain);
+  
   for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
     pcout << " iter = " << d_getForceCounter
           << " loss unweighted = " << lossUnWeighted[iSpin] << "\n";
     pcout << " intRhoVEff = " << intRhoVEff << "\n";
+    pcout << " intRho_targetVeff = "<<intRho_targetVeff<<"\n";
+    pcout << " intRhoVc = "<<intRhoVc<<"\n";
+    pcout << " intRho_targetVc = "<<intRho_targetVc<<"\n";
     pcout << " iter = " << d_getForceCounter
           << " l1 error = " << l1ErrorInDensity[iSpin] << "\n";
     pcout << " iter = " << d_getForceCounter
           << " vxc norm = " << pot[iSpin].l2_norm() << "\n";
+  pcout<<" iter = " << d_getForceCounter<< " l1ErrorInDensityWithPrefac = "<<l1ErrorInDensityWithPrefac[iSpin]<<"\n";
+  pcout<<" lossWithPrefac = "<<lossWithPrefac[iSpin]<<"\n";
+  
   }
 
+
   d_lossPreviousIteration = loss[0];
+ 
+  const double chebyTol = std::min(d_dftParams->chebyshevTolerance,
+                         d_inverseDFTParams->initialTolForChebFiltering);
+
+  double tolPreviousIter = d_tolForChebFiltering;
+  d_tolForChebFiltering = std::min(
+                chebyTol, d_lossPreviousIteration /
+                          d_inverseDFTParams->adaptiveFactorForChebFiltering);
+  
+  d_tolForChebFiltering = std::min(d_tolForChebFiltering, tolPreviousIter);
+  
+  pcout<<" Solving the exact exchange to "<<d_tolForChebFiltering<<" tolerance \n";
   if (d_numSpins == 2) {
     d_lossPreviousIteration = std::min(d_lossPreviousIteration, loss[1]);
   }
@@ -1311,105 +1264,111 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
 } // namespace invDFT
 
 template <unsigned int FEOrder, unsigned int FEOrderElectro,
-          dftfe::utils::MemorySpace memorySpace>
+        dftfe::utils::MemorySpace memorySpace>
 void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
-    const std::vector<dftfe::distributedCPUVec<double>> &pot) {
+        const std::vector<dftfe::distributedCPUVec<double>> &pot) {
 
-  pcout << "Inside solve eigen\n";
+    pcout << "Inside solve eigen\n";
 
-  const dealii::Quadrature<3> &quadratureRuleParent =
-      d_matrixFreeDataParent->get_quadrature(
-          d_matrixFreeQuadratureComponentAdjointRhs);
-  const unsigned int numQuadraturePointsPerCellParent =
-      quadratureRuleParent.size();
-  const unsigned int numTotalQuadraturePoints =
-      numQuadraturePointsPerCellParent * d_numLocallyOwnedCellsParent;
+    d_kohnShamClass->setFlagForApplyFock(true);
+    const dealii::Quadrature<3> &quadratureRuleParent =
+            d_matrixFreeDataParent->get_quadrature(
+                    d_matrixFreeQuadratureComponentAdjointRhs);
+    const unsigned int numQuadraturePointsPerCellParent =
+            quadratureRuleParent.size();
+    const unsigned int numTotalQuadraturePoints =
+            numQuadraturePointsPerCellParent * d_numLocallyOwnedCellsParent;
 
-  bool isFirstFilteringPass = (d_getForceCounter == 0) ? true : false;
-  std::vector<std::vector<std::vector<double>>> residualNorms(
-      d_numSpins,
-      std::vector<std::vector<double>>(
-          d_numKPoints, std::vector<double>(d_numEigenValues, 0.0)));
+    bool isFirstFilteringPass = (d_getForceCounter == 0) ? true : false;
+    std::vector<std::vector<std::vector<double>>> residualNorms(
+            d_numSpins,
+            std::vector<std::vector<double>>(
+                    d_numKPoints, std::vector<double>(d_numEigenValues, 0.0)));
 
-  double maxResidual = 0.0;
-  unsigned int iPass = 0;
-  const double chebyTol = d_dftParams->chebyshevTolerance;
-  if (d_getForceCounter > 3) {
-    double tolPreviousIter = d_tolForChebFiltering;
-    d_tolForChebFiltering = std::min(
-        chebyTol, d_lossPreviousIteration /
-                      d_inverseDFTParams->adaptiveFactorForChebFiltering);
-    d_tolForChebFiltering = std::min(d_tolForChebFiltering, tolPreviousIter);
-  } else {
-    d_tolForChebFiltering =
-        std::min(d_dftParams->chebyshevTolerance,
-                 d_inverseDFTParams->initialTolForChebFiltering);
-  }
-
-  pcout << " Chebyshev filtering is solved to " << d_tolForChebFiltering
-        << " tolerance \n";
-
-  d_potKSQuadData.resize(
-      d_numSpins,
-      dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
-          d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
-
-  for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
-    d_computingTimerStandard.enter_subsection(
-        "interpolate child data to parent quad");
-    d_transferDataPtr->interpolateMesh2DataToMesh1QuadPoints(
-        d_BLASWrapperHostPtr, pot[iSpin], 1, d_fullFlattenedMapChild,
-        d_potParentQuadDataSolveEigen[iSpin], 1, 1, 0,
-        d_resizeMemSpaceVecDuringInterpolation);
-    d_computingTimerStandard.leave_subsection(
-        "interpolate child data to parent quad");
-
-    for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent;
-         ++iCell) {
-      for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
-           ++iQuad) {
-        d_potKSQuadData[iSpin]
-            .data()[iCell * numQuadraturePointsPerCellParent + iQuad] =
-            d_potBaseQuadDataHost[iSpin]
-                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] +
-            d_potParentQuadDataSolveEigen
-                [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad] +
-            d_inverseDFTParams->factorForLDAVxc *
-                (*(d_vxcLDAQuadDataPtr))
-                    [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad];
-      }
+    double maxResidual = 0.0;
+    unsigned int iPass = 0;
+    const double chebyTol = d_dftParams->chebyshevTolerance;
+    if (d_getForceCounter > 3) {
+        double tolPreviousIter = d_tolForChebFiltering;
+        d_tolForChebFiltering = std::min(
+                chebyTol, d_lossPreviousIteration /
+                          d_inverseDFTParams->adaptiveFactorForChebFiltering);
+        d_tolForChebFiltering = std::min(d_tolForChebFiltering, tolPreviousIter);
+    } else {
+        d_tolForChebFiltering =
+                std::min(d_dftParams->chebyshevTolerance,
+                         d_inverseDFTParams->initialTolForChebFiltering);
     }
 
-    d_computingTimerStandard.enter_subsection("setVEff inverse");
-    d_kohnShamClass->setVEff(d_potKSQuadData, iSpin);
-    d_computingTimerStandard.leave_subsection("setVEff inverse");
+    pcout << " Chebyshev filtering is solved to " << d_tolForChebFiltering
+          << " tolerance \n";
 
-    d_computingTimerStandard.enter_subsection("computeHamiltonianMatrix");
-    d_kohnShamClass->computeCellHamiltonianMatrix();
-    d_computingTimerStandard.leave_subsection("computeHamiltonianMatrix");
-  }
+    d_potKSQuadData.resize(
+            d_numSpins,
+            dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>(
+                    d_numLocallyOwnedCellsParent * numQuadraturePointsPerCellParent));
 
-  do {
-    pcout << " inside iPass of chebFil = " << iPass << "\n";
     for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
-      for (unsigned int iKpoint = 0; iKpoint < d_numKPoints; ++iKpoint) {
-        const unsigned int kpointSpinId = iSpin * d_numKPoints + iKpoint;
-        d_kohnShamClass->reinitkPointSpinIndex(iKpoint, iSpin);
         d_computingTimerStandard.enter_subsection(
-            "kohnShamEigenSpaceCompute inverse");
+                "interpolate child data to parent quad");
+        d_transferDataPtr->interpolateMesh2DataToMesh1QuadPoints(
+                d_BLASWrapperHostPtr, pot[iSpin], 1, d_fullFlattenedMapChild,
+                d_potParentQuadDataSolveEigen[iSpin], 1, 1, 0,
+                d_resizeMemSpaceVecDuringInterpolation);
+        d_computingTimerStandard.leave_subsection(
+                "interpolate child data to parent quad");
 
-        if constexpr (memorySpace == dftfe::utils::MemorySpace::HOST) {
-          d_dftClassPtr->kohnShamEigenSpaceCompute(
-              iSpin, iKpoint, *d_kohnShamClass, *d_elpaScala,
-              *d_subspaceIterationSolverHost, residualNorms[iSpin][iKpoint],
-              true,  // compute residual
-              false, // mixed precision
-              false  // is first SCF
-          );
+        for (unsigned int iCell = 0; iCell < d_numLocallyOwnedCellsParent;
+             ++iCell) {
+            for (unsigned int iQuad = 0; iQuad < numQuadraturePointsPerCellParent;
+                 ++iQuad) {
+                d_potKSQuadData[iSpin]
+                        .data()[iCell * numQuadraturePointsPerCellParent + iQuad] =
+                        d_potBaseQuadDataHost[iSpin]
+                                .data()[iCell * numQuadraturePointsPerCellParent + iQuad] +
+                        d_potParentQuadDataSolveEigen
+                        [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad] +
+                        d_inverseDFTParams->factorForLDAVxc *
+                        (*(d_vxcLDAQuadDataPtr))
+                        [iSpin][iCell * numQuadraturePointsPerCellParent + iQuad];
+            }
         }
 
+        d_computingTimerStandard.enter_subsection("setVEff inverse");
+        d_kohnShamClass->setVEff(d_potKSQuadData, iSpin);
+        d_computingTimerStandard.leave_subsection("setVEff inverse");
+
+        d_computingTimerStandard.enter_subsection("computeHamiltonianMatrix");
+        d_kohnShamClass->computeCellHamiltonianMatrix();
+        d_computingTimerStandard.leave_subsection("computeHamiltonianMatrix");
+    }
+
+    double maxResidualAfterACEUpdate = 0.0;
+    unsigned int iPassACE = 0;
+    do {
+        iPass = 0;
+
+        do {
+            pcout << " inside iPass of chebFil = " << iPass << "\n";
+            for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
+                for (unsigned int iKpoint = 0; iKpoint < d_numKPoints; ++iKpoint) {
+                    const unsigned int kpointSpinId = iSpin * d_numKPoints + iKpoint;
+                    d_kohnShamClass->reinitkPointSpinIndex(iKpoint, iSpin);
+                    d_computingTimerStandard.enter_subsection(
+                            "kohnShamEigenSpaceCompute inverse");
+
+                    if constexpr (memorySpace == dftfe::utils::MemorySpace::HOST) {
+                        d_dftClassPtr->kohnShamEigenSpaceCompute(
+                                iSpin, iKpoint, *d_kohnShamClass, *d_elpaScala,
+                                *d_subspaceIterationSolverHost, residualNorms[iSpin][iKpoint],
+                                true,  // compute residual
+                                false, // mixed precision
+                                false  // is first SCF
+                        );
+                    }
+
 #ifdef DFTFE_WITH_DEVICE
-        if constexpr (memorySpace == dftfe::utils::MemorySpace::DEVICE) {
+                    if constexpr (memorySpace == dftfe::utils::MemorySpace::DEVICE) {
           d_dftClassPtr->kohnShamEigenSpaceCompute(
               iSpin, iKpoint, *d_kohnShamClass, *d_elpaScala,
               *d_subspaceIterationSolverDevice, residualNorms[iSpin][iKpoint],
@@ -1420,60 +1379,157 @@ void InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::solveEigen(
           );
         }
 #endif
-        d_computingTimerStandard.leave_subsection(
-            "kohnShamEigenSpaceCompute inverse");
-      }
-    }
-
-    const std::vector<std::vector<double>> &eigenValuesHost =
-        d_dftClassPtr->getEigenValues();
-    d_dftClassPtr->compute_fermienergy(eigenValuesHost, d_numElectrons);
-    const double fermiEnergy = d_dftClassPtr->getFermiEnergy();
-    maxResidual = 0.0;
-    unsigned int homoLevel = 0;
-    for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
-      for (unsigned int iKpoint = 0; iKpoint < d_numKPoints; ++iKpoint) {
-        // pcout << "compute partial occupancy eigen\n";
-        for (unsigned int iEig = 0; iEig < d_numEigenValues; ++iEig) {
-          const double eigenValue =
-              eigenValuesHost[iKpoint][d_numEigenValues * iSpin + iEig];
-          d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] =
-              dftfe::dftUtils::getPartialOccupancy(
-                  eigenValue, fermiEnergy, dftfe::C_kb, d_dftParams->TVal);
-
-          if (eigenValue < fermiEnergy + 1e-3) {
-            if (homoLevel < iEig) {
-              homoLevel = iEig;
+                    d_computingTimerStandard.leave_subsection(
+                            "kohnShamEigenSpaceCompute inverse");
+                }
             }
-          }
-          if (d_dftParams->constraintMagnetization) {
-            d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] =
-                1.0;
-            if (iSpin == 0) {
-              if (eigenValue > fermiEnergy) // fermi energy up
-                d_fractionalOccupancy[iKpoint]
-                                     [d_numEigenValues * iSpin + iEig] = 0.0;
-            } else if (iSpin == 1) {
-              if (eigenValue > fermiEnergy) // fermi energy down
-                d_fractionalOccupancy[iKpoint]
-                                     [d_numEigenValues * iSpin + iEig] = 0.0;
-            }
-          }
 
-          if ((d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] >
-               d_fractionalOccupancyTol) ||
-              (iEig <=
-               homoLevel + d_inverseDFTParams->additionalEigenStatesSolved)) {
-            if (residualNorms[iSpin][iKpoint][iEig] > maxResidual)
-              maxResidual = residualNorms[iSpin][iKpoint][iEig];
-          }
+            const std::vector<std::vector<double>> &eigenValuesHost =
+                    d_dftClassPtr->getEigenValues();
+            d_dftClassPtr->compute_fermienergy(eigenValuesHost, d_numElectrons);
+            const double fermiEnergy = d_dftClassPtr->getFermiEnergy();
+            maxResidual = 0.0;
+            unsigned int homoLevel = 0;
+            for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
+                for (unsigned int iKpoint = 0; iKpoint < d_numKPoints; ++iKpoint) {
+                    // pcout << "compute partial occupancy eigen\n";
+                    for (unsigned int iEig = 0; iEig < d_numEigenValues; ++iEig) {
+                        const double eigenValue =
+                                eigenValuesHost[iKpoint][d_numEigenValues * iSpin + iEig];
+                        if(! d_inverseDFTParams->keepFractionalOccupancyFixed)
+			{
+				d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] =
+                                dftfe::dftUtils::getPartialOccupancy(
+                                        eigenValue, fermiEnergy, dftfe::C_kb, d_dftParams->TVal);
+
+			}
+                        if (eigenValue < fermiEnergy + 1e-3) {
+                            if (homoLevel < iEig) {
+                                homoLevel = iEig;
+                            }
+                        }
+                        if (d_dftParams->constraintMagnetization) {
+                            d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] =
+                                    1.0;
+                            if (iSpin == 0) {
+                                if (eigenValue > fermiEnergy) // fermi energy up
+                                    d_fractionalOccupancy[iKpoint]
+                                    [d_numEigenValues * iSpin + iEig] = 0.0;
+                            } else if (iSpin == 1) {
+                                if (eigenValue > fermiEnergy) // fermi energy down
+                                    d_fractionalOccupancy[iKpoint]
+                                    [d_numEigenValues * iSpin + iEig] = 0.0;
+                            }
+                        }
+
+                        if ((d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] >
+                             d_fractionalOccupancyTol) ||
+                            (iEig <=
+                             homoLevel + d_inverseDFTParams->additionalEigenStatesSolved)) {
+                            if (residualNorms[iSpin][iKpoint][iEig] > maxResidual)
+                                maxResidual = residualNorms[iSpin][iKpoint][iEig];
+                        }
+                    }
+                }
+            }
+            iPass++;
+        } while (maxResidual > d_tolForChebFiltering && iPass < d_maxChebyPasses);
+
+        pcout << " maxRes = " << maxResidual << " iPass = " << iPass << "\n";
+
+        d_kohnShamClass->getExactExchangePtr()->updateACEOperator(d_dftClassPtr->getEigenVectors()
+                ,d_fractionalOccupancy,
+                                                                  true);
+
+        for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
+            for (unsigned int iKpoint = 0; iKpoint < d_numKPoints; ++iKpoint) {
+                const unsigned int kpointSpinId = iSpin * d_numKPoints + iKpoint;
+                d_kohnShamClass->reinitkPointSpinIndex(iKpoint, iSpin);
+                d_computingTimerStandard.enter_subsection(
+                        "kohnShamEigenSpaceCompute inverse");
+
+                if constexpr (memorySpace == dftfe::utils::MemorySpace::HOST) {
+                    d_dftClassPtr->kohnShamEigenSpaceCompute(
+                            iSpin, iKpoint, *d_kohnShamClass, *d_elpaScala,
+                            *d_subspaceIterationSolverHost, residualNorms[iSpin][iKpoint],
+                            true,  // compute residual
+                            false, // mixed precision
+                            false  // is first SCF
+                    );
+                }
+
+#ifdef DFTFE_WITH_DEVICE
+                if constexpr (memorySpace == dftfe::utils::MemorySpace::DEVICE) {
+          d_dftClassPtr->kohnShamEigenSpaceCompute(
+              iSpin, iKpoint, *d_kohnShamClass, *d_elpaScala,
+              *d_subspaceIterationSolverDevice, residualNorms[iSpin][iKpoint],
+              true,  // compute residual
+              0, // numberRayleighRitzAvoidancePasses
+              false, // mixed precision
+              false  // is first SCF
+          );
         }
-      }
-    }
-    iPass++;
-  } while (maxResidual > d_tolForChebFiltering && iPass < d_maxChebyPasses);
+#endif
+                d_computingTimerStandard.leave_subsection(
+                        "kohnShamEigenSpaceCompute inverse");
+            }
+        }
 
-  pcout << " maxRes = " << maxResidual << " iPass = " << iPass << "\n";
+        const std::vector<std::vector<double>> &eigenValuesHost =
+                d_dftClassPtr->getEigenValues();
+        d_dftClassPtr->compute_fermienergy(eigenValuesHost, d_numElectrons);
+        const double fermiEnergy = d_dftClassPtr->getFermiEnergy();
+        maxResidualAfterACEUpdate = 0.0;
+        unsigned int homoLevel = 0;
+        for (unsigned int iSpin = 0; iSpin < d_numSpins; ++iSpin) {
+            for (unsigned int iKpoint = 0; iKpoint < d_numKPoints; ++iKpoint) {
+                // pcout << "compute partial occupancy eigen\n";
+                for (unsigned int iEig = 0; iEig < d_numEigenValues; ++iEig) {
+                    const double eigenValue =
+                            eigenValuesHost[iKpoint][d_numEigenValues * iSpin + iEig];
+                    
+		    if(! d_inverseDFTParams->keepFractionalOccupancyFixed)
+                        {
+
+		    d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] =
+                            dftfe::dftUtils::getPartialOccupancy(
+                                    eigenValue, fermiEnergy, dftfe::C_kb, d_dftParams->TVal);
+
+			}
+                    if (eigenValue < fermiEnergy + 1e-3) {
+                        if (homoLevel < iEig) {
+                            homoLevel = iEig;
+                        }
+                    }
+                    if (d_dftParams->constraintMagnetization) {
+                        d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] =
+                                1.0;
+                        if (iSpin == 0) {
+                            if (eigenValue > fermiEnergy) // fermi energy up
+                                d_fractionalOccupancy[iKpoint]
+                                [d_numEigenValues * iSpin + iEig] = 0.0;
+                        } else if (iSpin == 1) {
+                            if (eigenValue > fermiEnergy) // fermi energy down
+                                d_fractionalOccupancy[iKpoint]
+                                [d_numEigenValues * iSpin + iEig] = 0.0;
+                        }
+                    }
+
+                    if ((d_fractionalOccupancy[iKpoint][d_numEigenValues * iSpin + iEig] >
+                         d_fractionalOccupancyTol) ||
+                        (iEig <=
+                         homoLevel + d_inverseDFTParams->additionalEigenStatesSolved)) {
+                        if (residualNorms[iSpin][iKpoint][iEig] > maxResidualAfterACEUpdate)
+                            maxResidualAfterACEUpdate = residualNorms[iSpin][iKpoint][iEig];
+                    }
+                }
+            }
+        }
+
+        iPassACE++;
+        pcout<<" maxRes ACE at iPass = "<<iPassACE<<" = "<<maxResidualAfterACEUpdate<<"\n";
+    } while ((maxResidualAfterACEUpdate > d_tolForChebFiltering*10) && (iPassACE < d_maxChebyPasses));
+    pcout << " maxRes ACE = " << maxResidualAfterACEUpdate << " iPass = " << iPassACE << "\n";
 }
 
 // TODO changed for debugging purposes
@@ -1852,6 +1908,7 @@ double InverseDFTSolverFunction<FEOrder, FEOrderElectro, memorySpace>::
   const double allElectronElectrostaticEnergy =
       (totalelectrostaticEnergyPot + totalNuclearElectrostaticEnergy);
 
+  pcout<<" Total electrostatic energy without nuclear energy = "<<totalelectrostaticEnergyPot<<"\n";
   pcout << " Total electrostatic energy = " << allElectronElectrostaticEnergy
         << "\n";
   return allElectronElectrostaticEnergy;

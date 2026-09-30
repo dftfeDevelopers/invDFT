@@ -62,6 +62,7 @@ public:
   double adaptiveFactorForChebFiltering;
   double initialTolForChebFiltering;
   double rhoTolForConstraints;
+  double vxcConstraintsDomain;
   double VxcInnerDomain;
   double VxcInnerMeshSize;
   double inverseAdjointInitialTol;
@@ -75,6 +76,12 @@ public:
   double inverseFractionOccTol;
   double inverseDegeneracyTol;
 
+  bool solveGroundStateForInputVxc;
+  double factorForCorrPotential;
+
+  bool keepFractionalOccupancyFixed;
+  double fractionalOccupancyForHomoLevel;
+
   bool readFEDensity;
   bool spinGSDensity;
   double distBetweenPoints;
@@ -85,7 +92,6 @@ public:
   bool readGaussian;
   bool readSlater;
   bool fermiAmaldiBC;
-  double factorFermiAmaldi;
   std::string densityMatGaussianPrimaryFileNameSpinUp;
   std::string densityMatGaussianPrimaryFileNameSpinDown;
   std::string atomicOrbitalAtomicCoord;

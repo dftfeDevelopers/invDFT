@@ -224,6 +224,12 @@ private:
   unsigned int d_numSpins, d_numKPoints, d_numEigenValues;
   std::vector<double> d_kpointWeights;
 
+    std::vector<double> d_quadJxWValues;
+
+    std::vector<double> d_quadJxWValuesChild;
+
+    std::vector<double> d_applyDirichletBCForVxcChildQuad;
+
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
       d_potBaseQuadData;
@@ -262,7 +268,28 @@ private:
   std::vector<const dealii::AffineConstraints<double> *>
       d_constraintsVectorAdjoint;
 
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            fractionalOccupanciesSqrtHost;
+
+    dftfe::utils::MemoryStorage<double, memorySpace>
+            fractionalOccupanciesSqrtMemspace;
+
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            d_rhoTargetChildQuadHost;
+
+    dftfe::utils::MemoryStorage<double, memorySpace>
+            d_psiChildTargetQuadDataMemorySpace;
+
+    dftfe::utils::MemoryStorage<double, memorySpace>
+            d_psiChildQuadDataMemorySpace;
+
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            d_psiChildTargetQuadDataHost;
+
   std::vector<double> d_quadCoordinatesParent;
+
+    std::vector<double> d_quadCoordinatesChild;
+
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
       d_vxcLDAQuadData;

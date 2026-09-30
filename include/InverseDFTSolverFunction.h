@@ -21,11 +21,12 @@
 #ifndef DFTFE_INVERSEDFTSOLVERFUNCTION_H
 #define DFTFE_INVERSEDFTSOLVERFUNCTION_H
 
-#include "inverseDFTParameters.h"
-//#include <MultiVectorAdjointLinearSolverProblem.h>
+//#include "inverseDFTParameters.h"
+#include <TransferBetweenMeshesIncompatiblePartitioning.h>
 #include <MultiVectorAdjointLinearSolverProblem.h>
 #include <MultiVectorMinResSolver.h>
-#include <TransferBetweenMeshesIncompatiblePartitioning.h>
+//#include <TransferBetweenMeshesIncompatiblePartitioning.h>
+#include "inverseDFTParameters.h"
 #include <constraintMatrixInfo.h>
 #include <dft.h>
 #include <headers.h>
@@ -67,6 +68,8 @@ public:
       const std::vector<
           dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
           &rhoTargetQuadDataHost,
+      const dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+      &rhoTargetChildQuad,
       const std::vector<
           dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
           &weightQuadDataHost,
@@ -110,6 +113,7 @@ public:
       const unsigned int matrixFreePotVectorComponent,
       const unsigned int matrixFreeQuadratureComponentAdjointRhs,
       const unsigned int matrixFreeQuadratureComponentPot,
+    const std::vector<double> &applyDirichletBCForVxcChildQuad,
       const bool isComputeDiagonalA, const bool isComputeShapeFunction,
       const dftfe::dftParameters &dftParams,
       const inverseDFTParameters &inverseDFTParams);
@@ -208,6 +212,12 @@ private:
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
       d_rhoTargetQuadDataHost;
+
+   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+            d_rhoTargetChildQuadHost;
+
+    std::vector<double> d_applyDirichletBCForVxcChildQuad;
+
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
       d_rhoKSQuadDataHost;
@@ -237,6 +247,11 @@ private:
   std::vector<dftfe::uInt> fullFlattenedArrayCellLocalProcIndexIdMapPsiHost,
       fullFlattenedArrayCellLocalProcIndexIdMapAdjointHost;
 
+    dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
+    fractionalOccupanciesSqrtHost;
+
+    dftfe::utils::MemoryStorage<double, memorySpace>
+    fractionalOccupanciesSqrtMemspace;
   dftfe::utils::MemoryStorage<double, memorySpace>
       d_psiChildQuadDataMemorySpace, d_adjointChildQuadDataMemorySpace;
 
@@ -361,7 +376,7 @@ private:
   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
       kineticEnergyDensityValues;
   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
-      sumPsiAdjointChildQuadData;
+      sumPsiAdjointChildQuadData, sumPsiAdjointChildQuadDataOldRoute;
   dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>
       sumPsiAdjointChildQuadDataPartial;
   // u = rhoTarget - rhoKS
@@ -374,7 +389,7 @@ private:
 
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>
-      rhoDiff;
+      rhoDiff, rhoDiffNoPrefac;
 
   std::vector<
       dftfe::utils::MemoryStorage<double, dftfe::utils::MemorySpace::HOST>>

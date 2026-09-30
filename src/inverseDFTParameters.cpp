@@ -177,7 +177,13 @@ void declare_parameters(dealii::ParameterHandler &prm) {
     prm.declare_entry("RHO TOL FOR CONSTRAINTS", "1e-6",
                       dealii::Patterns::Double(0.0),
                       "[Standard] The tol for rho less than which the initial "
-                      "guess of Vxc is not updated");
+                      "guess of Vxc is not updated.");
+
+    prm.declare_entry("VXC CONSTRAINTS DOMAIN SIZE", "4.0",
+                      dealii::Patterns::Double(0.0),
+                      "[Standard] The ball radius beyond which rho tol for "
+                      "constrains is checked.");
+
     prm.declare_entry("VXC MESH DOMAIN SIZE", "6.0",
                       dealii::Patterns::Double(0.0),
                       "[Standard] The distance of the bounding box from the "
@@ -248,27 +254,39 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       dealii::Patterns::Double(0.0),
                       "[STANDARD] tol for checking fractional occupancy");
 
+    prm.declare_entry("FIX THE OCCUPANCIES OF THE WAVEFUNCTIONS", "false",
+		    dealii::Patterns::Bool(),
+		    "[Advanced] Flag to determine if the fractional occupancies are held fixed.");
+
+    prm.declare_entry("FRACTIONAL OCCUPANCY FOR HOMO LEVEL", "0.98",
+		    dealii::Patterns::Double(0.0),
+		    "[Advanced] If the flag to hold the fractional occupancies is set to true then this value"
+		    " determines what the occupancy of the homo level is");
+
     prm.declare_entry("USE LB94_X IN INITIAL GUESS", "true",
                       dealii::Patterns::Bool(),
                       "[Standard] Flag to determine if LB 94_X is used in "
                       "initial guess. If set to false, then LDA_X is used.");
 
+    prm.declare_entry("FACTOR FOR CORR POTENTIAL","1.0",
+	    dealii::Patterns::Double(0.0),
+	    "[Advanced] Factor added to the corr potential");
+    
     prm.declare_entry(
         "READ FE DENSITY DATA", "false", dealii::Patterns::Bool(),
         "[Standard] Flag to determine if the FE density is read from a file");
 
+      prm.declare_entry(
+              "SOLVE GS FOR INPUT VC", "false", dealii::Patterns::Bool(),
+              "[Standard] Flag to determine if the GS corresponding to input Vc is computed ");
+
     prm.declare_entry(
         "FE DENSITY FILENAME", ".", dealii::Patterns::Anything(),
         "[Standard] File name containing the spin polarised FE GS density");
-
+    
     prm.declare_entry(
         "READ FE DENSITY DATA WITH SPIN", "true", dealii::Patterns::Bool(),
         "[Standard] Flag to determine if the FE density is read from a file");
-
-    prm.declare_entry("USE LB94_X IN INITIAL GUESS", "true",
-                      dealii::Patterns::Bool(),
-                      "[Standard] Flag to determine if LB 94_X is used in "
-                      "initial guess. If set to false, then LDA_X is used.");
 
     prm.declare_entry(
         "USE MEM OPT FOR TRANSFER", "false", dealii::Patterns::Bool(),
@@ -290,9 +308,6 @@ void declare_parameters(dealii::ParameterHandler &prm) {
                       "[Standard] Flag to determine if the initial Vxc has "
                       "fermi-amaldi as the far field in the input");
 
-    prm.declare_entry("FACTOR FOR FERMIAMALDI", "1.0",
-                      dealii::Patterns::Double(0.0),
-                      "[Standard] Factor for FEMIAMALDI in the far field");
     prm.declare_entry(
         "GAUSSIAN DENSITY FOR PRIMARY RHO SPIN UP", ".",
         dealii::Patterns::Anything(),
@@ -399,6 +414,7 @@ inverseDFTParameters::inverseDFTParameters() {
   fileNameWriteVxcPostFix = ".";
   writeVxcFrequency = 20;
 
+    solveGroundStateForInputVxc = false;
   readFEDensity = false;
   spinGSDensity = true;
   distBetweenPoints = 1e-3;
@@ -410,6 +426,7 @@ inverseDFTParameters::inverseDFTParameters() {
   initialTolForChebFiltering = 1e-6;
   maxChebPasses = 100;
   rhoTolForConstraints = 1e-6;
+  vxcConstraintsDomain = 4.0;
   VxcInnerDomain = 6.0;
   VxcInnerMeshSize = 0.0;
   inverseAdjointInitialTol = 1e-11;
@@ -421,15 +438,18 @@ inverseDFTParameters::inverseDFTParameters() {
   inverseTauForFABC = 1e-2;
   inverseFractionOccTol = 1e-8;
   inverseDegeneracyTol = 0.002;
+  
+  keepFractionalOccupancyFixed = false;
+  fractionalOccupancyForHomoLevel = 0.98;
 
   interBlockSize = 10;
   useLb94InInitialguess = true;
+  factorForCorrPotential = 1.0;
   additionalEigenStatesSolved = 0;
   netCharge = 0;
   readGaussian = false;
   readSlater = false;
   fermiAmaldiBC = false;
-  factorFermiAmaldi = 1.0;
 
   densityMatGaussianPrimaryFileNameSpinUp = '.';
   densityMatGaussianPrimaryFileNameSpinDown = '.';
@@ -489,6 +509,8 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
         prm.get("POSTFIX TO THE FILENAME FOR WRITING VXC DATA");
     writeVxcFrequency = prm.get_integer("FREQUENCY FOR WRITING VXC");
 
+      solveGroundStateForInputVxc =
+              prm.get_bool("SOLVE GS FOR INPUT VC");
     readFEDensity = prm.get_bool("READ FE DENSITY DATA");
     spinGSDensity = prm.get_bool("READ FE DENSITY DATA WITH SPIN");
     distBetweenPoints = prm.get_double("TOL FOR DIST BETWEEN POINTS");
@@ -497,6 +519,7 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     netCharge = prm.get_integer("NET CHARGE");
     useDeltaRhoCorrection = prm.get_bool("USE DELTA RHO CORRECTION");
     rhoTolForConstraints = prm.get_double("RHO TOL FOR CONSTRAINTS");
+    vxcConstraintsDomain = prm.get_double("VXC CONSTRAINTS DOMAIN SIZE");
     VxcInnerDomain = prm.get_double("VXC MESH DOMAIN SIZE");
     VxcInnerMeshSize = prm.get_double("VXC MESH SIZE NEAR ATOM");
     initialTolForChebFiltering =
@@ -526,11 +549,14 @@ void inverseDFTParameters::parse_parameters(const std::string &parameter_file,
     useLb94InInitialguess = prm.get_bool("USE LB94_X IN INITIAL GUESS");
     inverseFractionOccTol = prm.get_double("TOL FOR FRACTIONAL OCCUPANCY");
     inverseDegeneracyTol = prm.get_double("TOL FOR DEGENERACY");
+    factorForCorrPotential = prm.get_double("FACTOR FOR CORR POTENTIAL");
+
+    keepFractionalOccupancyFixed = prm.get_bool("FIX THE OCCUPANCIES OF THE WAVEFUNCTIONS");
+    fractionalOccupancyForHomoLevel = prm.get_double("FRACTIONAL OCCUPANCY FOR HOMO LEVEL");
     useMemOptForTransfer = prm.get_bool("USE MEM OPT FOR TRANSFER");
     readGaussian = prm.get_bool("READ GAUSSIAN DATA AS INPUT");
     readSlater = prm.get_bool("READ SLATER DATA AS INPUT");
     fermiAmaldiBC = prm.get_bool("SET FERMIAMALDI IN THE FAR FIELD AS INPUT");
-    factorFermiAmaldi = prm.get_double("FACTOR FOR FERMIAMALDI");
     densityMatGaussianPrimaryFileNameSpinUp =
         prm.get("GAUSSIAN DENSITY FOR PRIMARY RHO SPIN UP");
     densityMatGaussianPrimaryFileNameSpinDown =
