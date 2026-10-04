@@ -20,7 +20,6 @@ subsection Finite element mesh parameters
   set POLYNOMIAL ORDER ELECTROSTATICS = 7
   subsection Auto mesh generation parameters
     set AUTO ADAPT BASE MESH SIZE = true
-    set BASE MESH SIZE = 6.4
     set MESH SIZE AT ATOM = 0.06
     set MESH SIZE AROUND ATOM = 0.45
     set ATOM BALL RADIUS=8.0
