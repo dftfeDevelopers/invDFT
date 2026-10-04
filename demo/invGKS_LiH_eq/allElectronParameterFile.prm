@@ -14,11 +14,6 @@ subsection Boundary conditions
   set PERIODIC3                       = false
 end
 
-subsection GPU
-  set USE GPU=true
-  set USE ELPA GPU KERNEL = true
-end
-
 
 subsection Finite element mesh parameters
   set POLYNOMIAL ORDER=5
