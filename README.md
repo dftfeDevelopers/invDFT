@@ -3,7 +3,7 @@ invDFT : A finite-element based C++ code to perform inverse DFT calculations
 
 About
 -----
-invDFT is a massively parallel C++ code that can perform inverse DFT calculations. In the invGKS branch, we have extended the capability of the code to perform inverse GKS calculations with a fraction of exact exchange ($\alpha$). The code uses a complete finite-element basis providing a robust and efficient formulation to compute the exact v_{xc} potential for a given input ground state electron density.
+invDFT is a massively parallel C++ code that can perform inverse DFT calculations. In the invGKS branch, we have extended the capability of the code to perform inverse calculations under the Generalised Kohn Sham (GKS) framework with a fraction of exact exchange ($\alpha$). The code uses a complete finite-element basis providing a robust and efficient formulation to compute the exact ${v^{\alpha}_{\text{xc}}}$ potential for a given input ground state electron density.
 The code can run on CPU and GPU (NVidia and AMD) architectures and its efficiency and accuracy has been demonstrated for different molecules.
 
 Directory structure of invDFT
@@ -28,11 +28,11 @@ Directory structure of invDFT
 Installation instructions
 -------------------------
 
-invDFT is built on DFT-FE from which it borrows efficient finite-element infrastructure and solvers. 
+invDFT is built on DFT-FE from which it borrows efficient finite-element infrastructure and solvers. To install the invDFT with the invGKS branch, use the `forInvGKSCalc` branch of DFT-FE. 
 
 The steps to install the necessary dependencies and DFT-FE itself are described in the *Installation* section of the DFT-FE manual (download the development version manual [here](https://github.com/dftfeDevelopers/dftfe/blob/manual/manual-develop.pdf)). 
 
-Several shell based installation scripts have been created for the development version of DFT-FE (`publicGithubDevelop` branch) on various machines:
+Several shell based installation scripts have been created for the development version of DFT-FE on various machines. These scripts have been provided for the `publicGithubDevelop` branch of DFT-FE, please update it to the `forInvGKSCalc` branch before compiling DFT-FE. 
   - [OLCF Frontier](https://github.com/dftfeDevelopers/install_DFTFE/tree/frontierDevelop)
   - [NERSC Perlmutter](https://github.com/dftfeDevelopers/install_DFTFE/tree/perlmutterDevelop)
   - [UMICH Greatlakes](https://github.com/dftfeDevelopers/install_DFTFE/tree/greatlakesDevelop) 
@@ -40,6 +40,8 @@ Several shell based installation scripts have been created for the development v
 For the installation of invDFT please refer to *Installation* section of the *invDFT* manual (available [here](https://github.com/dftfeDevelopers/invDFT/manual/invDFTFEmanual_develop.pdf))
 
 For convenience, sample installation scripts for invDFT are provided in the installationScripts folder.
+
+We have provided the scripts for installing `invGKS` branch of invDFT along with all of its dependencies on Perlmutter [here](https://github.com/dftfeDevelopers/installationForInvGKS.git).
 
 
 Running invDFT
