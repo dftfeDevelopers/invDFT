@@ -6,13 +6,6 @@ subsection Inverse DFT parameters
    set BFGS LINE SEARCH = 1
    set TOL FOR BFGS LINE SEARCH = 1e-6
    set BFGS HISTORY = 10
-   set BFGS MAX ITERATIONS = 10000
-   set READ FE DENSITY DATA = false
-   set FE DENSITY FILENAME = density_LiF_1_hf_dftfe_correctNorm_tigtherTol_gs.txt 
-   set READ FE DENSITY DATA WITH SPIN = false
-   set TOL FOR DIST BETWEEN POINTS = 1E-3
-   set READ VXC DATA = false
-   set POSTFIX TO THE FILENAME FOR READING VXC DATA = vxcData_mesh0p06_ball6p0_temp10_1_20 
    set WRITE VXC DATA = true
    set FOLDER FOR VXC DATA = vxcDataOut
    set POSTFIX TO THE FILENAME FOR WRITING VXC DATA = vxcData_mesh0p06_ball6p0_temp10_1
