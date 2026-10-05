@@ -30,21 +30,21 @@ Installation instructions
 
 invDFT is built on top of [DFT-FE](https://github.com/dftfeDevelopers/dftfe), from which it borrows its finite-element infrastructure and solvers. Installing the `invGKS` branch of invDFT therefore takes two steps:
 
-1. Install the dependencies and build the **`forInvGKSCalc`** branch of DFT-FE.
+1. Install the dependencies and build the **`invGKS`** branch of DFT-FE.
 2. Build the **`invGKS`** branch of invDFT against that DFT-FE installation.
 
-> **Note:** The `invGKS` branch of invDFT only works with the `forInvGKSCalc` branch of DFT-FE. Other DFT-FE branches (for example, `publicGithubDevelop`) are not compatible with it.
+> **Note:** The `invGKS` branch of invDFT only works with the `invGKS` branch of DFT-FE. Other DFT-FE branches (for example, `publicGithubDevelop`) are not compatible with it.
 
-### Step 1: Install DFT-FE (`forInvGKSCalc` branch)
+### Step 1: Install DFT-FE (`invGKS` branch)
 
 DFT-FE depends on a number of external libraries, including deal.II, p4est, PETSc, SLEPc, Kokkos, ScaLAPACK, ELPA, Libxc, spglib, ALGLIB, and BLAS/LAPACK libraries (such as BLIS and libflame). It also needs an MPI-enabled C++ compiler and, for GPU runs, the CUDA (NVIDIA) or ROCm (AMD) toolchain. The steps to install these dependencies and DFT-FE itself are described in the *Installation* section of the DFT-FE manual. Download the development version of the manual [here](https://github.com/dftfeDevelopers/dftfe/blob/manual/manual-develop.pdf).
 
-Once the dependencies are in place, check out the `forInvGKSCalc` branch of DFT-FE before compiling:
+Once the dependencies are in place, check out the `invGKS` branch of DFT-FE before compiling:
 
 ```
 git clone https://github.com/dftfeDevelopers/dftfe.git
 cd dftfe
-git checkout forInvGKSCalc
+git checkout invGKS
 ```
 
 **Installation scripts for common machines.** To simplify the process, shell-based installation scripts for the development version of DFT-FE are available for several supercomputers:
@@ -53,7 +53,7 @@ git checkout forInvGKSCalc
 - [NERSC Perlmutter](https://github.com/dftfeDevelopers/install_DFTFE/tree/perlmutterDevelop)
 - [UMich Great Lakes](https://github.com/dftfeDevelopers/install_DFTFE/tree/greatlakesDevelop)
 
-These scripts are written for the `publicGithubDevelop` branch of DFT-FE. Before running them, change the DFT-FE branch by checking out to `forInvGKSCalc`, so that the compiled DFT-FE is the one invDFT expects.
+These scripts are written for the `publicGithubDevelop` branch of DFT-FE. Before running them, change the DFT-FE branch by checking out to `invGKS`, so that the compiled DFT-FE is the one invDFT expects.
 
 ### Step 2: Install invDFT (`invGKS` branch)
 
