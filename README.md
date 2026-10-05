@@ -37,7 +37,7 @@ invDFT is built on top of [DFT-FE](https://github.com/dftfeDevelopers/dftfe), fr
 
 ### Step 1: Install DFT-FE (`invGKS` branch)
 
-DFT-FE depends on a number of external libraries, including deal.II, p4est, PETSc, SLEPc, Kokkos, ScaLAPACK, ELPA, Libxc, spglib, ALGLIB, and BLAS/LAPACK libraries (such as BLIS and libflame). It also needs an MPI-enabled C++ compiler and, for GPU runs, the CUDA (NVIDIA) or ROCm (AMD) toolchain. The steps to install these dependencies and DFT-FE itself are described in the *Installation* section of the DFT-FE manual. Download the development version of the manual [here](https://github.com/dftfeDevelopers/dftfe/blob/manual/manual-develop.pdf).
+DFT-FE depends on a number of external libraries, including deal.II, p4est, PETSc, SLEPc, Kokkos, ScaLAPACK, ELPA, Libxc, spglib, ALGLIB, and BLAS/LAPACK libraries (such as BLIS and libflame). It also needs an MPI-enabled C++ compiler and, for GPU runs, the CUDA (NVIDIA) or ROCm (AMD) toolchain. The steps to install DFT-FE and its dependencies are described in the *Installation* section of the DFT-FE manual. Download the development version of the manual [here](https://github.com/dftfeDevelopers/dftfe/blob/manual/manual-develop.pdf).
 
 Once the dependencies are in place, check out the `invGKS` branch of DFT-FE before compiling:
 
@@ -53,7 +53,7 @@ git checkout invGKS
 - [NERSC Perlmutter](https://github.com/dftfeDevelopers/install_DFTFE/tree/perlmutterDevelop)
 - [UMich Great Lakes](https://github.com/dftfeDevelopers/install_DFTFE/tree/greatlakesDevelop)
 
-These scripts are written for the `publicGithubDevelop` branch of DFT-FE. Before running them, change the DFT-FE branch by checking out to `invGKS`, so that the compiled DFT-FE is the one invDFT expects.
+These scripts are written for the `publicGithubDevelop` branch of DFT-FE. Before running them, change the DFT-FE branch that they check out to `invGKS`, so that the compiled DFT-FE is the one invDFT expects.
 
 ### Step 2: Install invDFT (`invGKS` branch)
 
@@ -65,19 +65,21 @@ cd invDFT
 git checkout invGKS
 ```
 
-Sample installation scripts for invDFT are provided in the [`installationScripts`](https://github.com/dftfeDevelopers/invDFT/tree/main/installationScripts) folder of the repository, and can be adapted to your machine.
+Sample installation scripts for invDFT are provided in the [`installationScripts`](https://github.com/dftfeDevelopers/invDFT/tree/main/installationScripts) folder of the repository and can be adapted to your machine.
 
 ### One-step installation on NERSC Perlmutter
 
-If you are working on NERSC Perlmutter, the [installationForInvGKS](https://github.com/dftfeDevelopers/installationForInvGKS) repository installs the `invGKS` branch of invDFT together with all of its dependencies. Clone the repository, source the `installInvDFT.rc` file, and run the provided functions in the order listed in its README. This sequence builds the dependencies, then DFT-FE, and finally invDFT:
+If you are working on NERSC Perlmutter, you can use [this script](https://github.com/dftfeDevelopers/invDFT/blob/invGKS/install_invDFT_withDependencies_inPerlmutter/installInvDFT.sh), which installs the `invGKS` branch of invDFT together with all of its dependencies. By default, everything is installed in `$PSCRATCH/install_invDFT`. To use a different location, change the value of `WD` in the script. To install, run:
 
 ```
-install_blis → install_libflame → install_alglib → install_libxc → install_spglib
-→ install_p4est → install_scalapack → install_elpa → install_kokkos → install_petsc
-→ install_slepc → install_numdiff → install_dealii → compile_dftfe → compile_invDFT_invGKS
+source installInvDFT.sh
+install_all
 ```
 
-These scripts can also serve as a template for other machines: the same sequence of builds is needed, and only the module names, compilers, and paths change.
+If the installation is successful, the `invDFT_exe` executable is created in `$WD/src/invDFT/build/release/real/`.
+
+The script can also serve as a template for other machines. The same sequence of builds is needed, and only the module names, compilers, and paths change.
+
 
 
 Running invDFT
