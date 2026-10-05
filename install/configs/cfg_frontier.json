@@ -1,0 +1,76 @@
+{
+  "_about": [
+    "Template for OLCF Frontier. Copy it, set \"prefix\", adjust, then run:",
+    "  python3 install.py --config cfg_frontier.json --dry-run   (check)",
+    "  python3 install.py --config cfg_frontier.json             (build, inside an interactive job)",
+    "Keys starting with '_' are comments. Command-line options override this file.",
+    "The \"machine\" entry below is the machine profile (modules, compilers, flags);",
+    "its \"defaults\" set GPU and BLAS. Override them by adding e.g. \"gpu\": false or",
+    "\"blas\": \"mkl\" at the top level, or edit the profile. See README.md.",
+    "int64 (off with invDFT), petsc (on with invDFT) and elpa_gpu (on with gpu) are",
+    "derived automatically; see README.md before setting them here.",
+    "Set \"invdft\": false to install DFT-FE only (then 64-bit integers are used)."
+  ],
+  "machine": {
+    "_notes": [
+      "OLCF Frontier: HPE Cray EX, AMD EPYC (znver3) + AMD MI250X (gfx90a).",
+      "Based on the frontierDevelop branch of dftfeDevelopers/install_DFTFE.",
+      "GPU builds link the Cray GTL library ($PE_MPICH_GTL_*) for GPU-aware MPICH.",
+      "ELPA is compiled with hipcc and the MPICH/GTL libraries are passed explicitly."
+    ],
+    "description": "OLCF Frontier (HPE Cray EX, AMD EPYC + AMD MI250X)",
+    "detect": {
+      "lmod_system_name": ["frontier"],
+      "hostname_regex": ["frontier"]
+    },
+    "cray": true,
+    "compilers": {"cc": "cc", "cxx": "CC", "fc": "ftn", "mpicc": "cc", "mpicxx": "CC", "mpifc": "ftn"},
+    "march": "-march=znver3",
+    "modules": ["cpe/25.09", "PrgEnv-gnu", "gcc-native", "cmake", "boost"],
+    "gpu_modules": {
+      "amd": ["craype-accel-amd-{arch}", "rocm"]
+    },
+    "blas_modules": {
+      "libsci": ["cray-libsci"]
+    },
+    "gpu_exports": {"MPICH_GPU_SUPPORT_ENABLED": "1"},
+    "defaults": {"gpu": true, "gpu_vendor": "amd", "gpu_arch": "gfx90a", "blas": "blis+flame"},
+    "versions": {"libxc": "7.0.0", "kokkos": "4.6.00", "elpa": "2026.02.001"},
+    "dccl_prefix": {"amd": "$ROCM_PATH"},
+    "elpa_cpu_configure": "--disable-avx512",
+    "gpu": {
+      "amd": {
+        "cxx_flags": "{march} -fPIC -I$MPICH_DIR/include -I$ROCM_PATH/include -I$ROCM_PATH/include/hip -I$ROCM_PATH/include/hipblas -I$ROCM_PATH/include/rocblas",
+        "device_flags": "{march} -O2 -munsafe-fp-atomics -I$MPICH_DIR/include -I$ROCM_PATH/include -I$ROCM_PATH/include/hip -I$ROCM_PATH/include/hipblas -I$ROCM_PATH/include/rocblas",
+        "shared_linker_flags": "-L$ROCM_PATH/lib -lamdhip64 -L$MPICH_DIR/lib -lmpi $CRAY_XPMEM_POST_LINK_OPTS -lxpmem $PE_MPICH_GTL_DIR_amd_{arch} $PE_MPICH_GTL_LIBS_amd_{arch}",
+        "elpa": {
+          "cc": "hipcc",
+          "cxx": "hipcc",
+          "fc": "ftn",
+          "cflags": "{march} -fPIC -O2 $CRAY_ROCM_INCLUDE_OPTS -I$ROCM_PATH/include/rocsolver --offload-arch={arch} -I$MPICH_DIR/include",
+          "cxxflags": "-std=c++17 {march} -fPIC -O2 $CRAY_ROCM_INCLUDE_OPTS -I$ROCM_PATH/include/rocsolver --offload-arch={arch} -I$MPICH_DIR/include",
+          "fcflags": "{march} -O2 -fPIC",
+          "libs": "-L$ROCM_PATH/lib -lamdhip64 -lrocblas -lrocsolver -L$MPICH_DIR/lib -lmpi $CRAY_XPMEM_POST_LINK_OPTS -lxpmem $PE_MPICH_GTL_DIR_amd_{arch} $PE_MPICH_GTL_LIBS_amd_{arch}"
+        }
+      }
+    }
+  },
+  "_prefix": "REQUIRED: install directory for DFT-FE/invDFT and env.sh; set it here or pass --prefix",
+  "prefix": null,
+  "_prefix_dependencies": "optional: separate install directory for the dependencies (null = same as prefix); set it here or pass --prefix-dependencies",
+  "prefix_dependencies": null,
+  "invdft": true,
+  "invdft_branch": "invGKS",
+  "dftfe_repo": "github",
+  "dftfe_branch": "publicGithubDevelop",
+  "build_type": "Release",
+  "dccl": false,
+  "gpu_aware_mpi": false,
+  "dftd3": false,
+  "dftd4": false,
+  "higher_quad_psp": false,
+  "jobs": 16,
+  "keep_src_dep": false,
+  "keep_build_dep": false,
+  "keep_logs_dep": false
+}

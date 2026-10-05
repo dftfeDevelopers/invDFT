@@ -1,0 +1,64 @@
+{
+  "_about": [
+    "Template for UMich Great Lakes (CPU nodes). Copy it, set \"prefix\", adjust, then run:",
+    "  python3 install.py --config cfg_greatlakes.json --dry-run   (check)",
+    "  python3 install.py --config cfg_greatlakes.json             (build, inside an salloc job)",
+    "Keys starting with '_' are comments. Command-line options override this file.",
+    "The \"machine\" entry below is the machine profile (modules, compilers, flags);",
+    "its \"defaults\" set GPU and BLAS. Override them by adding e.g. \"gpu\": false or",
+    "\"blas\": \"mkl\" at the top level, or edit the profile. See README.md.",
+    "int64 (off with invDFT), petsc (on with invDFT) and elpa_gpu (on with gpu) are",
+    "derived automatically; see README.md before setting them here.",
+    "Set \"invdft\": false to install DFT-FE only (then 64-bit integers are used).",
+    "For a GPU partition set \"gpu\": true, \"gpu_vendor\": \"nvidia\" and \"gpu_arch\":",
+    "\"70\" (V100), \"80\" (A100) or \"86\" (A40), and build on a node of that partition."
+  ],
+  "machine": {
+    "_notes": [
+      "UMich Great Lakes: Intel Xeon, GCC + OpenMPI; NVIDIA GPU partitions (V100, A40, A100).",
+      "Based on the greatlakesDevelop branch of dftfeDevelopers/install_DFTFE.",
+      "For GPU builds, pass --gpu --gpu-vendor nvidia --gpu-arch 70|80|86 to match the partition.",
+      "Use --blas mkl to link Intel MKL (loads the mkl module listed under blas_modules)."
+    ],
+    "description": "UMich Great Lakes (Intel Xeon, GCC + OpenMPI; NVIDIA GPU partitions)",
+    "detect": {
+      "env": {"CLUSTER_NAME": "greatlakes"},
+      "hostname_regex": ["arc-ts\\.umich\\.edu", "\\bgl(-login|\\d{4})"]
+    },
+    "cray": false,
+    "compilers": {
+      "cc": "gcc",
+      "cxx": "g++",
+      "fc": "gfortran",
+      "mpicc": "mpicc",
+      "mpicxx": "mpicxx",
+      "mpifc": "mpif90"
+    },
+    "march": "-march=native",
+    "modules": ["gcc/13.2.0", "openmpi/5.0.3", "cmake/3.26.3", "boost/1.78.0"],
+    "gpu_modules": {
+      "nvidia": ["cuda"]
+    },
+    "blas_modules": {
+      "mkl": ["mkl/2023.2.1"]
+    },
+    "defaults": {"gpu": false, "blas": "openblas"},
+    "versions": {"p4est": "2.8.6"}
+  },
+  "_prefix": "REQUIRED: install directory for DFT-FE/invDFT and env.sh; set it here or pass --prefix",
+  "prefix": null,
+  "_prefix_dependencies": "optional: separate install directory for the dependencies (null = same as prefix); set it here or pass --prefix-dependencies",
+  "prefix_dependencies": null,
+  "invdft": true,
+  "invdft_branch": "invGKS",
+  "dftfe_repo": "github",
+  "dftfe_branch": "publicGithubDevelop",
+  "build_type": "Release",
+  "dftd3": false,
+  "dftd4": false,
+  "higher_quad_psp": false,
+  "jobs": 16,
+  "keep_src_dep": false,
+  "keep_build_dep": false,
+  "keep_logs_dep": false
+}

@@ -3,28 +3,28 @@
 install.py -- build DFT-FE (and optionally invDFT) together with all of
 its dependencies on an HPC machine.
 
-Machine profiles (modules, compilers, GPU/ELPA flags, tested versions) live in
-machines/<name>.json: OLCF Frontier, NERSC Perlmutter, UMich Great Lakes, and
-"generic" for any other Linux cluster. A --config file can name a profile,
-extend one ({"base": "frontier", ...}) or define one inline. See README.md.
+Everything about an installation lives in one configuration file: the settings
+and the machine profile (modules, compilers, GPU/ELPA flags, tested versions) in
+its "machine" entry. The templates configs/cfg_<name>.json cover OLCF Frontier,
+NERSC Perlmutter, UMich Great Lakes, and "generic" for any other Linux cluster.
+A "machine" entry can be inline, refer to another template's profile by name,
+extend one ({"base": "frontier", ...}) or point to an external profile file.
+Command-line options override the file. See README.md.
 
 Examples
 --------
-  # Frontier, AMD GPUs, also build invDFT (turns on PETSc/SLEPc automatically)
-  python3 install.py --machine frontier --prefix /lustre/orion/<proj>/scratch/$USER/dftfe --invdft
+  # Frontier, AMD GPUs, DFT-FE + invDFT (the template's defaults)
+  python3 install.py --config configs/cfg_frontier.json --prefix /lustre/orion/<proj>/scratch/$USER/dftfe
 
-  # Great Lakes, CPU only, dependencies in a separate prefix, MKL, with dftd4
-  python3 install.py --machine greatlakes --prefix $HOME/dftfe \\
-      --prefix-dependencies /scratch/<acct>/$USER/dftfe-deps --blas mkl --dftd4
+  # Great Lakes, CPU only, dependencies in a separate prefix, MKL, with dftd4, DFT-FE only
+  python3 install.py --config configs/cfg_greatlakes.json --prefix $HOME/dftfe \\
+      --prefix-dependencies /scratch/<acct>/$USER/dftfe-deps --blas mkl --dftd4 --no-invdft
 
   # Show the plan and every command without running anything
-  python3 install.py --machine perlmutter --prefix $PSCRATCH/dftfe --dry-run
+  python3 install.py --config configs/cfg_perlmutter.json --prefix $PSCRATCH/dftfe --dry-run
 
-  # Be prompted for the main settings
+  # Be prompted for the main settings (saves them as a config file)
   python3 install.py --interactive
-
-  # All settings (and optionally the machine profile) in one file
-  python3 install.py --config my_frontier.json
 
 Layout
 ------
@@ -168,13 +168,17 @@ GPU_DEFAULTS = {
 # ---------------------------------------------------------------------------
 # Machine profiles
 #
-# Profiles live in machines/<name>.json next to this script. A profile may also
-# be given inline in a --config file as "machine": {...}, either complete or as
-# {"base": "<name or path>", ...overrides...}. Keys missing from a profile take
-# the values below; nested dicts are merged key by key, lists are replaced.
+# A machine profile is the "machine" entry of a configuration file. The
+# templates configs/cfg_<name>.json carry the built-in profiles inline, and
+# <name> (e.g. "frontier") refers to the profile inside configs/cfg_<name>.json.
+# "machine" may also be a path to an external file: either a plain profile, or
+# another configuration file whose "machine" entry is used. A profile may start
+# from another one with {"base": "<name or path>", ...overrides...}. Keys
+# missing from a profile take the values below; nested dicts are merged key by
+# key, lists are replaced.
 # ---------------------------------------------------------------------------
 
-MACHINES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "machines")
+CONFIGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs")
 
 PROFILE_SKELETON = {
     "description": "",
@@ -208,33 +212,47 @@ def deep_merge(base, over):
 
 
 def available_machines():
+    """Names of the built-in profiles, i.e. of the templates configs/cfg_<name>.json."""
     try:
-        return sorted(f[:-5] for f in os.listdir(MACHINES_DIR) if f.endswith(".json"))
+        return sorted(f[4:-5] for f in os.listdir(CONFIGS_DIR)
+                      if f.startswith("cfg_") and f.endswith(".json"))
     except OSError:
         return []
 
 
-def _profile_path(spec):
-    if spec.endswith(".json") or os.sep in spec:
-        return absp(spec)
-    return os.path.join(MACHINES_DIR, spec + ".json")
+def is_path(spec):
+    return spec.endswith(".json") or os.sep in spec
 
 
-def _read_profile(spec, seen=()):
+def _profile_path(spec, relative_to=None):
+    """File for a profile reference: a path (relative to the referring file, if any) or a name."""
+    if not is_path(spec):
+        return os.path.join(CONFIGS_DIR, "cfg_%s.json" % spec)
+    spec = os.path.expanduser(os.path.expandvars(spec))
+    if relative_to and not os.path.isabs(spec):
+        spec = os.path.join(os.path.dirname(relative_to), spec)
+    return os.path.abspath(spec)
+
+
+def _read_profile(spec, seen=(), relative_to=None):
     """Return the profile named/located by spec (str) or given inline (dict), unmerged with the skeleton."""
     if isinstance(spec, str):
-        path = _profile_path(spec)
+        path = _profile_path(spec, relative_to)
         if path in seen:
-            raise InstallError("machine profile %s is its own base" % path)
+            raise InstallError("machine profile in %s refers back to itself" % path)
         if not os.path.exists(path):
-            raise InstallError("unknown machine '%s' (no %s); available: %s"
+            raise InstallError("unknown machine '%s' (no %s); built-in: %s"
                                % (spec, path, ", ".join(available_machines()) or "none"))
         try:
             with open(path) as f:
                 data = json.load(f)
         except ValueError as e:
-            raise InstallError("cannot parse machine profile %s: %s" % (path, e))
-        seen = seen + (path,)
+            raise InstallError("cannot parse %s: %s" % (path, e))
+        seen, relative_to = seen + (path,), path
+        if "machine" in data:  # a configuration file: use its machine entry
+            if data["machine"] in (None, "auto"):
+                raise InstallError("%s has no machine profile to refer to" % path)
+            return _read_profile(data["machine"], seen, relative_to)
     elif isinstance(spec, dict):
         data = spec
     else:
@@ -245,23 +263,19 @@ def _read_profile(spec, seen=()):
     data = {k: v for k, v in data.items() if not k.startswith("_")}
     if "base" in data:
         base = data.pop("base")
-        # A base path inside a profile file is relative to that file.
-        if (seen and isinstance(base, str) and (base.endswith(".json") or os.sep in base)
-                and not os.path.isabs(os.path.expanduser(base))):
-            base = os.path.join(os.path.dirname(seen[-1]), base)
-        return deep_merge(_read_profile(base, seen), data)
+        return deep_merge(_read_profile(base, seen, relative_to), data)
     return data
 
 
-def load_profile(spec):
-    """Return (display name, full profile)."""
-    prof = deep_merge(PROFILE_SKELETON, _read_profile(spec))
+def load_profile(spec, source=None):
+    """Return (display name, full profile). `source` is the config file an inline profile came from."""
+    prof = deep_merge(PROFILE_SKELETON, _read_profile(spec, relative_to=source))
     if isinstance(spec, str):
         name = os.path.basename(spec)[:-5] if spec.endswith(".json") else spec
     elif "base" in spec:
         name = "%s (modified)" % os.path.basename(str(spec["base"])).replace(".json", "")
     else:
-        name = "custom"
+        name = "inline profile in %s" % os.path.basename(source) if source else "custom"
     if not prof["description"]:
         prof["description"] = "machine profile from the config file"
     return name, prof
@@ -983,7 +997,7 @@ class InvDFT(GitProject):
 # ---------------------------------------------------------------------------
 
 def detect_machine(env=None):
-    """First profile in machines/ whose "detect" rules match this host, else "generic"."""
+    """First built-in profile whose "detect" rules match this host, else "generic"."""
     env = os.environ if env is None else env
     sysname = env.get("LMOD_SYSTEM_NAME", "").lower()
     host = (socket.gethostname() + " " + socket.getfqdn()).lower()
@@ -1048,12 +1062,10 @@ def load_config_file(path):
     if unknown:
         raise InstallError("unknown keys in %s: %s" % (path, ", ".join(unknown)))
 
-    # Profile paths inside a config file are relative to the config file.
+    # Profile paths inside a config file are relative to the config file. Making them
+    # absolute here keeps them valid in the resolved config saved under <prefix>.
     def rel(spec):
-        if (isinstance(spec, str) and (spec.endswith(".json") or os.sep in spec)
-                and not os.path.isabs(os.path.expanduser(spec))):
-            return os.path.join(os.path.dirname(path), spec)
-        return spec
+        return _profile_path(spec, path) if isinstance(spec, str) and is_path(spec) else spec
     m = data.get("machine")
     if isinstance(m, dict) and "base" in m:
         data["machine"] = dict(m, base=rel(m["base"]))
@@ -1062,12 +1074,13 @@ def load_config_file(path):
     return data
 
 
-def resolve_config(cli, file_cfg):
+def resolve_config(cli, file_cfg, config_path=None):
     """Return (cfg, notes, machine name, machine profile)."""
     machine = cli.get("machine") or file_cfg.get("machine") or "auto"
     if machine == "auto":
         machine = detect_machine()
-    name, prof = load_profile(machine)
+    from_file = not cli.get("machine") and file_cfg.get("machine") is not None
+    name, prof = load_profile(machine, source=absp(config_path) if from_file and config_path else None)
 
     cfg = Cfg(copy.deepcopy(DEFAULTS))
     cfg.update(prof["defaults"])
@@ -1085,7 +1098,20 @@ def resolve_config(cli, file_cfg):
         cfg["modules"] = cfg.modules.split()
 
     if not cfg.prefix:
-        raise InstallError("--prefix is required (or use --interactive)")
+        raise InstallError("no install prefix given: pass --prefix DIR, or set \"prefix\" in the "
+                           "--config file (it is null in the templates on purpose), or use "
+                           "--interactive")
+    for key in ("prefix", "prefix_dependencies", "dftfe_src", "invdft_src"):
+        path = cfg[key]
+        if not path:
+            continue
+        if re.search(r"<[^<>]*>", path):
+            raise InstallError("%s still contains a placeholder: %s (edit the config file or pass "
+                               "--%s)" % (key, path, key.replace("_", "-")))
+        unset = re.findall(r"\$\{?(\w+)", os.path.expandvars(path))
+        if unset:
+            raise InstallError("%s uses environment variable(s) that are not set: %s (in %s)"
+                               % (key, ", ".join(unset), path))
     if cfg.blas not in BLAS_CHOICES:
         raise InstallError("--blas must be one of %s" % ", ".join(BLAS_CHOICES))
     if cfg.blas == "libsci" and not prof["cray"]:
@@ -1828,18 +1854,18 @@ def build_parser():
     p = argparse.ArgumentParser(
         prog=SCRIPT, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=EPILOG,
         description="Install DFT-FE (and optionally invDFT) with all dependencies.")
-    g = p.add_argument_group("location and machine")
-    g.add_argument("--machine", metavar="NAME|FILE.json",
-                   help="machine profile: a name from machines/ (%s), a path to a profile "
-                        "file, or 'auto' (default: auto-detect, else generic)"
-                        % ", ".join(available_machines()))
+    g = p.add_argument_group("configuration and location")
+    g.add_argument("--config", metavar="FILE.json",
+                   help="configuration file with the settings and the machine profile, e.g. one "
+                        "of the templates configs/cfg_{%s}.json. Without it the machine is "
+                        "auto-detected from the templates' detection rules (else generic)"
+                        % ",".join(available_machines()))
     g.add_argument("--prefix", help="where DFT-FE/invDFT are checked out and built, and env.sh is written")
     g.add_argument("--prefix-dependencies", "--prefix_dependencies", dest="prefix_dependencies",
                    help="separate install prefix for all dependencies (default: --prefix)")
     g.add_argument("--jobs", "-j", type=int, help="parallel build jobs (default: min(#cpus, 16))")
-    g.add_argument("--config", help="JSON file with settings")
-    g.add_argument("--interactive", action="store_true", help="prompt for the main settings")
-    g.add_argument("--list-machines", action="store_true", help="show machine profiles and exit")
+    g.add_argument("--interactive", action="store_true",
+                   help="prompt for the main settings and save them as a config file")
     g.add_argument("--yes", "-y", dest="yes", action="store_const", const=True, default=None,
                    help="do not ask for confirmation")
 
@@ -1868,7 +1894,7 @@ def build_parser():
     g.add_argument("--dftfe-repo", help="github (default), bitbucket, or a git URL")
     g.add_argument("--dftfe-branch", help="default: publicGithubDevelop")
     g.add_argument("--dftfe-src", help="DFT-FE checkout location (default: <prefix>/dftfe)")
-    g.add_argument("--invdft", action="store_const", const=True, default=None, help="also build invDFT")
+    add_bool(g, "invdft", "also build invDFT", "DFT-FE only (e.g. to override a config file)")
     g.add_argument("--invdft-repo", help="default: %s" % INVDFT_REPO)
     g.add_argument("--invdft-branch", help="default: invGKS")
     g.add_argument("--invdft-src", help="invDFT checkout location (default: <prefix>/invDFT)")
@@ -1944,8 +1970,8 @@ def interactive(cli, file_cfg):
         if machine == "auto":
             machine = detect_machine()
         while True:
-            machine = ask("Machine (%s, or a profile .json path)" % "/".join(available_machines()),
-                          machine)
+            machine = ask("Machine (%s, or a profile/config .json path)"
+                          % "/".join(available_machines()), machine)
             try:
                 load_profile(machine)
                 break
@@ -1978,58 +2004,35 @@ def interactive(cli, file_cfg):
     ans["jobs"] = int(ask("Parallel build jobs", str(get("jobs", default_jobs()))))
     cli.update({k: v for k, v in ans.items() if v is not None})
 
-    parts = ["python3", SCRIPT]
-    for k, v in ans.items():
-        if v is None or isinstance(v, dict):  # an inline machine profile only fits in --config
-            continue
-        flag = k.replace("_", "-")
-        if v is True:
-            parts.append("--" + flag)
-        elif v is False:
-            if k != "invdft":  # --invdft has no --no- form; leaving it out means no
-                parts.append("--no-" + flag)
-        else:
-            parts += ["--" + flag, str(v)]
-    print("\nEquivalent command:\n  " + " ".join(shlex.quote(x) for x in parts) + "\n")
-    if isinstance(ans["machine"], dict):
-        print("(the inline machine profile is only kept if you save a config file below)\n")
-    path = ask("Save these settings to a JSON config file (Enter to skip)", "")
-    if path:
+    # The machine profile can only be given through a config file, so offer to save one
+    # that carries the chosen profile inline and reproduces these answers.
+    label = machine if isinstance(machine, str) and not is_path(machine) else "custom"
+    path = ask("Save these settings (with the machine profile) to a config file; 'no' to skip",
+               "cfg_%s_mine.json" % label)
+    if path.lower() != "no":
+        saved = {"_about": ["Generated by %s --interactive on %s." % (
+                     SCRIPT, datetime.datetime.now().strftime("%Y-%m-%d %H:%M")),
+                     "Rerun with: python3 %s --config <this file>" % SCRIPT]}
+        saved.update(ans)
+        if not isinstance(machine, dict):
+            saved["machine"] = _read_profile(machine)
         with open(absp(path), "w") as f:
-            json.dump(ans, f, indent=2)
-        print("  saved %s (use it with --config)" % absp(path))
+            json.dump(saved, f, indent=2)
+        print("  saved %s\n  rerun with: python3 %s --config %s\n"
+              % (absp(path), SCRIPT, shlex.quote(path)))
     return cli
-
-
-def list_machines():
-    print("Machine profiles in %s:" % MACHINES_DIR)
-    for name in available_machines():
-        try:
-            p = load_profile(name)[1]
-        except InstallError as e:
-            print("%-11s (invalid: %s)" % (name, e))
-            continue
-        d = p["defaults"]
-        gpu = "%s %s" % (d.get("gpu_vendor"), d.get("gpu_arch")) if d.get("gpu") else "off"
-        print("%-11s %s" % (name, p["description"]))
-        print("%-11s modules: %s" % ("", " ".join(p["modules"]) or "(none)"))
-        print("%-11s default GPU: %s, default BLAS: %s" % ("", gpu, d.get("blas", "openblas")))
-    print("This machine is detected as: %s" % detect_machine())
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     args = build_parser().parse_args(argv)
-    if args.list_machines:
-        list_machines()
-        return 0
     file_cfg = load_config_file(args.config) if args.config else {}
     cli = {k: v for k, v in vars(args).items()
-           if v is not None and k not in ("config", "interactive", "list_machines")}
+           if v is not None and k not in ("config", "interactive")}
     if args.interactive or not argv:
         cli = interactive(cli, file_cfg)
 
-    cfg, notes, machine_name, profile = resolve_config(cli, file_cfg)
+    cfg, notes, machine_name, profile = resolve_config(cli, file_cfg, args.config)
     ctx = Context(cfg, machine_name, profile)
     pkgs = build_package_list(ctx)
     expand_names(list(cfg.use_existing), pkgs, "--use-existing", allow_externals=True, exact=True)

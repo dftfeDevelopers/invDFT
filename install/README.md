@@ -4,9 +4,12 @@
 optionally, invDFT, together with every library they depend on. It follows the
 installation chapter of the DFT-FE manual and the machine-specific scripts in
 [install_DFTFE](https://github.com/dftfeDevelopers/install_DFTFE) (branches
-`frontierDevelop`, `perlmutterDevelop`, `greatlakesDevelop`). The per-machine
-details (modules, compilers, GPU flags, tested versions) are kept in small JSON
-**machine profiles** in [`machines/`](machines).
+`frontierDevelop`, `perlmutterDevelop`, `greatlakesDevelop`). All settings for
+a machine live in one JSON configuration file. The templates in
+[`configs/`](configs) (`cfg_frontier.json`, `cfg_perlmutter.json`,
+`cfg_greatlakes.json`, `cfg_generic.json`) each contain the per-machine details
+(modules, compilers, GPU flags, tested versions) as an inline **machine
+profile**, next to the installation settings.
 
 - [Requirements](#requirements)
 - [Dependencies at a glance](#dependencies-at-a-glance)
@@ -166,31 +169,37 @@ concrete values on Frontier, Perlmutter and Great Lakes.
 ```bash
 cd invDFT/install
 
-# See the machine profiles and which one this host is detected as
-python3 install.py --list-machines
+# Each machine has a template, configs/cfg_<machine>.json, holding its machine
+# profile and default settings (DFT-FE + invDFT). The templates have "prefix": null,
+# so give the location on the command line (or set it in your copy of the file).
 
-# OLCF Frontier, AMD GPUs, DFT-FE + invDFT (PETSc/SLEPc are turned on automatically)
-python3 install.py --machine frontier --prefix /lustre/orion/<proj>/scratch/$USER/dftfe --invdft
+# OLCF Frontier, AMD GPUs, DFT-FE + invDFT (PETSc/SLEPc and 32-bit integers follow)
+python3 install.py --config configs/cfg_frontier.json --prefix /lustre/orion/<projid>/scratch/$USER/dftfe
 
-# NERSC Perlmutter, NVIDIA GPUs, with NCCL and dftd4
-python3 install.py --machine perlmutter --prefix $PSCRATCH/dftfe --dccl --dftd4
+# NERSC Perlmutter, NVIDIA GPUs, DFT-FE only, with NCCL and dftd4
+python3 install.py --config configs/cfg_perlmutter.json --prefix $PSCRATCH/dftfe --no-invdft --dccl --dftd4
 
 # UMich Great Lakes, CPU only, MKL, dependencies in a separate (shared) prefix
-python3 install.py --machine greatlakes --prefix $HOME/dftfe \
-    --prefix-dependencies /scratch/<acct>/$USER/dftfe-deps --blas mkl
+python3 install.py --config configs/cfg_greatlakes.json --prefix $HOME/dftfe \
+    --prefix-dependencies /scratch/<account>_root/<account>/$USER/dftfe-deps --blas mkl
 
 # Great Lakes A100 partition
-python3 install.py --machine greatlakes --prefix $HOME/dftfe-gpu --gpu --gpu-vendor nvidia --gpu-arch 80
+python3 install.py --config configs/cfg_greatlakes.json --prefix $HOME/dftfe-gpu \
+    --gpu --gpu-vendor nvidia --gpu-arch 80
 
-# Any other cluster: load your modules, then
-python3 install.py --machine generic --prefix $HOME/dftfe
+# Any other cluster: copy the generic template, list your modules in its "machine" entry, then
+cp configs/cfg_generic.json ~/dftfe_mycluster.json
+python3 install.py --config ~/dftfe_mycluster.json --prefix $HOME/dftfe
 
-# Answer questions instead of passing options (also what happens with no arguments)
+# Answer questions instead (also what happens with no arguments); the answers,
+# including the machine profile, are saved as a config file for reruns
 python3 install.py --interactive
-
-# Keep all settings in one file
-python3 install.py --config my_frontier.json
 ```
+
+Without `--config`, the installer picks the template whose detection rules match
+the host (Frontier, Perlmutter or Great Lakes, otherwise `generic`) and uses its
+machine profile with the built-in default settings. In that case invDFT is not
+built unless you pass `--invdft`.
 
 Before a real build, add `--dry-run` to any command. It prints the plan and
 every command without changing anything.
@@ -204,8 +213,9 @@ A few principles shape every run:
 - **One script, machine data in profiles.** The build logic (which packages,
   in what order, with which options) lives in `install.py`. Everything
   machine-specific (modules, compilers, flags) lives in a
-  [machine profile](#machine-profiles). Supporting a new machine means writing
-  a profile, not changing the script.
+  [machine profile](#machine-profiles), the `"machine"` entry of a configuration
+  file such as `configs/cfg_frontier.json`. Supporting a new machine means
+  writing a profile, not changing the script.
 - **Everything is a visible shell command.** Each step is a plain `bash` snippet
   (download, configure, build, install), run inside the module environment that
   `env.sh` also sets up. `--dry-run` prints them all, `--emit-script` saves them
@@ -338,17 +348,15 @@ Every option can also be set in a [configuration file](#configuration-files).
 Boolean options come in pairs (`--gpu` / `--no-gpu`) so that the command line can
 override a config file in both directions.
 
-### Location and machine
+### Configuration and location
 
 | Option | Description |
 |---|---|
-| `--machine NAME\|FILE.json` | Machine profile: a name from `machines/` (`frontier`, `perlmutter`, `greatlakes`, `generic`), a path to a profile file, or `auto` (the default). `auto` picks the first profile whose detection rules match this host, otherwise `generic`. |
-| `--prefix DIR` | **Required.** Where DFT-FE and invDFT are checked out and built, and where `env.sh` is written. |
+| `--config FILE` | The configuration file: settings plus the machine profile in its `"machine"` entry, e.g. one of the templates `configs/cfg_<machine>.json`. The machine is chosen only here; there is no separate command-line option for it. Without `--config`, the template whose detection rules match the host is used for the machine profile (otherwise `generic`). See [Configuration files](#configuration-files). |
+| `--prefix DIR` | **Required** (here or as `"prefix"` in the config file). Where DFT-FE and invDFT are checked out and built, and where `env.sh` is written. |
 | `--prefix-dependencies DIR` | Separate install prefix for all dependencies, i.e. everything except DFT-FE and invDFT. Defaults to `--prefix`. `--prefix_dependencies` is accepted too. Useful for sharing one set of dependencies between several DFT-FE builds. |
 | `--jobs N`, `-j N` | Parallel build jobs. Default min(#CPUs, 16). deal.II needs roughly 2 GB of memory per job. |
-| `--config FILE` | Read settings from a JSON file. See [Configuration files](#configuration-files). |
-| `--interactive` | Ask for the main settings, then print the equivalent command and offer to save the answers as a config file. Also used when the script is run with no arguments. |
-| `--list-machines` | List the profiles in `machines/` and the profile detected for this host, then exit. |
+| `--interactive` | Ask for the main settings, starting with the machine (a template name or a profile/config path). Then offer to save the answers, with the machine profile written inline, as a config file for reruns (default `cfg_<machine>_mine.json`). Also used when the script is run with no arguments. |
 | `--yes`, `-y` | Do not ask "Proceed?" before building. No prompt is shown when stdin is not a terminal, e.g. in a batch job. |
 
 ### Features
@@ -377,7 +385,7 @@ override a config file in both directions.
 | `--dftfe-repo` | `github` | `github` (github.com/dftfeDevelopers/dftfe), `bitbucket` (bitbucket.org/dftfedevelopers/dftfe) or any git URL. |
 | `--dftfe-branch` | `publicGithubDevelop` | DFT-FE branch to check out, with or without `--invdft`. |
 | `--dftfe-src DIR` | `<prefix>/dftfe` | Location of the DFT-FE checkout. An existing directory is used as it is. |
-| `--invdft` | off | Also build invDFT. |
+| `--invdft` / `--no-invdft` | off | Also build invDFT. Turns on PETSc/SLEPc and 32-bit integers by default. `--no-invdft` overrides `"invdft": true` from a config file (e.g. the templates in `configs/`). |
 | `--invdft-repo URL` | github.com/dftfeDevelopers/invDFT | invDFT repository. |
 | `--invdft-branch` | `invGKS` | invDFT branch. |
 | `--invdft-src DIR` | `<prefix>/invDFT` | Location of the invDFT checkout, e.g. an existing clone. |
@@ -487,39 +495,75 @@ so `--config <prefix>/install_dftfe_config.json` repeats it. One-off settings
 (`only`, `force`, `dry_run`, `emit_script`, `fetch_only`, `yes`, `verbose`) are
 not saved.
 
+Paths (`prefix`, `prefix_dependencies`, `dftfe_src`, `invdft_src`) may use
+environment variables such as `$USER`, `$HOME` or `$PSCRATCH`. The installer
+stops if a variable is not set, or if a path still contains a `<...>`
+placeholder copied from an example.
+
+### Example configuration files
+
+[`configs/`](configs) contains one template per machine. Each is a complete,
+self-contained configuration: its `"machine"` entry is the full
+[machine profile](#machine-profiles) for that machine, followed by the
+installation settings.
+
+| File | Built-in name | GPU (profile default) | BLAS (profile default) |
+|---|---|---|---|
+| [`configs/cfg_frontier.json`](configs/cfg_frontier.json) | `frontier` | AMD `gfx90a` | `blis+flame` |
+| [`configs/cfg_perlmutter.json`](configs/cfg_perlmutter.json) | `perlmutter` | NVIDIA `80` | `blis+flame` |
+| [`configs/cfg_greatlakes.json`](configs/cfg_greatlakes.json) | `greatlakes` | off | `openblas` |
+| [`configs/cfg_generic.json`](configs/cfg_generic.json) | `generic` | off | `openblas` |
+
+These templates are also where the built-in machine names come from: in another
+configuration file, `"machine": "frontier"` or `"base": "frontier"` means "the
+profile inside `configs/cfg_frontier.json`". Editing the profile in a template
+therefore changes it for every configuration that refers to it by name. Copying
+a template gives you a private copy of both the settings and the profile.
+
+GPU and BLAS defaults live in the profile's `defaults`, so that any
+configuration using a profile (inline, by name, or by auto-detection) gets the
+machine's GPU setup. To change them for one installation, add the key at the top
+level of your copy (e.g. `"gpu": false`, `"blas": "mkl"`), or pass `--no-gpu` /
+`--blas mkl`. Top-level settings override the profile's defaults.
+
+**The templates contain no install locations.** `prefix` and
+`prefix_dependencies` are `null`, because where to install depends on your
+project, account and file system. You must supply the prefix, either in your copy
+of the file or on the command line with `--prefix` (and optionally
+`--prefix-dependencies`). Without one the installer stops before doing anything.
+Typical choices are a project scratch directory on Frontier
+(`/lustre/orion/<projid>/scratch/$USER/...`), `$PSCRATCH/...` on Perlmutter,
+and `/scratch/<account>_root/<account>/$USER/...` on Great Lakes.
+
+All four build DFT-FE (`publicGithubDevelop`) together with invDFT (`invGKS`),
+since they live in the invDFT repository. They leave `int64`, `petsc` and
+`elpa_gpu` unset, so these follow from `invdft` and `gpu` (with invDFT: 32-bit
+integers and PETSc/SLEPc). Set `"invdft": false` in the file, or pass
+`--no-invdft`, to install DFT-FE alone. Each file starts with an `_about` block
+explaining how to adapt it, and has `_<key>` comments next to the less obvious
+settings.
+
+To use one, copy it outside the repository (or keep a personal copy), set the
+prefix, adjust the settings, and check the result with `--dry-run`:
+
+```bash
+cp configs/cfg_greatlakes.json ~/dftfe_greatlakes.json
+# edit ~/dftfe_greatlakes.json: set "prefix", choose blas, gpu, dftd3/dftd4, ...
+python3 install.py --config ~/dftfe_greatlakes.json --dry-run
+python3 install.py --config ~/dftfe_greatlakes.json
+
+# or leave the template untouched and give the locations on the command line
+python3 install.py --config configs/cfg_perlmutter.json --prefix $PSCRATCH/dftfe \
+    --prefix-dependencies /global/cfs/cdirs/<project>/dftfe-deps --dry-run
+```
+
 ### The machine in a configuration file
 
-`"machine"` can take three forms, so that the settings and the machine
-description can live in one file:
+`"machine"` can take these forms:
 
-**1. A profile name or path.** This uses the shared profile and receives its fixes:
-
-```json
-{ "machine": "frontier", "prefix": "/lustre/.../dftfe" }
-```
-
-A path (e.g. `"machine": "profiles/mybox.json"`) is resolved relative to the
-config file.
-
-**2. A base profile plus overrides.** This is the recommended way to adapt a
-shared profile. Only the keys you give change; nested objects are merged key by
-key, and lists are replaced:
-
-```json
-{
-  "machine": {
-    "base": "frontier",
-    "modules": ["cpe/25.12", "PrgEnv-gnu", "gcc-native", "cmake", "boost"],
-    "gpu": {"amd": {"elpa": {"fcflags": "-march=znver3 -O3 -fPIC"}}}
-  },
-  "prefix": "/lustre/.../dftfe",
-  "invdft": true
-}
-```
-
-**3. A complete inline profile.** For a machine without a shared profile. Keys
-you leave out take the [defaults](#profile-keys) (GNU compilers, `-march=native`,
-no modules):
+**1. A complete inline profile.** This is what the templates use, so everything
+about a machine is in one file. Keys you leave out take the
+[defaults](#profile-keys) (GNU compilers, `-march=native`, no modules):
 
 ```json
 {
@@ -534,18 +578,56 @@ no modules):
 }
 ```
 
-`--machine` on the command line replaces the config file's `machine` entirely.
+**2. A reference to a profile kept elsewhere.** It can be a built-in name, or a
+path to an external file. The file can be a plain profile (a JSON object with
+[profile keys](#profile-keys)) or another configuration file, whose `"machine"`
+entry is used. Relative paths are resolved from the referring file. This is
+useful when one machine description is shared by several configurations, e.g.
+a group-wide profile next to personal config files:
+
+```json
+{ "machine": "frontier", "prefix": "/lustre/.../dftfe" }
+{ "machine": "../profiles/group_cluster.json", "prefix": "/scratch/me/dftfe" }
+{ "machine": "/sw/shared/dftfe/cfg_frontier.json", "prefix": "/lustre/.../dftfe" }
+```
+
+**3. A base profile plus overrides.** This adapts a profile kept elsewhere
+without copying it. `base` takes a built-in name or a path, as in form 2. Only
+the keys you give change; nested objects are merged key by key, and lists are
+replaced:
+
+```json
+{
+  "machine": {
+    "base": "frontier",
+    "modules": ["cpe/25.12", "PrgEnv-gnu", "gcc-native", "cmake", "boost"],
+    "gpu": {"amd": {"elpa": {"fcflags": "-march=znver3 -O3 -fPIC"}}}
+  },
+  "prefix": "/lustre/.../dftfe",
+  "invdft": true
+}
+```
 
 ## Machine profiles
 
-### Files
+A machine profile describes how to build on one machine: modules, compilers,
+CPU flags, GPU and ELPA settings, link flags and tested versions. It is the
+`"machine"` entry of a configuration file, written inline or kept in an
+external file (see [The machine in a configuration file](#the-machine-in-a-configuration-file)).
 
-| File | Machine | Defaults |
-|---|---|---|
-| [`machines/frontier.json`](machines/frontier.json) | OLCF Frontier: Cray EX, AMD EPYC + MI250X | AMD GPU `gfx90a`, `blis+flame`, Cray `cc`/`CC`/`ftn` |
-| [`machines/perlmutter.json`](machines/perlmutter.json) | NERSC Perlmutter: Cray EX, AMD EPYC + A100 | NVIDIA GPU `80`, `blis+flame`, Cray `cc`/`CC`/`ftn` |
-| [`machines/greatlakes.json`](machines/greatlakes.json) | UMich Great Lakes: Intel Xeon, GCC + OpenMPI | CPU, `openblas` (`mkl` available) |
-| [`machines/generic.json`](machines/generic.json) | anything else | CPU, `openblas`, GNU + `mpicc`; load your modules first |
+### Built-in profiles
+
+The built-in profiles are the inline profiles of the templates in `configs/`:
+
+| Name | Defined in | Machine | Defaults |
+|---|---|---|---|
+| `frontier` | [`configs/cfg_frontier.json`](configs/cfg_frontier.json) | OLCF Frontier: Cray EX, AMD EPYC + MI250X | AMD GPU `gfx90a`, `blis+flame`, Cray `cc`/`CC`/`ftn` |
+| `perlmutter` | [`configs/cfg_perlmutter.json`](configs/cfg_perlmutter.json) | NERSC Perlmutter: Cray EX, AMD EPYC + A100 | NVIDIA GPU `80`, `blis+flame`, Cray `cc`/`CC`/`ftn` |
+| `greatlakes` | [`configs/cfg_greatlakes.json`](configs/cfg_greatlakes.json) | UMich Great Lakes: Intel Xeon, GCC + OpenMPI | CPU, `openblas` (`mkl` available) |
+| `generic` | [`configs/cfg_generic.json`](configs/cfg_generic.json) | anything else | CPU, `openblas`, GNU + `mpicc`; load your modules first |
+
+A new `configs/cfg_<name>.json` with an inline profile automatically becomes the
+built-in profile `<name>`.
 
 ### What differs between machines
 
@@ -561,14 +643,14 @@ no modules):
 ### Profile keys
 
 All keys are optional. Missing keys take the values in the "Default" column,
-which is how `generic.json` can stay short. Keys starting with `_` (e.g. `_notes`)
-are comments. Unknown keys are an error, which catches typos.
+which is how the generic profile can stay short. Keys starting with `_` (e.g.
+`_notes`) are comments. Unknown keys are an error, which catches typos.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `base` | none | Name or path of a profile to start from; this profile's keys are merged on top. |
-| `description` | `""` | Shown in the summary and in `--list-machines`. |
-| `detect` | `{}` | Rules for `--machine auto`: `{"lmod_system_name": [...], "env": {"VAR": "value"}, "hostname_regex": [...]}`. A profile matches if any rule matches. |
+| `base` | none | Built-in name, or path to a profile or config file, to start from; this profile's keys are merged on top. |
+| `description` | `""` | Shown in the run summary. |
+| `detect` | `{}` | Rules for picking this profile automatically when no `--config` is given (only for the templates in `configs/`): `{"lmod_system_name": [...], "env": {"VAR": "value"}, "hostname_regex": [...]}`. A profile matches if any rule matches. |
 | `cray` | `false` | Cray Programming Environment: `cray-libsci` is unloaded unless `--blas libsci`, `$CRAY_LD_LIBRARY_PATH` is added to `LD_LIBRARY_PATH`, and `--blas libsci` is allowed. |
 | `compilers` | GNU + `mpicc`/`mpicxx`/`mpif90` | Object with `cc cxx fc mpicc mpicxx mpifc` (see [toolchain overrides](#toolchain-overrides)). |
 | `march` | `-march=native` | CPU architecture flags, available in templates as `{march}`. |
@@ -616,16 +698,20 @@ location of `nvcc` if it is not already set.
 
 ### Adding a new machine
 
-1. Copy `machines/generic.json` (or the closest existing profile) to
-   `machines/<name>.json`, or create a profile with `"base": "<closest>"`.
-2. Fill in `description`, `modules`, `compilers`, `march`, and for GPUs
-   `gpu_modules` and `defaults`. Add `detect` rules if you want `--machine auto`
-   to find it.
+1. Copy `configs/cfg_generic.json` (or the template of the closest machine) to
+   `configs/cfg_<name>.json` to add a built-in profile `<name>`, or anywhere
+   else for a private one. Alternatively, write `"machine": {"base": "<closest>", ...}`.
+2. In its `"machine"` entry, fill in `description`, `modules`, `compilers` and
+   `march`, and for GPUs `gpu_modules` and `defaults`. Add `detect` rules if you
+   want runs without `--config` to pick it on that machine.
 3. Check the result with
-   `python3 install.py --machine <name> --prefix /tmp/x --dry-run`.
+   `python3 install.py --config configs/cfg_<name>.json --prefix /tmp/x --dry-run`.
    The output shows the resolved modules and every configure/cmake line.
 4. Add `gpu.<vendor>` overrides only where the built-in defaults do not work.
    The Frontier and Perlmutter profiles are examples.
+
+To share one machine description between several configurations, move the
+`"machine"` object into its own file and refer to it by path (form 2 above).
 
 Machine-specific tweaks for a single user can stay in that user's config file
 (form 2 above) instead of a new profile.
@@ -649,7 +735,7 @@ python3 install.py --config <prefix>/install_dftfe_config.json --git-pull --only
 python3 install.py --config my.json --invdft --use-existing dftfe=/path/to/dftfe --only invdft
 
 # Dependencies only, kept for debugging
-python3 install.py --machine greatlakes --prefix ~/dftfe --skip dftfe --keep-src-dep --keep-build-dep --keep-logs-dep
+python3 install.py --config configs/cfg_greatlakes.json --prefix ~/dftfe --skip dftfe,invdft --keep-src-dep --keep-build-dep --keep-logs-dep
 
 # Download on the login node, build in a job
 python3 install.py --config my.json --fetch-only
@@ -690,7 +776,3 @@ srun ... python3 install.py --config my.json --yes
   `install_dftfe_config.json` from a run without invDFT contains `"int64": true`,
   which now conflicts with `--invdft`. Add `--no-int64` to the command, or edit
   the file.
-
-The other files in this folder (`frontier.sh`, `perlmutter.rc`, `greatlakes.rc`)
-are the earlier hand-written invDFT compile functions. They are kept for
-reference; `install.py` replaces them.

@@ -1,0 +1,55 @@
+{
+  "_about": [
+    "Template for any other Linux cluster. Copy it, set \"prefix\", adjust, then run:",
+    "  python3 install.py --config cfg_generic.json --dry-run   (check)",
+    "  python3 install.py --config cfg_generic.json             (build, preferably inside a job)",
+    "Keys starting with '_' are comments. Command-line options override this file.",
+    "The \"machine\" entry below is the machine profile (modules, compilers, flags);",
+    "its \"defaults\" set GPU and BLAS. Override them by adding e.g. \"gpu\": false or",
+    "\"blas\": \"mkl\" at the top level, or edit the profile. See README.md.",
+    "List the modules for GNU compilers, MPI, CMake and Boost under 'modules' (or load",
+    "them yourself first and leave it empty). If the defaults of the generic profile",
+    "(gcc/g++/gfortran + mpicc/mpicxx/mpif90, -march=native) do not fit, replace",
+    "\"machine\": \"generic\" with {\"base\": \"generic\", ...overrides...}; see README.md.",
+    "int64 (off with invDFT), petsc (on with invDFT) and elpa_gpu (on with gpu) are",
+    "derived automatically. Set \"invdft\": false to install DFT-FE only."
+  ],
+  "machine": {
+    "_notes": [
+      "Fallback for any Linux cluster. Load your compilers, MPI, CMake and Boost first",
+      "(or list them under 'modules'), or copy this file and adapt it for a new machine.",
+      "GPU flags come from the installer's built-in CUDA/HIP/SYCL defaults."
+    ],
+    "_modules": "e.g. [\"gcc/13\", \"openmpi/5\", \"cmake\", \"boost\"]; [] = use what is already loaded",
+    "description": "Any Linux cluster (load your modules first, or pass --modules)",
+    "cray": false,
+    "compilers": {
+      "cc": "gcc",
+      "cxx": "g++",
+      "fc": "gfortran",
+      "mpicc": "mpicc",
+      "mpicxx": "mpicxx",
+      "mpifc": "mpif90"
+    },
+    "march": "-march=native",
+    "modules": [],
+    "defaults": {"gpu": false, "blas": "openblas"},
+    "dccl_prefix": {"amd": "$ROCM_PATH"}
+  },
+  "_prefix": "REQUIRED: install directory for DFT-FE/invDFT and env.sh; set it here or pass --prefix",
+  "prefix": null,
+  "_prefix_dependencies": "optional: separate install directory for the dependencies (null = same as prefix); set it here or pass --prefix-dependencies",
+  "prefix_dependencies": null,
+  "invdft": true,
+  "invdft_branch": "invGKS",
+  "dftfe_repo": "github",
+  "dftfe_branch": "publicGithubDevelop",
+  "build_type": "Release",
+  "dftd3": false,
+  "dftd4": false,
+  "higher_quad_psp": false,
+  "jobs": 16,
+  "keep_src_dep": false,
+  "keep_build_dep": false,
+  "keep_logs_dep": false
+}
