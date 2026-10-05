@@ -1,0 +1,21 @@
+{
+  "_notes": [
+    "UMich Great Lakes: Intel Xeon, GCC + OpenMPI; NVIDIA GPU partitions (V100, A40, A100).",
+    "Based on the greatlakesDevelop branch of dftfeDevelopers/install_DFTFE.",
+    "For GPU builds, pass --gpu --gpu-vendor nvidia --gpu-arch 70|80|86 to match the partition.",
+    "Use --blas mkl to link Intel MKL (loads the mkl module listed under blas_modules)."
+  ],
+  "description": "UMich Great Lakes (Intel Xeon, GCC + OpenMPI; NVIDIA GPU partitions)",
+  "detect": {
+    "env": {"CLUSTER_NAME": "greatlakes"},
+    "hostname_regex": ["arc-ts\\.umich\\.edu", "\\bgl(-login|\\d{4})"]
+  },
+  "cray": false,
+  "compilers": {"cc": "gcc", "cxx": "g++", "fc": "gfortran", "mpicc": "mpicc", "mpicxx": "mpicxx", "mpifc": "mpif90"},
+  "march": "-march=native",
+  "modules": ["gcc/13.2.0", "openmpi/5.0.3", "cmake/3.26.3", "boost/1.78.0"],
+  "gpu_modules": {"nvidia": ["cuda"]},
+  "blas_modules": {"mkl": ["mkl/2023.2.1"]},
+  "defaults": {"gpu": false, "blas": "openblas"},
+  "versions": {"p4est": "2.8.6"}
+}
