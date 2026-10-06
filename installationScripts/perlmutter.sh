@@ -2,13 +2,43 @@
 # Installation script for DFT-FE (forInvGKSCalc/invGKS) and invDFT (invGKS),
 # together with all of their dependencies.
 #
-# Usage (either way works):
-#   source installInvDFT.sh && install_all        # load the environment + functions, then call any of them
-#   ./installInvDFT.sh install_all                # run one or more functions directly
-#   ./installInvDFT.sh install_blis install_libflame
+# Usage (either way works); --prefix is the install location (WD) and is required
+# unless you accept the default $PSCRATCH/install_invDFT:
+#   source perlmutter.sh --prefix=/path/to/install && install_all
+#   ./perlmutter.sh --prefix=/path/to/install install_all
+#   ./perlmutter.sh --prefix /path/to/install install_blis install_libflame
 #
 # The environment section below runs every time this file is sourced or executed:
-# it loads the Perlmutter modules and sets WD and INST.
+# it loads the Perlmutter modules and sets WD (from --prefix) and INST.
+
+# ---------------------------------------------------------------------------
+# Command-line options
+# ---------------------------------------------------------------------------
+#   --prefix=DIR | --prefix DIR   install location (becomes WD)
+#   anything else                 name of a function to run (when executed directly)
+_usage() {
+    echo "Usage: $0 [--prefix=<install_dir>] <function> [<function> ...]" >&2
+    echo "       e.g. $0 --prefix=\$PSCRATCH/install_invDFT install_all" >&2
+}
+
+_parse_args() {
+    PREFIX=""
+    FUNCS=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --prefix=*) PREFIX="${1#--prefix=}"; shift ;;
+            --prefix)   if [ -z "${2:-}" ]; then echo "ERROR: --prefix needs a value." >&2; return 1; fi
+                        PREFIX="$2"; shift 2 ;;
+            -h|--help)  _usage; return 1 ;;
+            -*)         echo "ERROR: unknown option: $1" >&2; _usage; return 1 ;;
+            *)          FUNCS+=("$1"); shift ;;
+        esac
+    done
+}
+
+if ! _parse_args "$@"; then
+    if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 1; else return 1; fi
+fi
 
 # ---------------------------------------------------------------------------
 # Environment (NERSC Perlmutter)
@@ -19,27 +49,21 @@ module load cray-mpich
 module load cudatoolkit
 module load cray-libsci
 module load cmake
-module load python
+module load python/3.11-24.1.0
 
-# Make "python" and "python3" resolve to Python 3.11 for the PETSc/SLEPc builds.
-# PETSc 3.21.1's configure imports xdrlib, which was removed in Python 3.13, so it
-# fails with "No module named 'xdrlib'" if the python module provides 3.13 or newer.
-# Override PYTHON_EXE before sourcing this file to use a different Python (<= 3.12).
-PYTHON_EXE="${PYTHON_EXE:-/usr/bin/python3.11}"
-if [ ! -x "$PYTHON_EXE" ]; then
-    echo "WARNING: $PYTHON_EXE not found; falling back to $(which python3)." >&2
-    echo "         PETSc 3.21.1 needs Python <= 3.12 (set PYTHON_EXE to one)." >&2
-    PYTHON_EXE="$(which python3)"
-fi
-mkdir -p "$HOME/bin"
-ln -sf "$PYTHON_EXE" "$HOME/bin/python"
-ln -sf "$PYTHON_EXE" "$HOME/bin/python3"
-export PATH="$HOME/bin:$PATH"
+# invDFT source = the git repo this script lives in (<repo>/installationScripts/perlmutter.sh).
+# Override by setting INVDFT_SRC before running if the script is kept elsewhere.
+_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INVDFT_SRC="${INVDFT_SRC:-$(cd "$_script_dir/.." && pwd)}"
+
 
 # Build locations
-export WD="$PSCRATCH/install_invDFT"
+# Install location: --prefix if given, otherwise the old default.
+mkdir -p "${PREFIX:-$PSCRATCH/install_invDFT}" || return 1 2>/dev/null || exit 1
+export WD="$(cd "${PREFIX:-$PSCRATCH/install_invDFT}" && pwd)"   # absolute path
 export INST="$WD/env2"
 mkdir -p "$WD/src" "$INST"
+echo "Install location (WD): $WD"
 
 # MPICH_DIR (cray-mpich) and CUDA_HOME (cudatoolkit) are set by the modules above.
 # NCCL_DIR is optional: it is only added to CMAKE_PREFIX_PATH, and DCCL is turned OFF in the build.
@@ -649,21 +673,19 @@ compile_dftfe() {
 }
 
 
-compile_invDFT_invGKS() {
-    echo "===== [compile_invDFT_invGKS] Compiling invDFT (branch $INVDFT_BRANCH) ====="
-    cd "$WD/src"
-    local branch=$INVDFT_BRANCH
-    if [ ! -d invDFT ]; then
-        git clone -b "$branch" https://github.com/dftfeDevelopers/invDFT.git invDFT
-    else
-        (cd invDFT && git fetch && git checkout "$branch" && git pull)
-    fi
-    cd invDFT
-    local SRC
-    SRC=$(pwd)
-    mkdir -p build
-    cd build
 
+compile_invDFT_invGKS() {
+    echo "===== [compile_invDFT_invGKS] Compiling invDFT from $INVDFT_SRC ====="
+    # Use the repo this script belongs to (no download); build in $WD/src/invDFT/build
+    local SRC="$INVDFT_SRC"
+    if [ ! -f "$SRC/CMakeLists.txt" ]; then
+        echo "ERROR: no CMakeLists.txt in $SRC; set INVDFT_SRC to the invDFT source directory." >&2
+        return 1
+    fi
+    mkdir -p "$WD/src/invDFT"
+    mkdir -p "$WD/src/invDFT/build"
+    cd "$WD/src/invDFT/build"
+ 
     local dealiiDir=$INST/dealii
     local dftfeRealDir=$WD/src/dftfe
     local dftfeIncludeDir=$WD/src/dftfe/include
@@ -672,27 +694,27 @@ compile_invDFT_invGKS() {
     local spglibDir=$INST
     local xmlIncludeDir=/usr/include/libxml2
     local xmlLibDir=/usr/lib64
-
+ 
     local ELPA_PATH=$INST
     local DCCL_PATH=$NCCL_DIR
     local TORCH_PATH=''
-
+ 
     # Compiler options and flags
     local cxx_compiler=CC
     local cxx_flags='-march=znver3 -fPIC -Wdeprecated-declarations -Wmissing-template-keyword -O2'
     local cxx_flagsRelease="-Wno-deprecated-declarations -Wmissing-template-keyword -fPIC -target-accel=nvidia80 -I${MPICH_DIR}/include -O2"
     local device_flags="-I${MPICH_DIR}/include -arch=sm_80"
     local device_architectures=80
-
+ 
     # HIGHERQUAD_PSP option compiles with default or higher order
     # quadrature for storing pseudopotential data
     # ON is recommended for MD simulations with hard pseudopotentials
-
+ 
     # build type: "Release" or "Debug"
     local build_type=Release
     local out
     out=$(echo "$build_type" | tr '[:upper:]' '[:lower:]')
-
+ 
     # Note: MDI_PATH is not used by project.
     local cmake_flags=(
         -DCMAKE_CXX_STANDARD=17
@@ -720,7 +742,7 @@ compile_invDFT_invGKS() {
         "-DCMAKE_CUDA_FLAGS=$device_flags"
         "-DCMAKE_CUDA_ARCHITECTURES=$device_architectures"
     )
-
+ 
     cmake_real() {
         mkdir -p real && cd real
         cmake "${cmake_flags[@]}" \
@@ -729,18 +751,17 @@ compile_invDFT_invGKS() {
         make -j8
         cd ..
     }
-
+ 
     mkdir -p "$out"
     cd "$out"
-
+ 
     echo "Building Real executable in $build_type mode..."
     cmake_real "$SRC"
-
+ 
     echo 'Build complete.'
     cd "$WD"
-    echo "===== [compile_invDFT_invGKS] Completed: invDFT (branch $INVDFT_BRANCH) compiled ====="
+    echo "===== [compile_invDFT_invGKS] Completed: invDFT compiled in $WD/src/invDFT/build ====="
 }
-
 
 install_all() {
     echo "===== [install_all] Starting full installation of invDFT and all dependencies ====="
@@ -768,12 +789,18 @@ install_all() {
 # Fail-fast is enabled only here, so that sourcing this file never makes
 # your interactive shell exit on an error.
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-    if [[ $# -eq 0 ]]; then
-        echo "Usage: $0 <function> [<function> ...]   e.g. $0 install_all" >&2
+    if [[ ${#FUNCS[@]} -eq 0 ]]; then
+        _usage
         exit 1
     fi
+    for fn in "${FUNCS[@]}"; do
+        if ! declare -F "$fn" > /dev/null; then
+            echo "ERROR: unknown function: $fn" >&2
+            exit 1
+        fi
+    done
     set -e
-    for fn in "$@"; do
+    for fn in "${FUNCS[@]}"; do
         "$fn"
     done
 fi
