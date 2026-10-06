@@ -32,7 +32,7 @@ invDFT is built on top of [DFT-FE](https://github.com/dftfeDevelopers/dftfe), fr
 ```
 python3 install.py --config </path/to/cfg.json> --prefix=</path/to/installation/>
 ```
-In the above `</path/to/cfg.json>` is the path to the user supplied `cfg.json` and `</path/to/installation>` is the user-supplied installation folder where the DFT-FE and invDFT executables along with all the dependencies will be installed.  
+In the above `</path/to/cfg.json>` is the path to the user supplied `cfg.json` and `</path/to/installation>` is the user-supplied installation folder where the DFT-FE and invDFT executables along with all the dependencies will be installed. The invDFT executable (`invDFT_exec`) is created in `</path/to/installation/>/invDFT/build/release/real/`, which can be copied into any work directory for the inverse DFT calculations.
 
 **Installation scripts for common machines.** To simplify the process, we have provided the `cfg.json` files for common public supercomputers in the paths defined below. For any other machine, we recommend modifying the `install/configs/cfg_generic.json`. 
 - NERSC Perlmutter: install/configs/cfg_perlmutter.json 
