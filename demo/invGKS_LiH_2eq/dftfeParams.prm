@@ -1,0 +1,59 @@
+set VERBOSITY = 4
+set SOLVER MODE = GS
+set USE GPU        = true
+subsection Geometry
+  set NATOMS=2
+  set NATOM TYPES=2
+  set ATOMIC COORDINATES FILE      = coordinates.inp 
+  set DOMAIN VECTORS FILE = domainVectors.inp
+end
+
+subsection Boundary conditions
+  set PERIODIC1                       = false
+  set PERIODIC2                       = false
+  set PERIODIC3                       = false
+end
+
+subsection GPU
+  set USE GPU=true
+  set USE ELPA GPU KERNEL = true
+end
+
+
+subsection Finite element mesh parameters
+  set POLYNOMIAL ORDER=5
+  set POLYNOMIAL ORDER ELECTROSTATICS = 7
+  subsection Auto mesh generation parameters
+    set AUTO ADAPT BASE MESH SIZE = true
+    set BASE MESH SIZE = 6.4
+    set MESH SIZE AT ATOM = 0.06
+    set MESH SIZE AROUND ATOM = 0.45
+    set ATOM BALL RADIUS=8.0
+    set INNER ATOM BALL RADIUS = 0.5
+  end
+end
+
+subsection DFT functional parameters
+  set EXCHANGE CORRELATION TYPE   = LDA-PW
+  set PSEUDOPOTENTIAL CALCULATION = false
+  set TOL EXACT EXCHANGE ENERGY = 1e-9
+  set FRACTION OF EXACT EXCHANGE IN FORWARD CALC = 1.0
+  set FRACTION OF EXACT EXCHANGE IN INV CALC = 0.25
+  set Hartree Fock Calculation IN INV CALC = true
+  set Hartree Fock Calculation in Forward Solve = true
+  set Add Correlation Potential to HF Calculation = false
+end
+
+subsection SCF parameters
+  set MIXING PARAMETER =0.2
+  set COMPUTE ENERGY EACH ITER = false
+  set MIXING METHOD= ANDERSON
+  set STARTING WFC             = RANDOM
+  set TEMPERATURE              = 10
+  set TOLERANCE                = 1e-8
+  subsection Eigen-solver parameters
+    set NUMBER OF KOHN-SHAM WAVEFUNCTIONS                    = 10
+    set CHEBYSHEV FILTER TOLERANCE = 1e-4
+    set ORTHOGONALIZATION TYPE=CGS
+  end
+end

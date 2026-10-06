@@ -25,7 +25,7 @@ subsection Inverse DFT parameters
    set READ SLATER DATA AS INPUT = false
    set USE DELTA RHO CORRECTION                      = true
    set GAUSSIAN DENSITY FOR PRIMARY RHO SPIN UP = DensityMatrix
-   set GAUSSIAN DENSITY FOR DFT RHO SPIN UP = DensityMat_LiH_HF
+   set GAUSSIAN DENSITY FOR DFT RHO SPIN UP = DensityMatrixSecondary
    set ATOMIC ORBITAL ATOMIC COORD FILE = AtomicCoords
    set GAUSSIAN S MATRIX FILE = SMatrix
 end
