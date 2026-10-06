@@ -290,11 +290,10 @@ The DFT-FE manual asks for deal.II 9.6.2, which is therefore the default on ever
   dftfe/                        DFT-FE git checkout (or --dftfe-src)
     build/release/real/dftfe
     build/release/complex/dftfe
-    build/install_dftfe.log
   invDFT/                       invDFT git checkout (or --invdft-src)
     build/release/real/invDFT_exe
-    build/install_invdft.log
   .install_dftfe/stamps/        stamps for DFT-FE and invDFT
+  .install_dftfe/logs/          dftfe.log, invdft.log (build logs; kept, outside the checkouts)
 ```
 
 DFT-FE and invDFT are built inside their own checkouts and are never deleted by
@@ -391,7 +390,9 @@ override a config file in both directions.
 | `--invdft-src DIR` | `<prefix>/invDFT` | Location of the invDFT checkout, e.g. an existing clone. |
 | `--git-pull` | off | For existing checkouts: `git fetch`, check out the requested branch, `git pull --ff-only`. Without it, existing checkouts are not touched. A warning is printed if a checkout is on a different branch. |
 
-A missing checkout is cloned with `git clone -b <branch>`.
+A missing or empty checkout directory is cloned with `git clone -b <branch>`. An
+existing git checkout, or a source tree with a `CMakeLists.txt`, is used as it is.
+If the directory exists but is neither, the run stops rather than overwrite it.
 
 ### Toolchain overrides
 
@@ -745,8 +746,8 @@ srun ... python3 install.py --config my.json --yes
 ## Troubleshooting and caveats
 
 - **A package failed.** The end of its log is printed, and the full log is in
-  `<deps>/logs/<pkg>.log`, or `<checkout>/build/install_<name>.log` for DFT-FE
-  and invDFT. Fix the cause (module, flag via `--extra-args`, version via
+  `<deps>/logs/<pkg>.log`, or `<prefix>/.install_dftfe/logs/dftfe.log` and
+  `invdft.log` for DFT-FE and invDFT. Fix the cause (module, flag via `--extra-args`, version via
   `--pkg-version`) and rerun the same command. Finished packages are skipped.
 - **Modules failed to load.** Module names change with system updates. Use
   `--modules` / `--add-module` for one run, or update the profile.

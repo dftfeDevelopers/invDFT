@@ -891,7 +891,8 @@ class GitProject(Package):
         return os.path.join(self.ctx.loc[self.name], "build", self.ctx.cfg.build_type.lower())
 
     def logfile(self):
-        return os.path.join(self.ctx.loc[self.name], "build", "install_%s.log" % self.name)
+        # Kept outside the checkout: the log directory is created before the clone runs.
+        return os.path.join(self.ctx.P, STATE_DIR, "logs", "%s.log" % self.name)
 
     def runtime_libdirs(self):
         return []
@@ -901,9 +902,24 @@ class GitProject(Package):
 
     def fetch_steps(self):
         src = self.srcdir()
-        lines = ["if [ ! -e %s ]; then" % q(src),
-                 "  git clone -b %s %s %s" % (q(self.branch), q(self.repo), q(src)),
-                 "fi"]
+        s, b = q(src), q(src + "/build")
+        # Clone unless the directory already holds a git checkout or a source tree. Earlier
+        # versions of this script left <src>/build/install_<name>.log behind before cloning;
+        # such a leftover is removed. Anything else is reported instead of overwritten.
+        lines = [
+            "if [ ! -d %s/.git ] && [ ! -f %s/CMakeLists.txt ]; then" % (s, s),
+            '  if [ -d %s ] && [ "$(ls -A %s)" = build ] && [ -z "$(ls -A %s | grep -v \'^install_.*\\.log$\')" ]; then'
+            % (s, s, b),
+            "    rm -rf %s" % s,
+            "  fi",
+            '  if [ -d %s ] && [ -n "$(ls -A %s)" ]; then' % (s, s),
+            '    echo "ERROR: %s exists but is neither a git checkout nor a %s source tree." >&2'
+            % (src, self.name),
+            '    echo "Move it away, or point --%s-src at the right directory." >&2' % self.name,
+            "    exit 1",
+            "  fi",
+            "  git clone -b %s %s %s" % (q(self.branch), q(self.repo), s),
+            "fi"]
         if self.ctx.cfg.git_pull:
             lines += ["if [ -d %s ]; then" % q(src + "/.git"),
                       "  cd %s" % q(src),
