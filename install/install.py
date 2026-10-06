@@ -508,8 +508,11 @@ class BLIS(Package):
         args = ["--prefix=" + self.location(), "--enable-shared", "--enable-threading=no",
                 "CC=" + c.cc["cc"], "CXX=" + c.cc["cxx"], "FC=" + c.cc["fc"],
                 "CFLAGS=-O2"] + c.extra(self) + [c.prof.get("blis_config", "auto")]
-        lines = fresh_dir(self.builddir()) + [
-            cmdline(q(os.path.join(self.srcdir(), "configure")), args),
+        # Built inside a copy of the source tree: out-of-tree builds of AMD BLIS 3.0.x fail at
+        # "make install" because the C++ headers are looked up as cpp/*.hh relative to the
+        # build directory ("No rule to make target 'cpp/*.hh'").
+        lines = fresh_dir(self.builddir(), copy_from=self.srcdir()) + [
+            cmdline("./configure", args),
             "make -j%s" % c.j,
             "make install",
         ]
