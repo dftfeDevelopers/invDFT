@@ -20,7 +20,7 @@ Directory structure of invDFT
   - inverseDFTParameters.cpp ( Infrastructure to parse input parameters from the input parameter file.)
   - TestMultiVectorAdjointProblem.cpp ( A class that provides a functionality test for MultiVectorAdjointLinearSolverProblem .)
  - include/ (contains all the include files containing class and namespace declarations.)
- - installationScripts/ ( Provides installation scripts.) 
+ - install/ ( Provides installation scripts.) 
  - manual/ (Contains the manual for the invDFT.)
  - demo/ (Contains examples for running inverse DFT calculation.) 
  - indentationStandard / (contains scripts for automatic code indendation based on clang format)
@@ -28,58 +28,15 @@ Directory structure of invDFT
 Installation instructions
 -------------------------
 
-invDFT is built on top of [DFT-FE](https://github.com/dftfeDevelopers/dftfe), from which it borrows its finite-element infrastructure and solvers. Installing the `invGKS` branch of invDFT therefore takes two steps:
-
-1. Install the dependencies and build the **`invGKS`** branch of DFT-FE.
-2. Build the **`invGKS`** branch of invDFT against that DFT-FE installation.
-
-> **Note:** The `invGKS` branch of invDFT only works with the `invGKS` branch of DFT-FE. Other DFT-FE branches (for example, `publicGithubDevelop`) are not compatible with it.
-
-### Step 1: Install DFT-FE (`invGKS` branch)
-
-DFT-FE depends on a number of external libraries, including deal.II, p4est, PETSc, SLEPc, Kokkos, ScaLAPACK, ELPA, Libxc, spglib, ALGLIB, and BLAS/LAPACK libraries (such as BLIS and libflame). It also needs an MPI-enabled C++ compiler and, for GPU runs, the CUDA (NVIDIA) or ROCm (AMD) toolchain. The steps to install DFT-FE and its dependencies are described in the *Installation* section of the DFT-FE manual. Download the development version of the manual [here](https://github.com/dftfeDevelopers/dftfe/blob/manual/manual-develop.pdf).
-
-Once the dependencies are in place, check out the `invGKS` branch of DFT-FE before compiling:
-
+invDFT is built on top of [DFT-FE](https://github.com/dftfeDevelopers/dftfe), from which it borrows its finite-element infrastructure and solvers. DFT-FE itself depends on other libraries which also needs to be installed. To streamline the process, we have provided an installer `install.py` in `install/` folder. The user needs to create a `cfg.json` with the machine-specific options. Assuming you are inside the `install/` folder, the typical installation procedure is
 ```
-git clone https://github.com/dftfeDevelopers/dftfe.git
-cd dftfe
-git checkout invGKS
+python3 install.py --config </path/to/cfg.json> --prefix=</path/to/installation/>
 ```
+In the above `</path/to/cfg.json>` is the path to the user supplied `cfg.json` and `</path/to/installation>` is the user-supplied installation folder where the DFT-FE and invDFT executables along with all the dependencies will be installed.  
 
-**Installation scripts for common machines.** To simplify the process, shell-based installation scripts for the development version of DFT-FE are available for several supercomputers:
-
-- [OLCF Frontier](https://github.com/dftfeDevelopers/install_DFTFE/tree/frontierDevelop)
-- [NERSC Perlmutter](https://github.com/dftfeDevelopers/install_DFTFE/tree/perlmutterDevelop)
-- [UMich Great Lakes](https://github.com/dftfeDevelopers/install_DFTFE/tree/greatlakesDevelop)
-
-These scripts are written for the `publicGithubDevelop` branch of DFT-FE. Before running them, change the DFT-FE branch that they check out to `invGKS`, so that the compiled DFT-FE is the one invDFT expects.
-
-### Step 2: Install invDFT (`invGKS` branch)
-
-With DFT-FE built, follow the *Installation* section of the invDFT manual, available [here](https://github.com/dftfeDevelopers/invDFT/blob/main/manual/invDFTFEmanual_develop.pdf). Fetch the `invGKS` branch of invDFT with:
-
-```
-git clone https://github.com/dftfeDevelopers/invDFT.git
-cd invDFT
-git checkout invGKS
-```
-
-Sample installation scripts for invDFT are provided in the [`installationScripts`](https://github.com/dftfeDevelopers/invDFT/tree/main/installationScripts) folder of the repository and can be adapted to your machine.
-
-### One-step installation on NERSC Perlmutter
-
-If you are working on NERSC Perlmutter, you can use [this script](https://github.com/dftfeDevelopers/invDFT/blob/invGKS/install_invDFT_withDependencies_inPerlmutter/installInvDFT.sh), which installs the `invGKS` branch of invDFT together with all of its dependencies. By default, everything is installed in `$PSCRATCH/install_invDFT`. To use a different location, change the value of `WD` in the script. To install, run:
-
-```
-source installInvDFT.sh
-install_all
-```
-
-If the installation is successful, the `invDFT_exe` executable is created in `$WD/src/invDFT/build/release/real/`.
-
-The script can also serve as a template for other machines. The same sequence of builds is needed, and only the module names, compilers, and paths change.
-
+**Installation scripts for common machines.** To simplify the process, we have provided the `cfg.json` files for common public supercomputers in the paths defined below. For any other machine, we recommend modifying the `install/configs/cfg_generic.json`. 
+- NERSC Perlmutter: install/configs/cfg_perlmutter.json 
+- OLCF Frontier: install/configs/cfg_frontier.json 
 
 
 Running invDFT
@@ -93,10 +50,10 @@ The `demo` folder contains two examples (`invGKS_LiH_eq` and `invGKS_LiH_2eq`) o
 
 Two main input files drive the calculation:
 
-- `allElectronParameterFile.prm` contains the parameters used to construct the finite-element (FE) mesh for the wavefunctions, the boundary conditions, and so on. Broadly, it holds all the parameters needed for the forward SCF calculation.
+- `dftfeParams.prm` contains the parameters used to construct the finite-element (FE) mesh for the wavefunctions, the boundary conditions, and so on. Broadly, it holds all the parameters needed for the forward SCF calculation.
 - `inverseDFTParams.prm` contains the parameters used to generate the FE mesh for the XC potential $v_{\text{xc}}^{\alpha}$, the solver tolerances, the initial guess, and the input densities.
 
-### `allElectronParameterFile.prm`
+### `dftfeParams.prm`
 
 #### General settings
 
