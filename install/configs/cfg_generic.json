@@ -45,6 +45,8 @@
   "dftfe_repo": "github",
   "dftfe_branch": "publicGithubDevelop",
   "build_type": "Release",
+  "_scalar_type": "DFT-FE executables: real (molecules, Gamma point), complex (k-points) or both; with PETSc, PETSc/SLEPc/deal.II are built for the same type(s); invDFT needs real or both",
+  "scalar_type": "both",
   "dftd3": false,
   "dftd4": false,
   "higher_quad_psp": false,

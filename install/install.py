@@ -108,6 +108,7 @@ INVDFT_REPO = "https://github.com/dftfeDevelopers/invDFT.git"
 
 BLAS_CHOICES = ["openblas", "blis+flame", "mkl", "libsci"]
 GPU_VENDORS = ["nvidia", "amd", "intel"]
+SCALAR_TYPES = ["real", "complex", "both"]
 # Names accepted by --use-existing that are never built by this script.
 EXTERNALS = ["boost", "libxml2", "dccl"]
 
@@ -298,7 +299,7 @@ DEFAULTS = {
     "gpu_aware_mpi": False,
     "int64": None,  # derived: off with --invdft, on otherwise
     "higher_quad_psp": False,
-    "real_only": False,
+    "scalar_type": "both",  # DFT-FE executables: real, complex or both
     "build_type": "Release",
     "dftfe_repo": "github",
     "dftfe_branch": None,
@@ -783,8 +784,6 @@ class DealII(Package):
             "-DCMAKE_CXX_STANDARD=17",
             "-DCMAKE_C_COMPILER=" + cc["cc"], "-DCMAKE_CXX_COMPILER=" + cc["cxx"],
             "-DCMAKE_Fortran_COMPILER=" + cc["fc"],
-            "-DMPI_C_COMPILER=" + cc["mpicc"], "-DMPI_CXX_COMPILER=" + cc["mpicxx"],
-            "-DMPI_Fortran_COMPILER=" + cc["mpifc"],
             "-DCMAKE_CXX_FLAGS=%s -std=c++17" % c.march, "-DCMAKE_C_FLAGS=" + c.march,
             "-DDEAL_II_WITH_MPI=ON", "-DDEAL_II_WITH_64BIT_INDICES=ON",
             "-DDEAL_II_WITH_COMPLEX_VALUES=ON",
@@ -969,8 +968,7 @@ class DFTFE(GitProject):
     def build_steps(self, clean=True):
         c = self.ctx
         steps = [self.branch_check()]
-        kinds = ["real"] if c.cfg.real_only else ["real", "complex"]
-        for kind in kinds:
+        for kind in c.scalars:
             args = gpu_cmake_args(c) + [
                 "-DDEAL_II_DIR=" + c.dealii_dir(kind),
                 "-DWITH_MDI=OFF", "-DMDI_PATH=", "-DWITH_TORCH=OFF",
@@ -994,7 +992,8 @@ class InvDFT(GitProject):
         return absp(self.ctx.cfg.invdft_src) if self.ctx.cfg.invdft_src else os.path.join(self.ctx.P, "invDFT")
 
     def deps(self):
-        return ["dftfe", self.ctx.dealii_names[0], "alglib", "libxc", "spglib", "elpa"]
+        dealii = "dealii-real" if self.ctx.cfg.petsc else "dealii"
+        return ["dftfe", dealii, "alglib", "libxc", "spglib", "elpa"]
 
     def build_steps(self, clean=True):
         c = self.ctx
@@ -1180,6 +1179,11 @@ def resolve_config(cli, file_cfg, config_path=None):
         cfg["dftfe_branch"] = "publicGithubDevelop"
     if cfg.build_type not in ("Release", "Debug"):
         raise InstallError("--build-type must be Release or Debug")
+    if cfg.scalar_type not in SCALAR_TYPES:
+        raise InstallError("scalar_type must be one of %s" % ", ".join(SCALAR_TYPES))
+    if cfg.invdft and cfg.scalar_type == "complex":
+        raise InstallError("invDFT links to the real DFT-FE library: use --scalar-type real or "
+                           "both with --invdft")
     unknown_versions = sorted(set(cfg.versions) - set(DEFAULT_VERSIONS))
     if unknown_versions:
         raise InstallError("--pkg-version: unknown package(s) %s; known: %s"
@@ -1232,7 +1236,10 @@ class Context(object):
         self.loc = {}
         self.blas = None
         self.blas_pkgs = {"openblas": ["openblas"], "blis+flame": ["blis", "libflame"]}.get(cfg.blas, [])
-        self.dealii_names = ["dealii-real", "dealii-complex"] if cfg.petsc else ["dealii"]
+        # Scalar types of the DFT-FE executables. Only with PETSc does deal.II (and PETSc/SLEPc)
+        # depend on the scalar type; without it a single deal.II serves both executables.
+        self.scalars = ["real", "complex"] if cfg.scalar_type == "both" else [cfg.scalar_type]
+        self.dealii_names = ["dealii-" + s for s in self.scalars] if cfg.petsc else ["dealii"]
         self.scalapack_link = ""
         self.dccl_prefix = None
         self.xml_inc = self.xml_lib = None
@@ -1466,8 +1473,9 @@ def build_package_list(ctx):
         pkgs.append(ScaLAPACK(ctx))
     pkgs.append(ELPA(ctx))
     if c.petsc:
-        pkgs += [PETSc(ctx, "real"), PETSc(ctx, "complex"), SLEPc(ctx, "real"), SLEPc(ctx, "complex"),
-                 DealII(ctx, "real"), DealII(ctx, "complex")]
+        pkgs += [PETSc(ctx, s) for s in ctx.scalars]
+        pkgs += [SLEPc(ctx, s) for s in ctx.scalars]
+        pkgs += [DealII(ctx, s) for s in ctx.scalars]
     else:
         pkgs.append(DealII(ctx))
     for name in ("dftd3", "dftd4"):
@@ -1629,7 +1637,8 @@ def print_summary(ctx, plan, notes):
     print("PETSc/SLEPc   : %s    dftd3: %s    dftd4: %s    64-bit int: %s" % tuple(
         "yes" if x else "no" for x in (c.petsc, c.dftd3, c.dftd4, c.int64)))
     repo = DFTFE_REPOS.get(c.dftfe_repo, c.dftfe_repo)
-    print("DFT-FE        : %s @ %s (%s)" % (repo, c.dftfe_branch, c.build_type))
+    print("DFT-FE        : %s @ %s (%s; %s)" % (repo, c.dftfe_branch, c.build_type,
+                                                 " + ".join(ctx.scalars)))
     if c.invdft:
         print("invDFT        : %s @ %s" % (c.invdft_repo, c.invdft_branch))
     print("Modules       : %s" % (" ".join(ctx.modules()) or "(none)"))
@@ -1825,9 +1834,8 @@ def print_outputs(ctx, pkgs):
     if "dftfe" in names:
         base = os.path.join(ctx.loc["dftfe"], "build", bt)
         print("DFT-FE executables:")
-        print("  %s" % os.path.join(base, "real", "dftfe"))
-        if not c.real_only:
-            print("  %s" % os.path.join(base, "complex", "dftfe"))
+        for kind in ctx.scalars:
+            print("  %s" % os.path.join(base, kind, "dftfe"))
     if "invdft" in names:
         print("invDFT executable:")
         print("  %s" % os.path.join(ctx.loc["invdft"], "build", bt, "real", "invDFT_exe"))
@@ -1841,7 +1849,8 @@ EPILOG = """
 package names (for --only/--skip/--force/--use-existing/--extra-args):
   openblas | blis libflame, alglib, libxc, spglib, p4est, kokkos, scalapack, elpa,
   petsc-real petsc-complex slepc-real slepc-complex dealii-real dealii-complex
-  (with PETSc) or dealii (without), dftd3, dftd4, dftfe, invdft.
+  (with PETSc, for the --scalar-type(s) selected) or dealii (without PETSc),
+  dftd3, dftd4, dftfe, invdft.
   'petsc', 'slepc' and 'dealii' select all of their variants (not for --use-existing,
   which needs the exact name). --use-existing also accepts boost, libxml2 and dccl
   (NCCL/RCCL prefix) and dftfe (an existing DFT-FE checkout, built in-tree).
@@ -1905,8 +1914,10 @@ def build_parser():
     add_bool(g, "int64", "USE_64BIT_INT (default, except with --invdft, which does not support it)",
              "32-bit integers (default with --invdft)")
     add_bool(g, "higher-quad-psp", "HIGHERQUAD_PSP=ON", "HIGHERQUAD_PSP=OFF")
-    g.add_argument("--real-only", action="store_const", const=True, default=None,
-                   help="build only the real DFT-FE executable")
+    g.add_argument("--scalar-type", choices=SCALAR_TYPES,
+                   help="DFT-FE executables to build: real (molecules, Gamma point), complex "
+                        "(k-points) or both (default). With --petsc, PETSc, SLEPc and deal.II "
+                        "are built for the same scalar type(s). invDFT needs real or both")
     g.add_argument("--build-type", choices=["Release", "Debug"], help="DFT-FE/invDFT build type")
 
     g = p.add_argument_group("DFT-FE and invDFT sources")
@@ -2015,6 +2026,13 @@ def interactive(cli, file_cfg):
         ans["dccl"] = ask_bool("Link NCCL/RCCL", get("dccl", False))
     ans["blas"] = ask("BLAS/LAPACK", get("blas", pd.get("blas", "openblas")), choices=BLAS_CHOICES)
     ans["invdft"] = ask_bool("Also build invDFT", get("invdft", False))
+    while True:
+        ans["scalar_type"] = ask("DFT-FE executables: real (molecules, Gamma point), complex "
+                                 "(k-points) or both", get("scalar_type", "both"),
+                                 choices=SCALAR_TYPES)
+        if not (ans["invdft"] and ans["scalar_type"] == "complex"):
+            break
+        print("  invDFT needs the real DFT-FE build: choose real or both")
     ans["petsc"] = ask_bool("Build PETSc/SLEPc (all-electron Gram-Schmidt)", get("petsc", ans["invdft"]))
     ans["dftd3"] = ask_bool("Build simple-dftd3", get("dftd3", False))
     ans["dftd4"] = ask_bool("Build dftd4", get("dftd4", False))

@@ -115,9 +115,11 @@ flowchart TD
 The installer builds from the bottom up: BLAS/LAPACK, then the independent
 libraries (ALGLIB, Libxc, spglib, p4est, Kokkos), then ScaLAPACK and ELPA,
 PETSc/SLEPc, deal.II, the dispersion libraries, DFT-FE and finally invDFT.
-With `--petsc`, deal.II is built twice, once against real and once against
-complex PETSc/SLEPc. DFT-FE's real executable uses the first and its complex
-(k-point) executable the second. MKL and libsci come from modules, and libsci
+DFT-FE comes as a real executable (molecules, Gamma-point runs) and a complex
+executable (k-point sampling); `--scalar-type` picks real, complex or both
+(default). With `--petsc`, PETSc, SLEPc and deal.II are built once per selected
+scalar type (`petsc-real` → `slepc-real` → `dealii-real` for the real
+executable, and likewise for complex). Without PETSc, one deal.II serves both. MKL and libsci come from modules, and libsci
 also supplies ScaLAPACK. OpenBLAS and BLIS + libflame are built from source.
 
 ### What changes from machine to machine
@@ -260,11 +262,11 @@ plus *Application* for DFT-FE and invDFT themselves.
 | Kokkos | Finite-element infrastructure | 4.3.00 (Frontier: 4.6.00) | always | Performance-portability layer required by deal.II 9.6. Built for CPUs only: DFT-FE has its own GPU kernels and the manual says not to build deal.II with GPU support. |
 | ScaLAPACK | Dense linear algebra | 2.2.2 | unless `--blas libsci` | Distributed-memory dense linear algebra over a 2D process grid; the foundation ELPA needs. Netlib reference version linked to the chosen BLAS/LAPACK. libsci already contains ScaLAPACK. |
 | ELPA | Dense linear algebra | 2025.01.001 (Frontier: 2026.02.001) | always | Scalable distributed dense eigensolver. DFT-FE uses it for the dense subspace problems of each SCF step (Rayleigh-Ritz eigenproblem, Cholesky-based orthonormalization). Required by DFT-FE; with `--gpu` its kernels run on NVIDIA or AMD GPUs. |
-| PETSc, SLEPc | Optional extras | 3.21.1 | `--petsc` (default with `--invdft`) | Sparse linear algebra (PETSc) and eigensolvers (SLEPc). DFT-FE uses them through deal.II for the more robust Gram-Schmidt orthogonalization of all-electron calculations. Real and complex variants, 64-bit indices. |
-| deal.II | Finite-element infrastructure | **9.6.2** | always | The finite-element library DFT-FE is built on: meshes, finite-element spaces, quadrature, parallel vectors, matrix-free operators. Configured with MPI, p4est, Kokkos, LAPACK, 64-bit indices and an external Boost. One build, or real + complex builds with PETSc. |
+| PETSc, SLEPc | Optional extras | 3.21.1 | `--petsc` (default with `--invdft`) | Sparse linear algebra (PETSc) and eigensolvers (SLEPc). DFT-FE uses them through deal.II for the more robust Gram-Schmidt orthogonalization of all-electron calculations. Built as `petsc-real`/`slepc-real` and/or `petsc-complex`/`slepc-complex`, following `--scalar-type`; 64-bit indices. |
+| deal.II | Finite-element infrastructure | **9.6.2** | always | The finite-element library DFT-FE is built on: meshes, finite-element spaces, quadrature, parallel vectors, matrix-free operators. Configured with MPI, p4est, Kokkos, LAPACK, 64-bit indices and an external Boost. Without PETSc one build (`dealii`); with PETSc one build per selected scalar type (`dealii-real`, `dealii-complex`). |
 | simple-dftd3 | Optional extras | 0.6.0 | `--dftd3` | Grimme's DFT-D3 dispersion correction for energy, forces and stress. Own prefix `<deps>/dftd3`, since it and dftd4 each bundle their own copy of the shared library mctc-lib. |
 | dftd4 | Optional extras | 3.7.0 | `--dftd4` | Grimme's DFT-D4 dispersion correction for energy, forces and stress. Own prefix `<deps>/dftd4`. |
-| DFT-FE | Application | branch `publicGithubDevelop` | always (unless skipped) | The finite-element Kohn-Sham DFT code. Real executable (molecules and Gamma-point periodic runs) and complex executable (k-point sampling), built in its checkout. |
+| DFT-FE | Application | branch `publicGithubDevelop` | always (unless skipped) | The finite-element Kohn-Sham DFT code. Real executable (molecules and Gamma-point periodic runs) and/or complex executable (k-point sampling), as chosen by `--scalar-type` (default both), built in its checkout. |
 | invDFT | Application | branch `invGKS` | `--invdft` | Inverse DFT: finds the exchange-correlation potential that reproduces a given density. Real executable, linked to DFT-FE's real library in the DFT-FE build tree. |
 
 Not built by the installer: compilers, MPI, CMake, Boost, Libxml2, CUDA/ROCm/oneAPI
@@ -279,8 +281,8 @@ The DFT-FE manual asks for deal.II 9.6.2, which is therefore the default on ever
 ```
 <prefix-dependencies>/          (= <prefix> unless --prefix-dependencies is given)
   lib/ include/ bin/            OpenBLAS or BLIS/libflame, Libxc, spglib, Kokkos, ScaLAPACK, ELPA
-  alglib/  p4est/{FAST,DEBUG}/  dealii/ or dealii-real/ + dealii-complex/
-  petsc-real/ petsc-complex/ slepc-real/ slepc-complex/  dftd3/ dftd4/
+  alglib/  p4est/{FAST,DEBUG}/  dealii/  (without PETSc)
+  petsc-<s>/ slepc-<s>/ dealii-<s>/  (with PETSc; <s> = real and/or complex)  dftd3/ dftd4/
   src/ build/ logs/             sources, build trees, logs   (deleted after success by default)
   .install_dftfe/stamps/        one JSON file per installed dependency
 
@@ -288,8 +290,8 @@ The DFT-FE manual asks for deal.II 9.6.2, which is therefore the default on ever
   env.sh                        modules + library paths; source it before running
   install_dftfe_config.json     the resolved settings of the last run (usable with --config)
   dftfe/                        DFT-FE git checkout (or --dftfe-src)
-    build/release/real/dftfe
-    build/release/complex/dftfe
+    build/release/real/dftfe      (scalar_type real or both)
+    build/release/complex/dftfe   (scalar_type complex or both)
   invDFT/                       invDFT git checkout (or --invdft-src)
     build/release/real/invDFT_exe
   .install_dftfe/stamps/        stamps for DFT-FE and invDFT
@@ -367,14 +369,14 @@ override a config file in both directions.
 | `--gpu-arch ARCH` | from profile | NVIDIA compute capability (`80`, `sm_80`, `90`), AMD target (`gfx90a`, `gfx942`) or Intel device (`pvc`, the default for Intel). Required for GPU builds when the profile has no default. |
 | `--elpa-gpu` / `--no-elpa-gpu` | on with `--gpu` | Build ELPA with GPU kernels. ELPA itself is always built because DFT-FE requires it; this only controls its GPU support. Always CPU-only for Intel GPUs. |
 | `--blas {openblas,blis+flame,mkl,libsci}` | from profile | BLAS/LAPACK used by every package. `openblas` and `blis+flame` are **built from source**. `mkl` and `libsci` cannot be built and come from modules (`libsci` needs a Cray profile). Defaults: `blis+flame` on Frontier and Perlmutter, `openblas` elsewhere. |
-| `--petsc` / `--no-petsc` | on with `--invdft` | Build PETSc and SLEPc (real and complex) and link deal.II to them, giving `dealii-real` and `dealii-complex`. Needed for all-electron calculations with Gram-Schmidt orthogonalization. |
+| `--petsc` / `--no-petsc` | on with `--invdft` | Build PETSc and SLEPc and link deal.II to them, once per scalar type selected by `--scalar-type` (`petsc-real`, `slepc-real`, `dealii-real` and/or the `-complex` ones). Needed for all-electron calculations with Gram-Schmidt orthogonalization. |
 | `--dftd3` / `--no-dftd3` | off | Build simple-dftd3 for DFT-D3 dispersion corrections. |
 | `--dftd4` / `--no-dftd4` | off | Build dftd4 for DFT-D4 dispersion corrections. |
 | `--dccl` / `--no-dccl` | off | Link NCCL (CUDA) or RCCL (HIP) for GPU collectives. Recommended for very large systems (more than 20,000 electrons) on machines with GPU-direct MPI. The library location comes from the profile (`$NCCL_DIR` on Perlmutter, `$ROCM_PATH` for AMD), otherwise from `--use-existing dccl=PATH`. |
 | `--gpu-aware-mpi` / `--no-gpu-aware-mpi` | off | `WITH_GPU_AWARE_MPI=ON`. Only use it if the MPI library is GPU-aware and has been profiled to be fast. |
 | `--int64` / `--no-int64` | on; off with `--invdft` | `USE_64BIT_INT` in DFT-FE, for CPU and GPU builds. Avoids integer overflow for large systems; the DFT-FE manual strongly recommends it for GPU runs. GPU builds need CUDA ≥ 12.0 or ROCm ≥ 6.3; use `--no-int64` with older toolkits. **invDFT does not support 64-bit integers yet**, so with `--invdft` DFT-FE is built with 32-bit integers, and passing `--int64` (or `"int64": true` in a config file) stops with an error. |
 | `--higher-quad-psp` / `--no-higher-quad-psp` | off | `HIGHERQUAD_PSP=ON`: higher-order quadrature for pseudopotential data, recommended for MD with hard pseudopotentials. |
-| `--real-only` | off | Build only the real DFT-FE executable. The complex one is needed for k-points. |
+| `--scalar-type {real,complex,both}` | `both` | Which DFT-FE executables to build: `real` (molecules, Gamma-point periodic runs), `complex` (k-point sampling) or `both`. With `--petsc`, PETSc, SLEPc and deal.II are built only for the selected type(s), which saves a lot of build time for `real` or `complex`. invDFT links to the real DFT-FE library, so `complex` with `--invdft` is an error. |
 | `--build-type {Release,Debug}` | `Release` | Build type of DFT-FE and invDFT. The output goes to `build/release` or `build/debug`. |
 
 ### DFT-FE and invDFT sources
@@ -448,8 +450,8 @@ Names used by `--only`, `--skip`, `--force`, `--use-existing` and `--extra-args`
 ```
 openblas | blis libflame        (depending on --blas)
 alglib libxc spglib p4est kokkos scalapack elpa
-petsc-real petsc-complex slepc-real slepc-complex dealii-real dealii-complex   (with --petsc)
-dealii                                                                           (without --petsc)
+petsc-<s> slepc-<s> dealii-<s>     (with --petsc; <s> = real and/or complex, per --scalar-type)
+dealii                             (without --petsc)
 dftd3 dftd4 dftfe invdft
 ```
 
@@ -539,8 +541,10 @@ and `/scratch/<account>_root/<account>/$USER/...` on Great Lakes.
 All four build DFT-FE (`publicGithubDevelop`) together with invDFT (`invGKS`),
 since they live in the invDFT repository. They leave `int64`, `petsc` and
 `elpa_gpu` unset, so these follow from `invdft` and `gpu` (with invDFT: 32-bit
-integers and PETSc/SLEPc). Set `"invdft": false` in the file, or pass
-`--no-invdft`, to install DFT-FE alone. Each file starts with an `_about` block
+integers and PETSc/SLEPc). They set `"scalar_type": "both"`, so both DFT-FE
+executables (and, with PETSc, both sets of PETSc/SLEPc/deal.II) are built; use
+`"real"` or `--scalar-type real` to build only what invDFT and molecular runs need.
+Set `"invdft": false` in the file, or pass `--no-invdft`, to install DFT-FE alone. Each file starts with an `_about` block
 explaining how to adapt it, and has `_<key>` comments next to the less obvious
 settings.
 
@@ -722,7 +726,7 @@ Machine-specific tweaks for a single user can stay in that user's config file
 ```bash
 source <prefix>/env.sh                     # modules + LD_LIBRARY_PATH
 srun -n 8 <prefix>/dftfe/build/release/real/dftfe       parameters.prm
-srun -n 8 <prefix>/dftfe/build/release/complex/dftfe    parameters.prm   # k-points
+srun -n 8 <prefix>/dftfe/build/release/complex/dftfe    parameters.prm   # k-points (scalar_type complex or both)
 srun -n 8 <prefix>/invDFT/build/release/real/invDFT_exe parameters.prm
 ```
 
