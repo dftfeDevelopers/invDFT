@@ -41,6 +41,7 @@
   "_prefix_dependencies": "optional: separate install directory for the dependencies (null = same as prefix); set it here or pass --prefix-dependencies",
   "prefix_dependencies": null,
   "invdft": true,
+  "invdft_repo": "github",
   "invdft_branch": "invGKS",
   "dftfe_repo": "github",
   "dftfe_branch": "invGKS",

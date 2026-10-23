@@ -104,7 +104,10 @@ DFTFE_REPOS = {
     "github": "https://github.com/dftfeDevelopers/dftfe.git",
     "bitbucket": "https://bitbucket.org/dftfedevelopers/dftfe.git",
 }
-INVDFT_REPO = "https://github.com/dftfeDevelopers/invDFT.git"
+INVDFT_REPOS = {
+    "github": "https://github.com/dftfeDevelopers/invDFT.git",
+    "bitbucket": "https://bitbucket.org/dftfedevelopers/invdft.git",
+}
 
 BLAS_CHOICES = ["openblas", "blis+flame", "mkl", "libsci"]
 GPU_VENDORS = ["nvidia", "amd", "intel"]
@@ -305,7 +308,7 @@ DEFAULTS = {
     "dftfe_branch": None,
     "dftfe_src": None,
     "invdft": False,
-    "invdft_repo": INVDFT_REPO,
+    "invdft_repo": "github",
     "invdft_branch": "invGKS",
     "invdft_src": None,
     "git_pull": False,
@@ -985,7 +988,8 @@ class InvDFT(GitProject):
 
     def __init__(self, ctx):
         GitProject.__init__(self, ctx)
-        self.repo = ctx.cfg.invdft_repo
+        repo = ctx.cfg.invdft_repo
+        self.repo = INVDFT_REPOS.get(repo, repo)
         self.branch = ctx.cfg.invdft_branch
 
     def srcdir(self):
@@ -1640,7 +1644,8 @@ def print_summary(ctx, plan, notes):
     print("DFT-FE        : %s @ %s (%s; %s)" % (repo, c.dftfe_branch, c.build_type,
                                                  " + ".join(ctx.scalars)))
     if c.invdft:
-        print("invDFT        : %s @ %s" % (c.invdft_repo, c.invdft_branch))
+        print("invDFT        : %s @ %s" % (INVDFT_REPOS.get(c.invdft_repo, c.invdft_repo),
+                                           c.invdft_branch))
     print("Modules       : %s" % (" ".join(ctx.modules()) or "(none)"))
     print("Parallel jobs : %d" % ctx.jobs)
     print("-" * 78)
@@ -1925,7 +1930,7 @@ def build_parser():
     g.add_argument("--dftfe-branch", help="default: publicGithubDevelop")
     g.add_argument("--dftfe-src", help="DFT-FE checkout location (default: <prefix>/dftfe)")
     add_bool(g, "invdft", "also build invDFT", "DFT-FE only (e.g. to override a config file)")
-    g.add_argument("--invdft-repo", help="default: %s" % INVDFT_REPO)
+    g.add_argument("--invdft-repo", help="github (default), bitbucket, or a git URL")
     g.add_argument("--invdft-branch", help="default: invGKS")
     g.add_argument("--invdft-src", help="invDFT checkout location (default: <prefix>/invDFT)")
     g.add_argument("--git-pull", action="store_const", const=True, default=None,

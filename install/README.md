@@ -387,7 +387,7 @@ override a config file in both directions.
 | `--dftfe-branch` | `publicGithubDevelop` | DFT-FE branch to check out, with or without `--invdft`. |
 | `--dftfe-src DIR` | `<prefix>/dftfe` | Location of the DFT-FE checkout. An existing directory is used as it is. |
 | `--invdft` / `--no-invdft` | off | Also build invDFT. Turns on PETSc/SLEPc and 32-bit integers by default. `--no-invdft` overrides `"invdft": true` from a config file (e.g. the templates in `configs/`). |
-| `--invdft-repo URL` | github.com/dftfeDevelopers/invDFT | invDFT repository. |
+| `--invdft-repo` | `github` | `github` (github.com/dftfeDevelopers/invDFT), `bitbucket` (bitbucket.org/dftfedevelopers/invdft) or any git URL. |
 | `--invdft-branch` | `invGKS` | invDFT branch. |
 | `--invdft-src DIR` | `<prefix>/invDFT` | Location of the invDFT checkout, e.g. an existing clone. |
 | `--git-pull` | off | For existing checkouts: `git fetch`, check out the requested branch, `git pull --ff-only`. Without it, existing checkouts are not touched. A warning is printed if a checkout is on a different branch. |
