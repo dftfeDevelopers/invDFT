@@ -110,22 +110,6 @@ ADD_LIBRARY(${TARGET_LIB} SHARED ${TARGET_SRC})
 TARGET_LINK_LIBRARIES(${TARGET_LIB} PUBLIC ${MPI_LIBRARIES})
 
 
-#-----------------------------Link DFTFE--------------------
-FIND_LIBRARY(DFTFE_LIBRARY
-	NAMES dftfe dftfeReal
-        HINTS ${DFTFE_INSTALL_PATH}/build/release/real/
-        HINTS ${DFTFE_INSTALL_PATH}/
-	NO_DEFAULT_PATH
-)
-
-IF(DFTFE_LIBRARY STREQUAL "DFTFE_LIBRARY-NOTFOUND")
-    MESSAGE(FATAL_ERROR "-- DFTFE was not found in ${DFTFE_INSTALL_PATH}")
-ENDIF()
-
-
-TARGET_INCLUDE_DIRECTORIES(${TARGET_LIB} PUBLIC "${DFTFE_INCLUDE_PATH}")
-TARGET_LINK_LIBRARIES(${TARGET_LIB} PUBLIC ${DFTFE_LIBRARY})
-
 ###########################################################################
     ADD_DEFINITIONS(-DUSE_REAL)
     MESSAGE(STATUS "Using real")
@@ -250,6 +234,36 @@ MESSAGE(STATUS "ELPA Dir = ${CMAKE_PREFIX_PATH}")
 find_package(ELPA 2024 REQUIRED)
 MESSAGE(STATUS "Will Link With ELPA")
 target_link_libraries(${TARGET_LIB} PUBLIC ELPA::ELPA)
+
+#
+# DFT-FE. Prefer the CMake package installed by DFT-FE (-Ddftfe_DIR=<prefix>/lib/cmake/dftfe),
+# which brings its include directory and dependencies; it is looked up after deal.II and
+# ELPA so that their locations are reused. Otherwise use -DDFTFE_INSTALL_PATH (directory
+# with libdftfeReal) and -DDFTFE_INCLUDE_PATH.
+#
+FIND_PACKAGE(dftfe CONFIG QUIET)
+IF(dftfe_FOUND AND TARGET dftfe::dftfeReal)
+    MESSAGE(STATUS "Use DFTFE package from ${dftfe_DIR}")
+    TARGET_LINK_LIBRARIES(${TARGET_LIB} PUBLIC dftfe::dftfeReal)
+    # DFT-FE headers are installed under include/dftfe but included unqualified (e.g. <dft.h>)
+    GET_TARGET_PROPERTY(DFTFE_PKG_INCLUDES dftfe::dftfeReal INTERFACE_INCLUDE_DIRECTORIES)
+    FOREACH(DFTFE_PKG_INCLUDE ${DFTFE_PKG_INCLUDES})
+        TARGET_INCLUDE_DIRECTORIES(${TARGET_LIB} PUBLIC "${DFTFE_PKG_INCLUDE}/dftfe")
+    ENDFOREACH()
+ELSE()
+    FIND_LIBRARY(DFTFE_LIBRARY
+        NAMES dftfe dftfeReal
+        HINTS ${DFTFE_INSTALL_PATH}/build/release/real/
+        HINTS ${DFTFE_INSTALL_PATH}/
+        NO_DEFAULT_PATH
+    )
+    IF(DFTFE_LIBRARY STREQUAL "DFTFE_LIBRARY-NOTFOUND")
+        MESSAGE(FATAL_ERROR "-- DFTFE was not found in ${DFTFE_INSTALL_PATH}")
+    ENDIF()
+    MESSAGE("-- Use DFTFE library ${DFTFE_LIBRARY}")
+    TARGET_INCLUDE_DIRECTORIES(${TARGET_LIB} PUBLIC "${DFTFE_INCLUDE_PATH}")
+    TARGET_LINK_LIBRARIES(${TARGET_LIB} PUBLIC ${DFTFE_LIBRARY})
+ENDIF()
 #
 # Alglib. Set with -DALGLIB_DIR=/path/to/prefix
 #

@@ -939,15 +939,20 @@ class GitProject(Package):
             '  echo "WARNING: %s is on branch $cur, expected %s" >&2' % (src, self.branch),
             "fi"]))
 
-    def cmake_build(self, kind, args, clean):
+    def configure_cmd(self, args):
+        return cmdline("cmake", args + self.ctx.extra(self) + [self.ctx.loc[self.name]])
+
+    def cmake_build(self, kind, args, clean, configure=None, post=()):
+        """configure: shell text replacing the plain `cmake args src` line; post: lines run
+        in the build directory after the build."""
         c = self.ctx
         src = c.loc[self.name]
         d = os.path.join(self.builddir(), kind)
         lines = ["rm -rf %s" % q(d)] if clean else []
         lines += ["mkdir -p %s" % q(d), "cd %s" % q(d),
-                  cmdline("cmake", args + c.extra(self) + [src]),
+                  configure or self.configure_cmd(args),
                   "cmake --build . --parallel %s" % c.j]
-        return Step(src, "\n".join(lines))
+        return Step(src, "\n".join(lines + list(post)))
 
 
 class DFTFE(GitProject):
@@ -962,6 +967,11 @@ class DFTFE(GitProject):
     def srcdir(self):
         return absp(self.ctx.cfg.dftfe_src) if self.ctx.cfg.dftfe_src else os.path.join(self.ctx.P, "dftfe")
 
+    def installdir(self, kind):
+        """`cmake --install` prefix of a library-style DFT-FE build (one per scalar type,
+        since each installs its own include/dftfe/config.h)."""
+        return os.path.join(self.builddir(), "install", kind)
+
     def deps(self):
         c = self.ctx
         d = list(c.dealii_names) + ["alglib", "libxc", "spglib", "elpa"]
@@ -972,14 +982,23 @@ class DFTFE(GitProject):
         c = self.ctx
         steps = [self.branch_check()]
         for kind in c.scalars:
+            inst = self.installdir(kind)
+            # DFT-FE versions built as a library generate a CMake package config
+            # (cmake/dftfeConfig.cmake) in the build tree; install those so invDFT can use
+            # find_package(dftfe). Older versions are used from the build tree as before.
+            post = ["if [ -f cmake/dftfeConfig.cmake ]; then",
+                    "  rm -rf %s" % q(inst),
+                    "  cmake --install .",
+                    "fi"]
             args = gpu_cmake_args(c) + [
+                "-DCMAKE_INSTALL_PREFIX=" + inst,
                 "-DDEAL_II_DIR=" + c.dealii_dir(kind),
                 "-DWITH_MDI=OFF", "-DMDI_PATH=", "-DWITH_TORCH=OFF",
                 "-DWITH_CUSTOMIZED_DEALII=OFF", "-DWITH_TESTING=OFF", "-DMINIMAL_COMPILE=OFF",
                 "-DHIGHERQUAD_PSP=" + onoff(c.cfg.higher_quad_psp),
                 "-DBUILD_SHARED_LIBS=ON", "-DUSE_64BIT_INT=" + onoff(c.cfg.int64),
                 "-DWITH_COMPLEX=" + onoff(kind == "complex")]
-            steps.append(self.cmake_build(kind, args, clean))
+            steps.append(self.cmake_build(kind, args, clean, post=post))
         return steps
 
 
@@ -1002,16 +1021,37 @@ class InvDFT(GitProject):
     def build_steps(self, clean=True):
         c = self.ctx
         dftfe_src = c.loc["dftfe"]
-        dftfe_real = os.path.join(dftfe_src, "build", c.cfg.build_type.lower(), "real")
-        # Newer DFT-FE generates include/dftfe/config.h inside its build tree.
-        includes = [os.path.join(dftfe_src, "include"), os.path.join(dftfe_real, "include")]
+        dftfe_build = os.path.join(dftfe_src, "build", c.cfg.build_type.lower())
+        dftfe_real = os.path.join(dftfe_build, "real")
+        dftfe_inst = os.path.join(dftfe_build, "install", "real")  # DFTFE.installdir("real")
+        dftfe_cfg = os.path.join(dftfe_inst, "lib", "cmake", "dftfe")
         args = gpu_cmake_args(c) + [
             "-DDEAL_II_DIR=" + c.dealii_dir("real"),
-            "-DDFTFE_INSTALL_PATH=" + dftfe_real,
-            "-DDFTFE_INCLUDE_PATH=" + ";".join(includes),
             "-DUSE_64BIT_INT=" + onoff(c.cfg.int64),
             "-DWITH_COMPLEX=OFF"]
-        return [self.branch_check(), self.cmake_build("real", args, clean)]
+        # Library-style DFT-FE (installed with dftfeConfig.cmake): dftfe_DIR for
+        # find_package(dftfe), plus the install tree's lib and headers for invDFT versions
+        # that still use DFTFE_INSTALL_PATH/DFTFE_INCLUDE_PATH. The headers live in
+        # include/dftfe and invDFT includes them unqualified.
+        installed = args + [
+            "-Ddftfe_DIR=" + dftfe_cfg,
+            "-DDFTFE_INSTALL_PATH=" + os.path.join(dftfe_inst, "lib"),
+            "-DDFTFE_INCLUDE_PATH=" + ";".join([os.path.join(dftfe_inst, "include"),
+                                                os.path.join(dftfe_inst, "include", "dftfe")])]
+        # Otherwise use the build tree, as before. Newer DFT-FE generates
+        # include/dftfe/config.h inside its build tree.
+        build_tree = args + [
+            "-DDFTFE_INSTALL_PATH=" + dftfe_real,
+            "-DDFTFE_INCLUDE_PATH=" + ";".join([os.path.join(dftfe_src, "include"),
+                                                os.path.join(dftfe_src, "include", "dftfe"),
+                                                os.path.join(dftfe_real, "include")])]
+        configure = "\n".join([
+            "if [ -f %s ]; then" % q(os.path.join(dftfe_cfg, "dftfeConfig.cmake")),
+            self.configure_cmd(installed),
+            "else",
+            self.configure_cmd(build_tree),
+            "fi"])
+        return [self.branch_check(), self.cmake_build("real", args, clean, configure=configure)]
 
 
 # ---------------------------------------------------------------------------

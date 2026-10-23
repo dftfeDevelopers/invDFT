@@ -292,6 +292,7 @@ The DFT-FE manual asks for deal.II 9.6.2, which is therefore the default on ever
   dftfe/                        DFT-FE git checkout (or --dftfe-src)
     build/release/real/dftfe      (scalar_type real or both)
     build/release/complex/dftfe   (scalar_type complex or both)
+    build/release/install/<s>/    `cmake --install` tree (DFT-FE versions built as a library)
   invDFT/                       invDFT git checkout (or --invdft-src)
     build/release/real/invDFT_exe
   .install_dftfe/stamps/        stamps for DFT-FE and invDFT
@@ -299,9 +300,13 @@ The DFT-FE manual asks for deal.II 9.6.2, which is therefore the default on ever
 ```
 
 DFT-FE and invDFT are built inside their own checkouts and are never deleted by
-the installer. invDFT links directly against `dftfe/build/<type>/real`. Its
-include path is `dftfe/include` plus the DFT-FE build's `include/`, because newer
-DFT-FE generates `config.h` in its build tree.
+the installer. DFT-FE versions that are built as a library (they generate
+`dftfeConfig.cmake`) are also installed into `dftfe/build/<type>/install/<s>`, one
+prefix per scalar type since each has its own `config.h`. invDFT then links
+against that install through `find_package(dftfe)` (`-Ddftfe_DIR=.../lib/cmake/dftfe`).
+Older DFT-FE versions have no install step: invDFT links directly against
+`dftfe/build/<type>/real`, with `dftfe/include`, `dftfe/include/dftfe` and the
+DFT-FE build's `include/` on its include path.
 
 ## How a run works
 
